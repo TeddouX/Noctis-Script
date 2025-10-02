@@ -7,17 +7,18 @@ set(NCSC_SOURCES
     # -------------------
     #      Headers
     # -------------------
-    "include/ncsc/lexer.h"
-    "include/ncsc/ncsc.h"
-    "include/ncsc/parser.h"
-    "include/ncsc/script_node.h"
-    "include/ncsc/token.h"
+    "include/ncsc/lexer.hpp"
+    "include/ncsc/ncsc.hpp"
+    "include/ncsc/parser.hpp"
+    "include/ncsc/script_node.hpp"
+    "include/ncsc/token.hpp"
 
     # -------------------
     #    Source files
     # -------------------
     "src/lexer.cpp"
     "src/parser.cpp"
+    "src/script_node.cpp"
 )
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${NCSC_SOURCES})

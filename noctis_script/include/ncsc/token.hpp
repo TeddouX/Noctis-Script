@@ -9,8 +9,8 @@ enum class TokenType {
     INVALID,
 
     ID,    // azer123
-    INT,   // 123
-    FLOAT, // 123.2
+    INT_CONSTANT,   // 123
+    FLOAT_CONSTANT, // 123.2
 
     // Binary operations
     PLUS,  // +
@@ -30,8 +30,8 @@ enum class TokenType {
     POINT,     // .
 
     // Reserved keywords
-    INT_KEYWORD,   // int
-    FLOAT_KEYWORD, // float
+    INT_KWD,   // int
+    FLOAT_KWD, // float
 
     END_OF_FILE,
 };
@@ -53,8 +53,8 @@ const std::unordered_map<std::string, TokenType> g_reservedTokensStringToTok = {
 
     {";", TokenType::SEMICOLON},
 
-    {"int", TokenType::INT_KEYWORD},
-    {"float", TokenType::FLOAT_KEYWORD},
+    {"int", TokenType::INT_KWD},
+    {"float", TokenType::FLOAT_KWD},
 };
 
 } // namespace NCSC

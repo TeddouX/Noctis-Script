@@ -3,8 +3,8 @@
 #include <string>
 #include <memory>
 
-#include "token.h"
-#include "ncsc.h"
+#include "token.hpp"
+#include "ncsc.hpp"
 
 namespace NCSC
 {

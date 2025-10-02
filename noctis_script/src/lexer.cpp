@@ -1,4 +1,4 @@
-#include <ncsc/lexer.h>
+#include <ncsc/lexer.hpp>
 #include <iostream>
 
 namespace NCSC
@@ -88,7 +88,7 @@ std::unique_ptr<Token> Lexer::getCurrent() {
                 val += '0';
         }
 
-        TokenType type = hasPoint ? TokenType::FLOAT : TokenType::INT;
+        TokenType type = hasPoint ? TokenType::FLOAT_CONSTANT : TokenType::INT_CONSTANT;
         return std::make_unique<Token>(type, val);
     }
 

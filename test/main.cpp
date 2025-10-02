@@ -1,11 +1,11 @@
-#include <ncsc/lexer.h>
+#include <ncsc/lexer.hpp>
+#include <ncsc/parser.hpp>
 #include <iostream>
 
 int main() {
-    auto a = NCSC::Lexer("float a = 1.1;").tokenizeAll();
-
-    for (auto b : a)
-        std::cout << "Type: " << (int)b.type << " Value: \"" << b.val << "\"" << std::endl;
+    auto a = NCSC::Lexer("float a;").tokenizeAll();
+    auto b = NCSC::Parser(a);
+    b.parseAll();
 
     return 0;
 }

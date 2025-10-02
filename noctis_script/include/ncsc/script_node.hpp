@@ -1,22 +1,30 @@
 #include <vector>
 
+#include "token.hpp"
+
 namespace NCSC
 {
     
 enum class ScriptNodeType {
-    PROGRAM,
-    VAR_DECL
+    SCRIPT,
+    VARIABLE_DECLARATION,
+    DATA_TYPE,
+    IDENTIFIER,
 };
 
 struct ScriptNode {
     ScriptNodeType type;
-    
-    ScriptNode *prev;
-    ScriptNode *next;
-    ScriptNode *parent;
-    std::vector<ScriptNode *> children;
+    Token *token = nullptr;
 
-    void addChild(ScriptNode *child);
+    ScriptNode *prev = nullptr;
+    ScriptNode *next = nullptr;
+    ScriptNode *parent = nullptr;
+    std::vector<ScriptNode> children;
+
+    ScriptNode(ScriptNodeType type)
+        : type(type) {}
+
+    void addChild(ScriptNode child);
 };
 
 } // namespace NCSC
