@@ -40,12 +40,41 @@ Token &Parser::peek(int amount) {
 }
 
 bool Parser::isDataType(TokenType type) {
+    // TODO: Compare against a list of cached types
     switch (type) {
         case TokenType::INT_KWD:
         case TokenType::FLOAT_KWD:
             return true;
+            break;
         default:
             return false;
+            break;
+    }
+}
+
+bool Parser::isConstantValue(TokenType type) {
+    switch (type) {
+        case TokenType::INT_CONSTANT:
+        case TokenType::FLOAT_CONSTANT:
+            return true;
+            break;   
+        default:
+            return false;
+            break;
+    }
+}
+
+bool Parser::isOperator(TokenType type) {
+    switch (type) {
+        case TokenType::PLUS:
+        case TokenType::MINUS:
+        case TokenType::STAR:
+        case TokenType::SLASH:
+            return true;
+            break;   
+        default:
+            return false;
+            break;
     }
 }
 
@@ -69,24 +98,35 @@ bool Parser::isVariableDeclaration() {
         return false;
 }
 
-ScriptNode Parser::parseVariableDeclaration() {
-    ScriptNode declNode(ScriptNodeType::VARIABLE_DECLARATION);
+bool Parser::isExpressionTerm() {
+    Token t = peek(0);
+    if (t.type == TokenType::ID) {
+        // TODO: check against a cache of already parsed types
+        return true;
+    }
+    else if (isConstantValue(t.type))
+        return true;
+}
 
-    declNode.addChild(parseType());
-    declNode.addChild(parseIdentifier());
+ScriptNode Parser::parseVariableDeclaration() {
+    ScriptNode node(ScriptNodeType::VARIABLE_DECLARATION);
+
+    node.addChild(parseType());
+    node.addChild(parseIdentifier());
 
     Token &t = peek(0);
     if (t.type == TokenType::EQUAL) {
+        node.addChild(parseExpression());
         
     }
     else if (t.type == TokenType::SEMICOLON) {
         consume();
-        return declNode;
+        return node;
     }
 }
 
 ScriptNode Parser::parseType() {
-    ScriptNode dataType(ScriptNodeType::DATA_TYPE);
+    ScriptNode node(ScriptNodeType::DATA_TYPE);
 
     Token &t = consume();
     if (!isDataType(t.type)) {
@@ -94,12 +134,12 @@ ScriptNode Parser::parseType() {
         exit(-1);
     }
 
-    dataType.token = &t;
-    return dataType;
+    node.token = &t;
+    return node;
 }
 
 ScriptNode Parser::parseIdentifier() {
-    ScriptNode id(ScriptNodeType::IDENTIFIER);
+    ScriptNode node(ScriptNodeType::IDENTIFIER);
 
     Token &t = consume();
     if (t.type != TokenType::ID) {
@@ -107,8 +147,82 @@ ScriptNode Parser::parseIdentifier() {
         exit(-1);
     }
 
-    id.token = &t;
-    return id;
+    node.token = &t;
+    return node;
+}
+
+ScriptNode Parser::parseExpression() {
+    ScriptNode node(ScriptNodeType::EXPRESSION);
+
+    Token &t = consume();
+    if (!isExpressionTerm()) {
+        std::cerr << "Expected an expression term (func call, constant, ...) but got: " << t.val << std::endl;
+        exit(-1);
+    }
+
+    // First expression
+    node.addChild(parseExpressionTerm());
+
+    for (;;) {
+        Token &t1 = peek(0);
+        if (isOperator(t1.type))
+            node.addChild(parseExpressionOperator());
+        else
+            // The expression is finished, there should be no more terms left over
+            return node;
+        
+        // There should always be a term after an operator
+        node.addChild(parseExpressionTerm());
+    }
+
+    return node;
+}
+
+ScriptNode Parser::parseExpressionTerm() {
+    ScriptNode node(ScriptNodeType::EXPRESSION_TERM);
+
+    Token &t = peek(0);
+    if (!isExpressionTerm()) {
+        std::cerr << "Expected an expression term (func call, constant, ...) but got: " << t.val << std::endl;
+        exit(-1);
+    }
+    
+    if (isConstantValue(t.type))
+        node.addChild(parseConstant());
+    else if (t.type == TokenType::ID)
+        node.addChild(parseIdentifier());
+
+    return node;
+}
+
+ScriptNode Parser::parseExpressionOperator() {
+    ScriptNode node(ScriptNodeType::EXPRESSION_OPERATOR);
+
+    Token &t = peek(0);
+    if (!isExpressionTerm()) {
+        std::cerr << "Expected an expression term (func call, constant, ...) but got: " << t.val << std::endl;
+        exit(-1);
+    }
+    
+    if (isConstantValue(t.type))
+        node.addChild(parseConstant());
+    else if (t.type == TokenType::ID)
+        node.addChild(parseIdentifier());
+
+    return node;
+}
+
+ScriptNode Parser::parseConstant() {
+    ScriptNode node(ScriptNodeType::CONSTANT);
+
+    Token &t = consume();
+    if (!isConstantValue(t.type)) {
+        std::cerr << "Expected a constant value. Instead got: " << t.val << std::endl;
+        exit(-1);
+    }
+
+    node.token = &t;
+    return node;
 }
 
 } // namespace NCSC

@@ -2,6 +2,8 @@
 #include <string>
 #include <unordered_map>
 
+#include "ncsc.hpp"
+
 namespace NCSC
 {
 
@@ -36,13 +38,16 @@ enum class TokenType {
     END_OF_FILE,
 };
 
-struct Token {
+struct NCSC_API Token {
     TokenType type;
     std::string val;
-    int line, col;
+    uint32_t line, col;
 
-    Token(TokenType type, const std::string &val)
-        : type(type), val(val) {}
+    Token(TokenType type, const std::string &val, uint32_t line, uint32_t column)
+        : type(type), val(val), line(line), col(column) {}
+
+    std::string getStrRepr();
+    size_t getLength();
 };
 
 const std::unordered_map<std::string, TokenType> g_reservedTokensStringToTok = {

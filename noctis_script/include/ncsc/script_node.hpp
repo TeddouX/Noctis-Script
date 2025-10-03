@@ -1,6 +1,7 @@
 #include <vector>
 
 #include "token.hpp"
+#include "ncsc.hpp"
 
 namespace NCSC
 {
@@ -10,9 +11,13 @@ enum class ScriptNodeType {
     VARIABLE_DECLARATION,
     DATA_TYPE,
     IDENTIFIER,
+    EXPRESSION,
+    EXPRESSION_TERM,
+    EXPRESSION_OPERATOR,
+    CONSTANT,
 };
 
-struct ScriptNode {
+struct NCSC_API ScriptNode {
     ScriptNodeType type;
     Token *token = nullptr;
 

@@ -19,8 +19,13 @@ public:
 private:
     std::string source_;
     size_t currIdx_ = 0;
+    int line = 1;
+    int column = 1;
     
     std::unique_ptr<Token> getCurrent();
+
+    void advance(int amount = 1);
+    std::unique_ptr<Token> createToken(TokenType type, const std::string &val = "");
 };
 
 } // namespace NCSC

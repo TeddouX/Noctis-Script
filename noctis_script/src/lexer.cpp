@@ -11,16 +11,12 @@ static bool isWhitespace(char c) {
 std::vector<Token> Lexer::tokenizeAll() {
     std::vector<Token> tokens;
 
-    for (;;) {
-        auto curr = getCurrent();
-        if (curr)
+    while (currIdx_ < source_.length()) {
+        if (auto curr = getCurrent())
             tokens.push_back(*curr);
-
-        if (currIdx_ >= source_.length())
-            break;
     }
 
-    tokens.push_back(Token{TokenType::END_OF_FILE, ""});
+    tokens.push_back(*createToken(TokenType::END_OF_FILE));
 
     return tokens;
 }
@@ -30,16 +26,31 @@ std::unique_ptr<Token> Lexer::getCurrent() {
 
     // Remove all whitespaces
     if (isWhitespace(currChar)) {
-        int len = 1;
+        int len = 0;
+        int numLines = 0;
         // Remove until the end of the source
         while (currIdx_ + len < source_.length()) {
             char charAt = source_.at(currIdx_ + len);
+            
+            // Count number of lines and columns
+            // column count is also managed inside the token code
+            if (charAt == '\n') {
+                column = 1;
+                numLines++;
+            }
+
             if (!isWhitespace(charAt))
                 break;
             len++;
         }
 
-        currIdx_ += len;
+        advance(len);
+
+        line += numLines;    
+        // Every \n is added to the total number of 
+        // whitespaces, so remove them
+        column -= numLines;
+
         // No token for whitespaces
         return nullptr;
     }
@@ -74,10 +85,10 @@ std::unique_ptr<Token> Lexer::getCurrent() {
         }
 
         std::string val = source_.substr(currIdx_, len);
-        currIdx_ += len;
-        
+        advance(len);
+
         if (hasPoint && !hasDigits)
-            return std::make_unique<Token>(TokenType::POINT, val);
+            return std::make_unique<Token>(TokenType::POINT, val, line, column);
 
         if (hasPoint) {
             // .1 -> 0.1
@@ -89,7 +100,7 @@ std::unique_ptr<Token> Lexer::getCurrent() {
         }
 
         TokenType type = hasPoint ? TokenType::FLOAT_CONSTANT : TokenType::INT_CONSTANT;
-        return std::make_unique<Token>(type, val);
+        return createToken(type, val);
     }
 
     // a1_b2 or reserved token
@@ -105,77 +116,88 @@ std::unique_ptr<Token> Lexer::getCurrent() {
         }
 
         std::string val = source_.substr(currIdx_, len);
-        currIdx_ += len;
+        advance(len);
 
         auto it = g_reservedTokensStringToTok.find(val);
         if (it != g_reservedTokensStringToTok.end())
-            return std::make_unique<Token>(it->second, "");
+            return createToken(it->second);
         
-        return std::make_unique<Token>(TokenType::ID, val);
+        return createToken(TokenType::ID, val);
     }
 
     switch (currChar) {
         case '+': {
-            currIdx_++;
+            advance();
 
             if (currIdx_ >= source_.length())
-                return std::make_unique<Token>(TokenType::PLUS, "");
+                return createToken(TokenType::PLUS);
             else if (source_.at(currIdx_) == '=') {
-                currIdx_++;
-                return std::make_unique<Token>(TokenType::PLUS_EQUAL, "");
+                advance();
+                return createToken(TokenType::PLUS_EQUAL);
             }
             break;
         }
         case '-': {
-            currIdx_++;
+            advance();
 
             if (currIdx_ >= source_.length())
-                return std::make_unique<Token>(TokenType::MINUS, "");
+                return createToken(TokenType::MINUS);
             else if (source_.at(currIdx_) == '=') {
-                currIdx_++;
-                return std::make_unique<Token>(TokenType::MINUS_EQUAL, "");
+                advance();
+                return createToken(TokenType::MINUS_EQUAL);
             }
             break;
         }  
         case '*': {
-            currIdx_++;
+            advance();
 
             if (currIdx_ >= source_.length())
-                return std::make_unique<Token>(TokenType::STAR, "");
+                return createToken(TokenType::STAR);
             else if (source_.at(currIdx_) == '=') {
-                currIdx_++;
-                return std::make_unique<Token>(TokenType::STAR_EQUAL, "");
+                advance();
+                return createToken(TokenType::STAR_EQUAL);
             }
             break;
         }  
         case '/': {
-            currIdx_++;
+            advance();
 
             if (currIdx_ >= source_.length())
-                return std::make_unique<Token>(TokenType::SLASH, "");
+                return createToken(TokenType::SLASH);
             else if (source_.at(currIdx_) == '=') {
-                currIdx_++;
-                return std::make_unique<Token>(TokenType::SLASH_EQUAL, "");
+                advance();
+                return createToken(TokenType::SLASH_EQUAL);
             }
             break;
         }
         case '=': {
-            currIdx_++;
-            return std::make_unique<Token>(TokenType::EQUAL, "");
+            advance();
+            return createToken(TokenType::EQUAL);
             break;
         }
         
         case ';': {
-            currIdx_++;
-            return std::make_unique<Token>(TokenType::SEMICOLON, "");
+            advance();
+            return createToken(TokenType::SEMICOLON);
             break;
         }
     }
 
-    currIdx_++;
-    return std::make_unique<Token>(
-        TokenType::INVALID, 
-        std::string(1, currChar));
+    advance();
+    return createToken(TokenType::INVALID, std::string(1, currChar));
+}
+
+void Lexer::advance(int amount) {
+    currIdx_ += amount;
+    column += amount;
+}
+
+std::unique_ptr<Token> Lexer::createToken(TokenType type, const std::string &val) {
+    auto tok = std::make_unique<Token>(type, val, line, column);
+    // Column start at the beginning of the token
+    tok->col -= tok->getLength();
+
+    return std::move(tok);
 }
 
 } // namespace NCSC

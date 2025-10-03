@@ -19,6 +19,7 @@ set(NCSC_SOURCES
     "src/lexer.cpp"
     "src/parser.cpp"
     "src/script_node.cpp"
+    "src/token.cpp"
 )
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${NCSC_SOURCES})

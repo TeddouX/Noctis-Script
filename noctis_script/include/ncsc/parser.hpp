@@ -22,11 +22,19 @@ private:
     Token &peek(int amount = 1);
 
     bool isDataType(TokenType type);
+    bool isConstantValue(TokenType type);
+    bool isOperator(TokenType type);
 
     bool isVariableDeclaration();
+    bool isExpressionTerm();
+
     ScriptNode parseVariableDeclaration(); 
     ScriptNode parseType();
     ScriptNode parseIdentifier();
+    ScriptNode parseConstant();
+    ScriptNode parseExpression();
+    ScriptNode parseExpressionTerm();
+    ScriptNode parseExpressionOperator();
 };
 
 } // namespace NCSC
