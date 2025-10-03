@@ -35,7 +35,7 @@ std::unique_ptr<Token> Lexer::getCurrent() {
             // Count number of lines and columns
             // column count is also managed inside the token code
             if (charAt == '\n') {
-                column = 1;
+                column_ = 1;
                 numLines++;
             }
 
@@ -46,10 +46,10 @@ std::unique_ptr<Token> Lexer::getCurrent() {
 
         advance(len);
 
-        line += numLines;    
+        line_ += numLines;    
         // Every \n is added to the total number of 
         // whitespaces, so remove them
-        column -= numLines;
+        column_ -= numLines;
 
         // No token for whitespaces
         return nullptr;
@@ -88,7 +88,7 @@ std::unique_ptr<Token> Lexer::getCurrent() {
         advance(len);
 
         if (hasPoint && !hasDigits)
-            return std::make_unique<Token>(TokenType::POINT, val, line, column);
+            return createToken(TokenType::POINT);
 
         if (hasPoint) {
             // .1 -> 0.1
@@ -189,12 +189,12 @@ std::unique_ptr<Token> Lexer::getCurrent() {
 
 void Lexer::advance(int amount) {
     currIdx_ += amount;
-    column += amount;
+    column_ += amount;
 }
 
 std::unique_ptr<Token> Lexer::createToken(TokenType type, const std::string &val) {
-    auto tok = std::make_unique<Token>(type, val, line, column);
-    // Column start at the beginning of the token
+    auto tok = std::make_unique<Token>(type, val, line_, column_);
+    // Column starts at the beginning of the token
     tok->col -= tok->getLength();
 
     return std::move(tok);

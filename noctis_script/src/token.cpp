@@ -3,7 +3,22 @@
 namespace NCSC
 {
     
+static bool isSpecialTok(TokenType type) {
+    return type >= TokenType::END_OF_FILE;
+}
+
 static std::string getTokTypeStrRepr(TokenType type) {
+    // "Special" tokens like eof, etc...
+    switch (type)
+    {
+        case TokenType::END_OF_FILE:
+            return "<eof>";
+            break;
+        default:
+            break;
+    }
+        
+    // Reserved tokens
     for (const auto &[str, tokTy] : g_reservedTokensStringToTok) {
         if (tokTy == type)
             return str;
@@ -13,15 +28,17 @@ static std::string getTokTypeStrRepr(TokenType type) {
 } 
 
 std::string Token::getStrRepr() {
-    if (val.empty()) {
+    if (val.empty())
         return getTokTypeStrRepr(type);
-    } else {
+    else
         return val;
-    }
 }
 
 size_t Token::getLength() {
-    return getStrRepr().size();
+    if (isSpecialTok(type))
+        return 0;
+    else
+        return getStrRepr().size();
 }
 
 } // namespace NCSC

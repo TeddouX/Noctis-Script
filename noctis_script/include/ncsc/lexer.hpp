@@ -19,8 +19,7 @@ public:
 private:
     std::string source_;
     size_t currIdx_ = 0;
-    int line = 1;
-    int column = 1;
+    uint32_t line_ = 1, column_ = 1;
     
     std::unique_ptr<Token> getCurrent();
 

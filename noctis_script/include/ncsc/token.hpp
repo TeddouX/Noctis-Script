@@ -7,10 +7,10 @@
 namespace NCSC
 {
 
-enum class TokenType {
+enum class TokenType : uint8_t {
     INVALID,
 
-    ID,    // azer123
+    ID,             // azer123
     INT_CONSTANT,   // 123
     FLOAT_CONSTANT, // 123.2
 
@@ -35,6 +35,7 @@ enum class TokenType {
     INT_KWD,   // int
     FLOAT_KWD, // float
 
+    // Special tokens
     END_OF_FILE,
 };
 
@@ -57,6 +58,7 @@ const std::unordered_map<std::string, TokenType> g_reservedTokensStringToTok = {
     {"/", TokenType::SLASH},
 
     {";", TokenType::SEMICOLON},
+    {".", TokenType::POINT},
 
     {"int", TokenType::INT_KWD},
     {"float", TokenType::FLOAT_KWD},
