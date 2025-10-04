@@ -1,20 +1,23 @@
 #include <vector>
 
 #include "script_node.hpp"
+#include "syntax_error.hpp"
 #include "token.hpp"
 #include "ncsc.hpp"
 
-// Error messages
-constexpr auto EXPECTED_EXPRESSION_TERM              = "Expected an expression term (function call, constant, variable...)";
-constexpr auto EXPECTED_CONSTANT_VALUE               = "Expected a constant value (1234, 123.456, ...)";
-constexpr auto EXPECTED_AN_IDENTIFIER                = "Expected an identifier";
-constexpr auto EXPECTED_A_DATA_TYPE                  = "Expected a data type (int, float, ...)";
-constexpr auto EXPECTED_AN_OPERATOR                  = "Expected an operator ('+', '-', '*', '/', ...)";
-constexpr auto UNEXPECTED_TOKEN_DURING_VARIABLE_DECL = "Unexpected token during variable declaration";
-constexpr auto I_DUNNO_WHAT_TO_NAME_THIS             = "Only variable declarations are supported for now ;)";
+#define CHECK_SYNTAX_ERROR if (hasSyntaxError_) return node
 
 namespace NCSC
 {
+
+// Error messages
+constexpr auto EXPECTED_A_SEMICOLON      = "Expected a semicolon (';')";
+constexpr auto EXPECTED_EXPRESSION_TERM  = "Expected an expression term (function call, constant, variable...)";
+constexpr auto EXPECTED_CONSTANT_VALUE   = "Expected a constant value (1234, 123.456, ...)";
+constexpr auto EXPECTED_AN_IDENTIFIER    = "Expected an identifier";
+constexpr auto EXPECTED_A_DATA_TYPE      = "Expected a data type (int, float, ...)";
+constexpr auto EXPECTED_AN_OPERATOR      = "Expected an operator ('+', '-', '*', '/', ...)";
+constexpr auto I_DUNNO_WHAT_TO_NAME_THIS = "Only variable declarations are supported for now ;)";
 
 class NCSC_API Parser {
 public:
@@ -22,16 +25,17 @@ public:
         : tokens_(tokens) {}
 
     ScriptNode parseAll();
+    
     bool hasErrors() { return hasSyntaxError_; }
-    // std::vector<SyntaxError> getErrors() { return syntaxErrors; }
+    const std::vector<SyntaxError> &getErrors() { return syntaxErrors_; }
 
 private:
     std::vector<Token> tokens_;
     size_t idx_ = 0;
     bool hasSyntaxError_ = false;
-    // std::vector<SyntaxError> syntaxErrors;
+    std::vector<SyntaxError> syntaxErrors_;
 
-    void createSyntaxError(const std::string &message, const Token &tok);
+    void createSyntaxError(const char *message, const Token &tok);
 
     Token &consume();
     Token &peek(int amount = 1);

@@ -24,11 +24,10 @@ ScriptNode Parser::parseAll() {
     return root;
 }
 
-void Parser::createSyntaxError(const std::string &message, const Token &tok) {
+void Parser::createSyntaxError(const char *message, const Token &tok) {
     hasSyntaxError_ = true;
     // TODO: make ts better
-    std::cout << message << std::endl;
-    std::cout << "Location (line:col): " << tok.line << ":" << tok.col << std::endl;
+    syntaxErrors_.push_back(SyntaxError(&tok, message));
 }
 
 Token &Parser::consume() {
@@ -95,12 +94,12 @@ bool Parser::isVariableDeclaration() {
         return false;
 
     t = peek(1);
-    // Variable decleration should have a name
+    // Variable declaration should have a name
     if (t.type != TokenType::ID)
         return false;
 
     t = peek(2);
-    // Decleration can stop at a semicolon or it has an equal
+    // Declaration can stop at a semicolon or it has an equal
     // int a;
     // int a = (...)
     if (t.type == TokenType::SEMICOLON || t.type == TokenType::EQUAL)
@@ -112,18 +111,21 @@ bool Parser::isVariableDeclaration() {
 ScriptNode Parser::parseVariableDeclaration() {
     ScriptNode node(ScriptNodeType::VARIABLE_DECLARATION);
 
-    node.addChild(parseType());
-    node.addChild(parseIdentifier());
+    node.addChild(parseType());       CHECK_SYNTAX_ERROR;
+    node.addChild(parseIdentifier()); CHECK_SYNTAX_ERROR;
 
     Token &t = peek(0);
-    if (t.type == TokenType::EQUAL)
-        node.addChild(parseExpression());
-    else if (t.type == TokenType::SEMICOLON)
+    if (t.type == TokenType::EQUAL) {
         consume();
-    else {
-        consume();
-        createSyntaxError(UNEXPECTED_TOKEN_DURING_VARIABLE_DECL, t);
+        node.addChild(parseExpression()); 
+        // There should be an expression after an equal
+        CHECK_SYNTAX_ERROR;
     }
+
+    // Variable declaration should end with a semicolon
+    Token &t1 = consume();
+    if (t1.type != TokenType::SEMICOLON)
+        createSyntaxError(EXPECTED_A_SEMICOLON, t1);
     
     return node;
 }
@@ -158,9 +160,8 @@ ScriptNode Parser::parseExpression() {
     ScriptNode node(ScriptNodeType::EXPRESSION);
 
     node.addChild(parseExpressionTerm());
-    // The first part of an expression should 
-    // always be an expression term
-    if (hasSyntaxError_) return node;
+    // The first part of an expression should always be a term
+    CHECK_SYNTAX_ERROR;
 
     for (;;) {
         Token &t1 = peek(0);
@@ -172,7 +173,7 @@ ScriptNode Parser::parseExpression() {
         
         node.addChild(parseExpressionTerm());
         // There should always be a term after an operator
-        if (hasSyntaxError_) return node;
+        CHECK_SYNTAX_ERROR;
     }
 
     return node;

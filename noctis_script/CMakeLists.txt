@@ -11,6 +11,7 @@ set(NCSC_SOURCES
     "include/ncsc/ncsc.hpp"
     "include/ncsc/parser.hpp"
     "include/ncsc/script_node.hpp"
+    "include/ncsc/syntax_error.hpp"
     "include/ncsc/token.hpp"
 
     # -------------------
@@ -19,6 +20,7 @@ set(NCSC_SOURCES
     "src/lexer.cpp"
     "src/parser.cpp"
     "src/script_node.cpp"
+    "src/syntax_error.cpp"
     "src/token.cpp"
 )
 
