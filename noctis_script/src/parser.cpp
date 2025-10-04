@@ -174,8 +174,8 @@ ScriptNode Parser::parseExpression() {
     // The first part of an expression should always be a term
     CHECK_SYNTAX_ERROR;
 
-    for (;;) {
-        Token &t1 = peek(0);
+    for (int i = 0;; i++) {
+        Token &t1 = peek(i);
         if (isOperator(t1.type))
             node.addChild(parseExpressionOperator());
         else
@@ -215,6 +215,7 @@ ScriptNode Parser::parseExpressionOperator() {
         return node;
     }
 
+    node.token = &t;
     return node;
 }
 

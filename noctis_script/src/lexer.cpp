@@ -126,61 +126,44 @@ std::unique_ptr<Token> Lexer::getCurrent() {
     }
 
     switch (currChar) {
-        case '+': {
+        case '+':
             advance();
 
-            if (currIdx_ >= source_.length())
-                return createToken(TokenType::PLUS);
-            else if (source_.at(currIdx_) == '=') {
+            if (currIdx_ < source_.length() && source_.at(currIdx_) == '=') {
                 advance();
                 return createToken(TokenType::PLUS_EQUAL);
-            }
-            break;
-        }
-        case '-': {
+            } else
+                return createToken(TokenType::PLUS);
+        case '-':
             advance();
 
-            if (currIdx_ >= source_.length())
-                return createToken(TokenType::MINUS);
-            else if (source_.at(currIdx_) == '=') {
+            if (currIdx_ < source_.length() && source_.at(currIdx_) == '=') {
                 advance();
                 return createToken(TokenType::MINUS_EQUAL);
-            }
-            break;
-        }  
-        case '*': {
+            } else
+                return createToken(TokenType::MINUS);
+        case '*':
             advance();
 
-            if (currIdx_ >= source_.length())
-                return createToken(TokenType::STAR);
-            else if (source_.at(currIdx_) == '=') {
+            if (currIdx_ < source_.length() && source_.at(currIdx_) == '=') {
                 advance();
                 return createToken(TokenType::STAR_EQUAL);
-            }
-            break;
-        }  
-        case '/': {
+            } else
+                return createToken(TokenType::STAR);
+        case '/':
             advance();
 
-            if (currIdx_ >= source_.length())
-                return createToken(TokenType::SLASH);
-            else if (source_.at(currIdx_) == '=') {
+            if (currIdx_ < source_.length() && source_.at(currIdx_) == '=') {
                 advance();
                 return createToken(TokenType::SLASH_EQUAL);
-            }
-            break;
-        }
-        case '=': {
+            } else
+                return createToken(TokenType::SLASH);
+        case '=':
             advance();
             return createToken(TokenType::EQUAL);
-            break;
-        }
-        
-        case ';': {
+        case ';':
             advance();
             return createToken(TokenType::SEMICOLON);
-            break;
-        }
     }
 
     advance();

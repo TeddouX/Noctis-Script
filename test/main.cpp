@@ -3,7 +3,7 @@
 #include <iostream>
 
 int main() {
-    std::string code = "int a = 1;\nint b = 2; int z;";
+    std::string code = "int a = 1 + 1;\n";
     auto a = NCSC::Lexer(code).tokenizeAll();
 
     std::cout << code << std::endl << std::endl;
