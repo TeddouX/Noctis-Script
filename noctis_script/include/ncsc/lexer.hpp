@@ -25,6 +25,9 @@ private:
 
     void advance(int amount = 1);
     std::unique_ptr<Token> createToken(TokenType type, const std::string &val = "");
+
+    // Handle + and += style operators in the same function
+    std::unique_ptr<Token> matchOptional(char next, TokenType single, TokenType combined);
 };
 
 } // namespace NCSC

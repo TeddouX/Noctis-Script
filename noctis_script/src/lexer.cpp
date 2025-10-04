@@ -3,6 +3,15 @@
 
 namespace NCSC
 {
+
+static const std::unordered_map<char, TokenType> singleCharTokens = {
+    { ';', TokenType::SEMICOLON },
+    { '(', TokenType::PARENTHESIS_OPEN },
+    { ')', TokenType::PARENTHESIS_CLOSE },
+    { '{', TokenType::CURLY_BRACE_OPEN },
+    { '}', TokenType::CURLY_BRACE_CLOSE },
+    { ',', TokenType::COMMA }
+};
     
 static bool isWhitespace(char c) {
     return c == ' ' || c == '\t' || c == '\n';
@@ -125,61 +134,18 @@ std::unique_ptr<Token> Lexer::getCurrent() {
         return createToken(TokenType::ID, val);
     }
 
+    auto it = singleCharTokens.find(currChar);
+    if (it != singleCharTokens.end()) {
+        advance();
+        return createToken(it->second);
+    }
+
     switch (currChar) {
-        case '+':
-            advance();
-
-            if (currIdx_ < source_.length() && source_.at(currIdx_) == '=') {
-                advance();
-                return createToken(TokenType::PLUS_EQUAL);
-            } else
-                return createToken(TokenType::PLUS);
-        case '-':
-            advance();
-
-            if (currIdx_ < source_.length() && source_.at(currIdx_) == '=') {
-                advance();
-                return createToken(TokenType::MINUS_EQUAL);
-            } else
-                return createToken(TokenType::MINUS);
-        case '*':
-            advance();
-
-            if (currIdx_ < source_.length() && source_.at(currIdx_) == '=') {
-                advance();
-                return createToken(TokenType::STAR_EQUAL);
-            } else
-                return createToken(TokenType::STAR);
-        case '/':
-            advance();
-
-            if (currIdx_ < source_.length() && source_.at(currIdx_) == '=') {
-                advance();
-                return createToken(TokenType::SLASH_EQUAL);
-            } else
-                return createToken(TokenType::SLASH);
-
-        case '=':
-            advance();
-            return createToken(TokenType::EQUAL);
-        case ';':
-            advance();
-            return createToken(TokenType::SEMICOLON);
-        case '(':
-            advance();
-            return createToken(TokenType::PARENTHESIS_OPEN);
-        case ')':
-            advance();
-            return createToken(TokenType::PARENTHESIS_CLOSE);
-        case '{':
-            advance();
-            return createToken(TokenType::CURLY_BRACE_OPEN);
-        case '}':
-            advance();
-            return createToken(TokenType::CURLY_BRACE_CLOSE);
-        case ',':
-            advance();
-            return createToken(TokenType::COMMA);
+        case '=': return matchOptional('=', TokenType::EQUAL, TokenType::DOUBLE_EQUAL);
+        case '+': return matchOptional('=', TokenType::PLUS,  TokenType::PLUS_EQUAL);
+        case '-': return matchOptional('=', TokenType::MINUS, TokenType::MINUS_EQUAL);
+        case '/': return matchOptional('=', TokenType::SLASH, TokenType::SLASH_EQUAL);
+        case '*': return matchOptional('=', TokenType::STAR,  TokenType::STAR_EQUAL);
     }
 
     advance();
@@ -197,6 +163,16 @@ std::unique_ptr<Token> Lexer::createToken(TokenType type, const std::string &val
     tok->col -= tok->getLength();
 
     return std::move(tok);
+}
+
+std::unique_ptr<Token> Lexer::matchOptional(char next, TokenType single, TokenType combined) {
+    // Consume the first char
+    advance();
+    if (currIdx_ < source_.length() && source_.at(currIdx_) == next) {
+        advance();
+        return createToken(combined);
+    }
+    return createToken(single);
 }
 
 } // namespace NCSC
