@@ -4,13 +4,13 @@
 namespace NCSC
 {
 
-static const std::unordered_map<char, TokenType> singleCharTokens = {
+static const std::unordered_map<char, TokenType> g_singleCharTokens = {
     { ';', TokenType::SEMICOLON },
     { '(', TokenType::PARENTHESIS_OPEN },
     { ')', TokenType::PARENTHESIS_CLOSE },
     { '{', TokenType::CURLY_BRACE_OPEN },
     { '}', TokenType::CURLY_BRACE_CLOSE },
-    { ',', TokenType::COMMA }
+    { ',', TokenType::COMMA },
 };
     
 static bool isWhitespace(char c) {
@@ -127,15 +127,15 @@ std::unique_ptr<Token> Lexer::getCurrent() {
         std::string val = source_.substr(currIdx_, len);
         advance(len);
 
-        auto it = g_tokensStringToTok.find(val);
-        if (it != g_tokensStringToTok.end())
+        auto it = tokensStringToTok.find(val);
+        if (it != tokensStringToTok.end())
             return createToken(it->second);
         
         return createToken(TokenType::ID, val);
     }
 
-    auto it = singleCharTokens.find(currChar);
-    if (it != singleCharTokens.end()) {
+    auto it = g_singleCharTokens.find(currChar);
+    if (it != g_singleCharTokens.end()) {
         advance();
         return createToken(it->second);
     }

@@ -57,7 +57,7 @@ struct NCSC_API Token {
     size_t getLength() const;
 };
 
-const std::unordered_map<std::string, TokenType> g_tokensStringToTok = {
+const std::unordered_map<std::string, TokenType> tokensStringToTok = {
     {"+", TokenType::PLUS},
     {"-", TokenType::MINUS},
     {"*", TokenType::STAR},
@@ -73,7 +73,7 @@ const std::unordered_map<std::string, TokenType> g_tokensStringToTok = {
 
     {";", TokenType::SEMICOLON},
     {".", TokenType::POINT},
-    {",", TokenType::POINT},
+    {",", TokenType::COMMA},
 
     {"(", TokenType::PARENTHESIS_OPEN},  
     {")", TokenType::PARENTHESIS_CLOSE}, 

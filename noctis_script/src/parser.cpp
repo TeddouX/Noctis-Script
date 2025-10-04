@@ -200,8 +200,8 @@ ScriptNode Parser::parseExpression() {
     // The first part of an expression should always be a term
     CHECK_SYNTAX_ERROR;
 
-    for (int i = 0;; i++) {
-        Token &t1 = peek(i);
+    for (;;) {
+        Token &t1 = peek(0);
         if (isOperator(t1.type))
             node.addChild(parseExpressionOperator());
         else
@@ -316,7 +316,10 @@ ScriptNode Parser::parseStatementBlock() {
             node.addChild(parseVariableDeclaration());
         else if (t1.type == TokenType::CURLY_BRACE_CLOSE) {
             consume();
-            break;
+            return node;
+        } else if (t1.type == TokenType::END_OF_FILE) {
+            createSyntaxError(UNEXPECTED_EOF, t1);
+            return node;
         }
 
         // Try to recover from syntax errors
@@ -350,7 +353,7 @@ ScriptNode Parser::parseStatementBlock() {
                     return node;
                 }
                 else
-                    // Consume broken tokens
+                    // Consume unsafe tokens
                     consume();
             }
             
