@@ -15,7 +15,10 @@ static std::string getNodeTypeStrRepr(ScriptNodeType type) {
         case ScriptNodeType::EXPRESSION_TERM:      return "<EXPRESSION_TERM>";
         case ScriptNodeType::EXPRESSION_OPERATOR:  return "<EXPRESSION_OPERATOR>";
         case ScriptNodeType::CONSTANT:             return "<CONSTANT>";
-        default:                                   return "";
+        case ScriptNodeType::ARGUMENT_LIST:        return "<ARGUMENT_LIST>";
+        case ScriptNodeType::FUNCTION:             return "<FUNCTION>";
+        case ScriptNodeType::STATEMENT_BLOCK:      return "<STATEMENT_BLOCK>";
+        default:                                   return "<please add the missing node(s)>";
     }
 }
 
@@ -28,14 +31,11 @@ std::string ScriptNode::getStrRepr() const {
         auto [node, depth] = stack.top();
         stack.pop();
 
-        for (int i = 0; i < depth; ++i)
-            oss << "  ";
+        for (int i = 0; i < depth; ++i) oss << "  ";
         oss << getNodeTypeStrRepr(node.type);
 
-        if (node.token)
-            oss << " (" << node.token->getStrRepr() << ")" << "\n";
-        else
-            oss << "\n";
+        if (node.token) oss << " (" << node.token->getStrRepr() << ")" << "\n";
+        else            oss << "\n";
 
         // Push children in reverse order so the first one is processed first
         for (int i = node.children.size() - 1; i >= 0; --i)

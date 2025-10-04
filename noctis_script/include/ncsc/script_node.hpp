@@ -15,6 +15,9 @@ enum class ScriptNodeType : uint8_t {
     EXPRESSION_TERM,
     EXPRESSION_OPERATOR,
     CONSTANT,
+    ARGUMENT_LIST,
+    FUNCTION,
+    STATEMENT_BLOCK,
 };
 
 struct NCSC_API ScriptNode {

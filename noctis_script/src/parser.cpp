@@ -2,11 +2,21 @@
 #include <sstream>
 #include <iostream>
 #include <stack>
+#include <stdarg.h>
 
 #define CHECK_SYNTAX_ERROR if (hasSyntaxError_) return node
 
 namespace NCSC
 {
+
+static const char *format(const char *fmt, ...) {
+    static char buf[1024];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, args);
+    va_end(args);
+    return buf;
+}
 
 ScriptNode Parser::parseAll() {
     ScriptNode root(ScriptNodeType::SCRIPT);
@@ -18,6 +28,8 @@ ScriptNode Parser::parseAll() {
         if (isDataType(currTok.type)) {
             if (isVariableDeclaration())
                 root.addChild(parseVariableDeclaration());
+            else if (isFunction())
+                root.addChild(parseFunction());
         }
         else if (currTok.type == TokenType::END_OF_FILE) 
             break;
@@ -117,6 +129,20 @@ bool Parser::isVariableDeclaration() {
         return true;
     else
         return false;
+}
+
+bool Parser::isFunction() {
+    Token t = peek(0);
+    if (!isDataType(t.type))
+        return false;
+
+    t = peek(1);
+    if (t.type != TokenType::ID)
+        return false;
+
+    t = peek(2);
+    // int a(...
+    return t.type == TokenType::PARENTHESIS_OPEN;
 }
 
 ScriptNode Parser::parseVariableDeclaration() {
@@ -232,5 +258,107 @@ ScriptNode Parser::parseConstant() {
     return node;
 }
 
-} // namespace NCSC
+ScriptNode Parser::parseFunction() {
+    ScriptNode node(ScriptNodeType::FUNCTION);
 
+    node.addChild(parseType());       CHECK_SYNTAX_ERROR;
+    node.addChild(parseIdentifier()); CHECK_SYNTAX_ERROR;
+
+    Token &t = consume();
+    if (t.type != TokenType::PARENTHESIS_OPEN) {
+        createSyntaxError(format(EXPECTED_TOKEN, "("), t);
+        return node; 
+    }
+
+    Token &t1 = peek(0);
+    // The function has arguments
+    if (t1.type != TokenType::PARENTHESIS_CLOSE) {
+        ScriptNode argListNode(ScriptNodeType::ARGUMENT_LIST);
+
+        for (;;) {
+            argListNode.addChild(parseType());       CHECK_SYNTAX_ERROR;
+            argListNode.addChild(parseIdentifier()); CHECK_SYNTAX_ERROR;
+
+            Token &t2 = consume();
+            if (t2.type == TokenType::COMMA)
+                continue;
+            else if (t2.type == TokenType::PARENTHESIS_CLOSE) 
+                break;
+            else {
+                createSyntaxError(format(EXPECTED_TOKEN_OR_TOKEN, ",", ")"), t2);
+                break;
+            }
+        }
+
+        node.addChild(argListNode);
+        CHECK_SYNTAX_ERROR;
+    }
+    else
+        consume();
+
+    node.addChild(parseStatementBlock()); CHECK_SYNTAX_ERROR;
+
+    return node;
+}
+
+ScriptNode Parser::parseStatementBlock() {
+    ScriptNode node(ScriptNodeType::STATEMENT_BLOCK);
+
+    Token &t = consume();
+    if (t.type != TokenType::CURLY_BRACE_OPEN) {
+        createSyntaxError(format(EXPECTED_TOKEN, '{'), t);
+        return node;
+    }
+
+    for (;;) {
+        Token t1 = peek(0);
+        if (isVariableDeclaration())
+            node.addChild(parseVariableDeclaration());
+        else if (t1.type == TokenType::CURLY_BRACE_CLOSE) {
+            consume();
+            break;
+        }
+
+        // Try to recover from syntax errors
+        if (hasSyntaxError_) {
+            // Try exitting the problematic line or block of code
+            int level = 0;
+            for (int i = 0;; i++) {
+                t1 = peek(i);
+
+                if (t1.type == TokenType::SEMICOLON && level == 0) {
+                    // The comma isn't in an unsafe nested block so 
+                    // its safe to consume and break out of the loop
+                    consume();
+                    break;
+                }
+                else if (t1.type == TokenType::CURLY_BRACE_OPEN) {
+                    level++;
+                    consume();
+                } 
+                else if (t1.type == TokenType::CURLY_BRACE_CLOSE) {
+                    // End of nested block. The bracket will get handled 
+                    // in the next iteration of the outer for loop
+                    if (level == 0)
+                        break;
+                    
+                    consume();
+                    level--;
+                }
+                else if (t1.type == TokenType::END_OF_FILE) {
+                    createSyntaxError(UNEXPECTED_EOF, t1);
+                    return node;
+                }
+                else
+                    // Consume broken tokens
+                    consume();
+            }
+            
+            hasSyntaxError_ = false;
+        }
+    }
+
+    return node;
+}
+
+} // namespace NCSC

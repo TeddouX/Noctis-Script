@@ -30,6 +30,12 @@ enum class TokenType : uint8_t {
 
     SEMICOLON, // ;
     POINT,     // .
+    COMMA,     // ,
+
+    PARENTHESIS_OPEN,  // (
+    PARENTHESIS_CLOSE, // )
+    CURLY_BRACE_OPEN,  // {
+    CURLY_BRACE_CLOSE, // }
 
     // Reserved keywords
     INT_KWD,   // int
@@ -51,17 +57,31 @@ struct NCSC_API Token {
     size_t getLength() const;
 };
 
-const std::unordered_map<std::string, TokenType> g_reservedTokensStringToTok = {
+const std::unordered_map<std::string, TokenType> g_tokensStringToTok = {
     {"+", TokenType::PLUS},
     {"-", TokenType::MINUS},
     {"*", TokenType::STAR},
     {"/", TokenType::SLASH},
 
+    {"=", TokenType::EQUAL},
+    {"+=", TokenType::PLUS_EQUAL},
+    {"-=", TokenType::MINUS_EQUAL},
+    {"*=", TokenType::STAR_EQUAL},
+    {"/=", TokenType::SLASH_EQUAL},
+    
+    {"==", TokenType::DOUBLE_EQUAL},
+
     {";", TokenType::SEMICOLON},
     {".", TokenType::POINT},
+    {",", TokenType::POINT},
 
-    {"int", TokenType::INT_KWD},
-    {"float", TokenType::FLOAT_KWD},
+    {"(", TokenType::PARENTHESIS_OPEN},  
+    {")", TokenType::PARENTHESIS_CLOSE}, 
+    {"{", TokenType::CURLY_BRACE_OPEN},  
+    {"}", TokenType::CURLY_BRACE_CLOSE}, 
+
+    {"Int", TokenType::INT_KWD},
+    {"Float", TokenType::FLOAT_KWD},
 };
 
 } // namespace NCSC

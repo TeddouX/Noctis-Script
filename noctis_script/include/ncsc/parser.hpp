@@ -9,13 +9,16 @@ namespace NCSC
 {
 
 // Error messages
-constexpr auto EXPECTED_A_SEMICOLON     = "Expected a semicolon (';')";
-constexpr auto EXPECTED_EXPRESSION_TERM = "Expected an expression term (function call, constant, variable...)";
-constexpr auto EXPECTED_CONSTANT_VALUE  = "Expected a constant value (1234, 123.456, ...)";
-constexpr auto EXPECTED_AN_IDENTIFIER   = "Expected an identifier";
-constexpr auto EXPECTED_A_DATA_TYPE     = "Expected a data type (int, float, ...)";
-constexpr auto EXPECTED_AN_OPERATOR     = "Expected an operator ('+', '-', '*', '/', ...)";
-constexpr auto UNEXPECTED_IDENTIFIER    = "Unexpected identifier";
+constexpr auto EXPECTED_A_SEMICOLON        = "Expected a semicolon (';')";
+constexpr auto EXPECTED_EXPRESSION_TERM    = "Expected an expression term (function call, constant, variable...)";
+constexpr auto EXPECTED_CONSTANT_VALUE     = "Expected a constant value (1234, 123.456, ...)";
+constexpr auto EXPECTED_AN_IDENTIFIER      = "Expected an identifier";
+constexpr auto EXPECTED_A_DATA_TYPE        = "Expected a data type (Int, Float, ...)";
+constexpr auto EXPECTED_AN_OPERATOR        = "Expected an operator ('+', '-', '*', '/', ...)";
+constexpr auto EXPECTED_TOKEN              = "Expected '%s'";
+constexpr auto EXPECTED_TOKEN_OR_TOKEN     = "Expected '%s' or '%s'";
+constexpr auto UNEXPECTED_IDENTIFIER       = "Unexpected identifier";
+constexpr auto UNEXPECTED_EOF              = "Unexpected end of file";
 
 class NCSC_API Parser {
 public:
@@ -24,7 +27,9 @@ public:
 
     ScriptNode parseAll();
 
-    bool hasErrors() { return hasSyntaxError_; }
+    // If the parser has errors compiling will result in some weird 
+    // errors, so please don't compile
+    bool hasErrors() { return !syntaxErrors_.empty(); }
     const std::vector<SyntaxError> &getErrors() { return syntaxErrors_; }
 
 private:
@@ -43,6 +48,7 @@ private:
     bool isOperator(TokenType type);
 
     bool isVariableDeclaration();
+    bool isFunction();
 
     ScriptNode parseVariableDeclaration(); 
     ScriptNode parseType();
@@ -51,6 +57,8 @@ private:
     ScriptNode parseExpression();
     ScriptNode parseExpressionTerm();
     ScriptNode parseExpressionOperator();
+    ScriptNode parseFunction();
+    ScriptNode parseStatementBlock();
 };
 
 } // namespace NCSC

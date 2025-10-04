@@ -118,8 +118,8 @@ std::unique_ptr<Token> Lexer::getCurrent() {
         std::string val = source_.substr(currIdx_, len);
         advance(len);
 
-        auto it = g_reservedTokensStringToTok.find(val);
-        if (it != g_reservedTokensStringToTok.end())
+        auto it = g_tokensStringToTok.find(val);
+        if (it != g_tokensStringToTok.end())
             return createToken(it->second);
         
         return createToken(TokenType::ID, val);
@@ -158,12 +158,28 @@ std::unique_ptr<Token> Lexer::getCurrent() {
                 return createToken(TokenType::SLASH_EQUAL);
             } else
                 return createToken(TokenType::SLASH);
+
         case '=':
             advance();
             return createToken(TokenType::EQUAL);
         case ';':
             advance();
             return createToken(TokenType::SEMICOLON);
+        case '(':
+            advance();
+            return createToken(TokenType::PARENTHESIS_OPEN);
+        case ')':
+            advance();
+            return createToken(TokenType::PARENTHESIS_CLOSE);
+        case '{':
+            advance();
+            return createToken(TokenType::CURLY_BRACE_OPEN);
+        case '}':
+            advance();
+            return createToken(TokenType::CURLY_BRACE_CLOSE);
+        case ',':
+            advance();
+            return createToken(TokenType::COMMA);
     }
 
     advance();

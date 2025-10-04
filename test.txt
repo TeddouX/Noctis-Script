@@ -1,0 +1,43 @@
+Sketches of how the NoctisScript language could look like
+This will change during the development process
+
+interface FooBase {
+    // This is an abstract method
+    abstract Void SayHi();
+}
+
+interface FooBase2 {
+    // This is an abstract method
+    abstract Void SayHi();
+}
+
+object Vec2 {
+    public Float x;
+    public Float y;
+
+    _constructor(Float x, Float y) {
+        this.x = x;
+        this.y = y;
+    }
+}
+
+object Foo inherits FooBase, FooBase2 {
+    private Int wellWellWell_ = 10;
+    public Vec2 pos = newinst Vec2(10.0, 10.0);
+
+    public _constructor(Int age, Float pipi) {
+
+    }
+
+    public Void SayHi() {
+        println("Hello, cacapipipopo");
+    }
+}
+
+Int fooVoid() {
+    // Create an instance of object FOO
+    Foo foo = newinst Foo();
+
+    Float fl = 1.212121;
+    Int caca = 111;
+}

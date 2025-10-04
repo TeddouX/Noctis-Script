@@ -19,7 +19,7 @@ static std::string getTokTypeStrRepr(TokenType type) {
     }
         
     // Reserved tokens
-    for (const auto &[str, tokTy] : g_reservedTokensStringToTok) {
+    for (const auto &[str, tokTy] : g_tokensStringToTok) {
         if (tokTy == type)
             return str;
     }
