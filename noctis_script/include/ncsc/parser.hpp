@@ -5,19 +5,17 @@
 #include "token.hpp"
 #include "ncsc.hpp"
 
-#define CHECK_SYNTAX_ERROR if (hasSyntaxError_) return node
-
 namespace NCSC
 {
 
 // Error messages
-constexpr auto EXPECTED_A_SEMICOLON      = "Expected a semicolon (';')";
-constexpr auto EXPECTED_EXPRESSION_TERM  = "Expected an expression term (function call, constant, variable...)";
-constexpr auto EXPECTED_CONSTANT_VALUE   = "Expected a constant value (1234, 123.456, ...)";
-constexpr auto EXPECTED_AN_IDENTIFIER    = "Expected an identifier";
-constexpr auto EXPECTED_A_DATA_TYPE      = "Expected a data type (int, float, ...)";
-constexpr auto EXPECTED_AN_OPERATOR      = "Expected an operator ('+', '-', '*', '/', ...)";
-constexpr auto I_DUNNO_WHAT_TO_NAME_THIS = "Only variable declarations are supported for now ;)";
+constexpr auto EXPECTED_A_SEMICOLON     = "Expected a semicolon (';')";
+constexpr auto EXPECTED_EXPRESSION_TERM = "Expected an expression term (function call, constant, variable...)";
+constexpr auto EXPECTED_CONSTANT_VALUE  = "Expected a constant value (1234, 123.456, ...)";
+constexpr auto EXPECTED_AN_IDENTIFIER   = "Expected an identifier";
+constexpr auto EXPECTED_A_DATA_TYPE     = "Expected a data type (int, float, ...)";
+constexpr auto EXPECTED_AN_OPERATOR     = "Expected an operator ('+', '-', '*', '/', ...)";
+constexpr auto UNEXPECTED_IDENTIFIER    = "Unexpected identifier";
 
 class NCSC_API Parser {
 public:
@@ -25,7 +23,7 @@ public:
         : tokens_(tokens) {}
 
     ScriptNode parseAll();
-    
+
     bool hasErrors() { return hasSyntaxError_; }
     const std::vector<SyntaxError> &getErrors() { return syntaxErrors_; }
 

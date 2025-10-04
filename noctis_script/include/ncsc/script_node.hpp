@@ -6,7 +6,7 @@
 namespace NCSC
 {
     
-enum class ScriptNodeType {
+enum class ScriptNodeType : uint8_t {
     SCRIPT,
     VARIABLE_DECLARATION,
     DATA_TYPE,
@@ -19,17 +19,19 @@ enum class ScriptNodeType {
 
 struct NCSC_API ScriptNode {
     ScriptNodeType type;
-    Token *token = nullptr;
+    const Token *token = nullptr;
 
-    ScriptNode *prev = nullptr;
-    ScriptNode *next = nullptr;
     ScriptNode *parent = nullptr;
     std::vector<ScriptNode> children;
 
     ScriptNode(ScriptNodeType type)
         : type(type) {}
 
-    void addChild(ScriptNode child);
+    // Recursively iterate through its children
+    std::string getStrRepr() const;
+
+    bool hasChildren() const noexcept { return !children.empty(); }
+    void addChild(const ScriptNode &child);
 };
 
 } // namespace NCSC

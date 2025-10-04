@@ -47,8 +47,8 @@ struct NCSC_API Token {
     Token(TokenType type, const std::string &val, uint32_t line, uint32_t column)
         : type(type), val(val), line(line), col(column) {}
 
-    std::string getStrRepr();
-    size_t getLength();
+    std::string getStrRepr() const;
+    size_t getLength() const;
 };
 
 const std::unordered_map<std::string, TokenType> g_reservedTokensStringToTok = {

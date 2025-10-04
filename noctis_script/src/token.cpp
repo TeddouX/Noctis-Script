@@ -27,14 +27,14 @@ static std::string getTokTypeStrRepr(TokenType type) {
     return "";
 } 
 
-std::string Token::getStrRepr() {
+std::string Token::getStrRepr() const {
     if (val.empty())
         return getTokTypeStrRepr(type);
     else
         return val;
 }
 
-size_t Token::getLength() {
+size_t Token::getLength() const {
     if (isSpecialTok(type))
         return 0;
     else

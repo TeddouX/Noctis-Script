@@ -1,5 +1,9 @@
 #include <ncsc/parser.hpp>
+#include <sstream>
 #include <iostream>
+#include <stack>
+
+#define CHECK_SYNTAX_ERROR if (hasSyntaxError_) return node
 
 namespace NCSC
 {
@@ -7,17 +11,24 @@ namespace NCSC
 ScriptNode Parser::parseAll() {
     ScriptNode root(ScriptNodeType::SCRIPT);
 
-    for (size_t i = 0; i < tokens_.size(); i++) {
-        const Token &currTok = tokens_[i];
+    while (idx_ < tokens_.size()) {
+        const Token &currTok = tokens_[idx_];
         
         // int, float, ...
         if (isDataType(currTok.type)) {
             if (isVariableDeclaration())
                 root.addChild(parseVariableDeclaration());
-            else {
-                Token &t = consume();
-                createSyntaxError(I_DUNNO_WHAT_TO_NAME_THIS, t);
-            }
+        }
+        else if (currTok.type == TokenType::END_OF_FILE) 
+            break;
+        // Extra semicolons can be ignored
+        else if (currTok.type == TokenType::SEMICOLON) {
+            consume();
+            continue;
+        }
+        else {
+            consume();
+            createSyntaxError(UNEXPECTED_IDENTIFIER, currTok);
         }
     }
 
