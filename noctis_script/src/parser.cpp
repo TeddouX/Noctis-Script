@@ -214,8 +214,10 @@ ScriptNode Parser::parseExpression() {
         if (isOperator(t1.type)) {
             consume();
             complexExpr = true;
-
-            node.addChild(parseToken(t1));
+            
+            ScriptNode binOp(ScriptNodeType::BINOP);
+            binOp.token = &t1;
+            node.addChild(binOp);
         }
         else
             // The expression is finished, there should be no more terms left over
@@ -235,11 +237,7 @@ ScriptNode Parser::parseExpression() {
         int highestPre = 0;
         int highestPreIdx = 0;
         for (int i = 1; i < node.children.size(); i += 2) {
-            ScriptNode child = node.children[i];
-            if (child.type == ScriptNodeType::BINOP)
-                break;
-
-            TokenType ty = child.token->type;
+            TokenType ty = node.children[i].token->type;
             if ((ty == TokenType::PLUS || ty == TokenType::MINUS) && highestPre == 0) {
                 highestPre = 1;
                 highestPreIdx = i;
@@ -251,8 +249,7 @@ ScriptNode Parser::parseExpression() {
             }
         }
 
-        ScriptNode opNode(ScriptNodeType::BINOP);
-        opNode.token = node.children[highestPreIdx].token;
+        ScriptNode opNode = node.children[highestPreIdx];
         opNode.addChild(node.children[highestPreIdx - 1]);
         opNode.addChild(node.children[highestPreIdx + 1]);
 
