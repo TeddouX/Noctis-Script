@@ -1,7 +1,5 @@
 #include <ncsc/parser.hpp>
-#include <sstream>
 #include <iostream>
-#include <stack>
 #include <stdarg.h>
 
 #define CHECK_SYNTAX_ERROR if (hasSyntaxError_) return node
@@ -31,6 +29,8 @@ ScriptNode Parser::parseAll() {
             else if (isFunction())
                 root.addChild(parseFunction());
         }
+        else if (currTok.type == TokenType::FUN_KWD)
+            root.addChild(parseFunction());
         else if (currTok.type == TokenType::END_OF_FILE) 
             break;
         // Extra semicolons can be ignored
@@ -145,6 +145,13 @@ bool Parser::isFunction() {
     return t.type == TokenType::PARENTHESIS_OPEN;
 }
 
+ScriptNode Parser::parseToken(Token &tok) {
+    ScriptNode node(ScriptNodeType::TOKEN);
+
+    node.token = &tok;
+    return node;
+}
+
 ScriptNode Parser::parseVariableDeclaration() {
     ScriptNode node(ScriptNodeType::VARIABLE_DECLARATION);
 
@@ -200,10 +207,16 @@ ScriptNode Parser::parseExpression() {
     // The first part of an expression should always be a term
     CHECK_SYNTAX_ERROR;
 
+    // Has multiple terms 
+    bool complexExpr = false;
     for (;;) {
         Token &t1 = peek(0);
-        if (isOperator(t1.type))
-            node.addChild(parseExpressionOperator());
+        if (isOperator(t1.type)) {
+            consume();
+            complexExpr = true;
+
+            node.addChild(parseToken(t1));
+        }
         else
             // The expression is finished, there should be no more terms left over
             break;
@@ -211,6 +224,45 @@ ScriptNode Parser::parseExpression() {
         node.addChild(parseExpressionTerm());
         // There should always be a term after an operator
         CHECK_SYNTAX_ERROR;
+    }
+
+    // Only one term
+    if (!complexExpr)
+        return node;
+
+    // Assure operator precedence
+    while (node.children.size() > 1) {
+        int highestPre = 0;
+        int highestPreIdx = 0;
+        for (int i = 1; i < node.children.size(); i += 2) {
+            ScriptNode child = node.children[i];
+            if (child.type == ScriptNodeType::BINOP)
+                break;
+
+            TokenType ty = child.token->type;
+            if ((ty == TokenType::PLUS || ty == TokenType::MINUS) && highestPre == 0) {
+                highestPre = 1;
+                highestPreIdx = i;
+            }
+            else if (ty == TokenType::STAR || ty == TokenType::SLASH) { 
+                highestPre = 2;
+                highestPreIdx = i;
+                break;
+            }
+        }
+
+        ScriptNode opNode(ScriptNodeType::BINOP);
+        opNode.token = node.children[highestPreIdx].token;
+        opNode.addChild(node.children[highestPreIdx - 1]);
+        opNode.addChild(node.children[highestPreIdx + 1]);
+
+        node.children.erase(
+            std::next(node.children.begin(), highestPreIdx - 1), 
+            std::next(node.children.begin(), highestPreIdx + 2));
+
+        node.children.insert(
+            std::next(node.children.begin(), highestPreIdx - 1), 
+            opNode);
     }
 
     return node;
@@ -232,19 +284,6 @@ ScriptNode Parser::parseExpressionTerm() {
     return node;
 }
 
-ScriptNode Parser::parseExpressionOperator() {
-    ScriptNode node(ScriptNodeType::EXPRESSION_OPERATOR);
-
-    Token &t = consume();
-    if (!isOperator(t.type)) {
-        createSyntaxError(EXPECTED_AN_OPERATOR, t);
-        return node;
-    }
-
-    node.token = &t;
-    return node;
-}
-
 ScriptNode Parser::parseConstant() {
     ScriptNode node(ScriptNodeType::CONSTANT);
 
@@ -261,31 +300,44 @@ ScriptNode Parser::parseConstant() {
 ScriptNode Parser::parseFunction() {
     ScriptNode node(ScriptNodeType::FUNCTION);
 
-    node.addChild(parseType());       CHECK_SYNTAX_ERROR;
+    Token &t = peek(0);
+    if (isDataType(t.type)) {
+        node.addChild(parseType()); 
+        // Sanity check
+        CHECK_SYNTAX_ERROR;
+    }
+    else if (t.type == TokenType::FUN_KWD) {
+        consume();
+        node.addChild(parseToken(t));
+    } else {
+        createSyntaxError(EXPECTED_A_DATA_TYPE_OR_FUN, t);
+        return node;
+    }
+
     node.addChild(parseIdentifier()); CHECK_SYNTAX_ERROR;
 
-    Token &t = consume();
-    if (t.type != TokenType::PARENTHESIS_OPEN) {
-        createSyntaxError(format(EXPECTED_TOKEN, "("), t);
+    Token &t1 = consume();
+    if (t1.type != TokenType::PARENTHESIS_OPEN) {
+        createSyntaxError(format(EXPECTED_TOKEN, "("), t1);
         return node; 
     }
 
-    Token &t1 = peek(0);
+    Token &t2 = peek(0);
     // The function has arguments
-    if (t1.type != TokenType::PARENTHESIS_CLOSE) {
+    if (t2.type != TokenType::PARENTHESIS_CLOSE) {
         ScriptNode argListNode(ScriptNodeType::ARGUMENT_LIST);
 
         for (;;) {
             argListNode.addChild(parseType());       CHECK_SYNTAX_ERROR;
             argListNode.addChild(parseIdentifier()); CHECK_SYNTAX_ERROR;
 
-            Token &t2 = consume();
-            if (t2.type == TokenType::COMMA)
+            Token &t3 = consume();
+            if (t3.type == TokenType::COMMA)
                 continue;
-            else if (t2.type == TokenType::PARENTHESIS_CLOSE) 
+            else if (t3.type == TokenType::PARENTHESIS_CLOSE) 
                 break;
             else {
-                createSyntaxError(format(EXPECTED_TOKEN_OR_TOKEN, ",", ")"), t2);
+                createSyntaxError(format(EXPECTED_TOKEN_OR_TOKEN, ",", ")"), t3);
                 break;
             }
         }

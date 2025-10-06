@@ -1,3 +1,4 @@
+#pragma once
 #include <vector>
 
 #include "script_node.hpp"
@@ -14,6 +15,7 @@ constexpr auto EXPECTED_EXPRESSION_TERM    = "Expected an expression term (funct
 constexpr auto EXPECTED_CONSTANT_VALUE     = "Expected a constant value (1234, 123.456, ...)";
 constexpr auto EXPECTED_AN_IDENTIFIER      = "Expected an identifier";
 constexpr auto EXPECTED_A_DATA_TYPE        = "Expected a data type (Int, Float, ...)";
+constexpr auto EXPECTED_A_DATA_TYPE_OR_FUN = "Expected a data type (Int, Float, ...) or 'fun'";
 constexpr auto EXPECTED_AN_OPERATOR        = "Expected an operator ('+', '-', '*', '/', ...)";
 constexpr auto EXPECTED_TOKEN              = "Expected '%s'";
 constexpr auto EXPECTED_TOKEN_OR_TOKEN     = "Expected '%s' or '%s'";
@@ -50,6 +52,7 @@ private:
     bool isVariableDeclaration();
     bool isFunction();
 
+    ScriptNode parseToken(Token &tok);
     ScriptNode parseVariableDeclaration(); 
     ScriptNode parseType();
     ScriptNode parseIdentifier();

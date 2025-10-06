@@ -4,7 +4,7 @@
 namespace NCSC
 {
 
-static const std::unordered_map<char, TokenType> g_singleCharTokens = {
+static const std::unordered_map<char, TokenType> singleCharTokens = {
     { ';', TokenType::SEMICOLON },
     { '(', TokenType::PARENTHESIS_OPEN },
     { ')', TokenType::PARENTHESIS_CLOSE },
@@ -134,8 +134,8 @@ std::unique_ptr<Token> Lexer::getCurrent() {
         return createToken(TokenType::ID, val);
     }
 
-    auto it = g_singleCharTokens.find(currChar);
-    if (it != g_singleCharTokens.end()) {
+    auto it = singleCharTokens.find(currChar);
+    if (it != singleCharTokens.end()) {
         advance();
         return createToken(it->second);
     }

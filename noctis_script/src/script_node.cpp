@@ -13,11 +13,12 @@ static std::string getNodeTypeStrRepr(ScriptNodeType type) {
         case ScriptNodeType::IDENTIFIER:           return "<IDENTIFIER>";
         case ScriptNodeType::EXPRESSION:           return "<EXPRESSION>";
         case ScriptNodeType::EXPRESSION_TERM:      return "<EXPRESSION_TERM>";
-        case ScriptNodeType::EXPRESSION_OPERATOR:  return "<EXPRESSION_OPERATOR>";
+        case ScriptNodeType::BINOP:                return "<BINOP>";
         case ScriptNodeType::CONSTANT:             return "<CONSTANT>";
         case ScriptNodeType::ARGUMENT_LIST:        return "<ARGUMENT_LIST>";
         case ScriptNodeType::FUNCTION:             return "<FUNCTION>";
         case ScriptNodeType::STATEMENT_BLOCK:      return "<STATEMENT_BLOCK>";
+        case ScriptNodeType::TOKEN:                return "<TOKEN>";
         default:                                   return "<please add the missing node(s)>";
     }
 }
@@ -31,7 +32,7 @@ std::string ScriptNode::getStrRepr() const {
         auto [node, depth] = stack.top();
         stack.pop();
 
-        for (int i = 0; i < depth; ++i) oss << "  ";
+        for (int i = 0; i < depth; ++i) oss << "|  ";
         oss << getNodeTypeStrRepr(node.type);
 
         if (node.token) oss << " (" << node.token->getStrRepr() << ")" << "\n";
@@ -47,7 +48,7 @@ std::string ScriptNode::getStrRepr() const {
 
 void ScriptNode::addChild(const ScriptNode &child) { 
     children.push_back(child); 
-    children[children.size() - 1].parent = this;
+    children.back().parent = this;
 }
 
 } // namespace NCSC

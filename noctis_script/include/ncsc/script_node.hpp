@@ -1,3 +1,4 @@
+#pragma once
 #include <vector>
 
 #include "token.hpp"
@@ -7,13 +8,14 @@ namespace NCSC
 {
     
 enum class ScriptNodeType : uint8_t {
+    TOKEN,
     SCRIPT,
     VARIABLE_DECLARATION,
     DATA_TYPE,
     IDENTIFIER,
     EXPRESSION,
     EXPRESSION_TERM,
-    EXPRESSION_OPERATOR,
+    BINOP,
     CONSTANT,
     ARGUMENT_LIST,
     FUNCTION,

@@ -1,43 +1,16 @@
-Sketches of how the NoctisScript language could look like
-This will change during the development process
+Int i = 0;
+Int iAmGlobal = 0;
 
-interface FooBase {
-    // This is an abstract method
-    abstract Void SayHi();
+RigidBody rb;
+
+Int add(Int a, Int b) {
+    return a + b;
 }
 
-interface FooBase2 {
-    // This is an abstract method
-    abstract Void SayHi();
+fun _onStart() {
+    rb = getComponent<RigidBody>();
 }
 
-object Vec2 {
-    public Float x;
-    public Float y;
-
-    _constructor(Float x, Float y) {
-        this.x = x;
-        this.y = y;
-    }
-}
-
-object Foo inherits FooBase, FooBase2 {
-    private Int wellWellWell_ = 10;
-    public Vec2 pos = newinst Vec2(10.0, 10.0);
-
-    public _constructor(Int age, Float pipi) {
-
-    }
-
-    public Void SayHi() {
-        println("Hello, cacapipipopo");
-    }
-}
-
-Int fooVoid() {
-    // Create an instance of object FOO
-    Foo foo = newinst Foo();
-
-    Float fl = 1.212121;
-    Int caca = 111;
+fun _onUpdate() {
+    rb.vel.x += add(1, 0);
 }

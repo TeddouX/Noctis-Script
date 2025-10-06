@@ -38,8 +38,9 @@ enum class TokenType : uint8_t {
     CURLY_BRACE_CLOSE, // }
 
     // Reserved keywords
-    INT_KWD,   // int
-    FLOAT_KWD, // float
+    INT_KWD,      // int
+    FLOAT_KWD,    // float
+    FUN_KWD, // function
 
     // Special tokens
     END_OF_FILE,
@@ -82,6 +83,7 @@ const std::unordered_map<std::string, TokenType> tokensStringToTok = {
 
     {"Int", TokenType::INT_KWD},
     {"Float", TokenType::FLOAT_KWD},
+    {"fun", TokenType::FUN_KWD},
 };
 
 } // namespace NCSC
