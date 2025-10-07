@@ -45,7 +45,8 @@ std::string Function::getBytecodeStrRepr() const {
             case static_cast<Byte>(Instruction::STORELOCAL): {
                 oss << "STORELOCAL ";
 
-                int16_t idx = bytecode[i++] + ((int16_t)bytecode[i++] << 8);
+                int16_t idx = bytecode[i + 1] + ((int16_t)bytecode[i + 2] << 8);
+                i += 2;
                 oss << idx;
                 break;
             }
@@ -54,6 +55,9 @@ std::string Function::getBytecodeStrRepr() const {
             case static_cast<Byte>(Instruction::SUB): oss << "SUB"; break;
             case static_cast<Byte>(Instruction::MUL): oss << "MUL"; break;
             case static_cast<Byte>(Instruction::DIV): oss << "DIV"; break;
+            case static_cast<Byte>(Instruction::RET): oss << "RET"; break;
+            case static_cast<Byte>(Instruction::NOOP): oss << "NOOP"; break;
+            default: oss << "UNKNOWN INSTR"; break;
         }
         oss << "\n";
     }

@@ -12,9 +12,9 @@ struct NCSC_API Function {
     std::vector<Byte> bytecode;
     std::vector<Value> constants;
 
-    size_t numLocals;
-    size_t numArgs;
-    size_t requiredStackSize;
+    size_t numLocals = 0;
+    size_t numArgs = 0;
+    size_t requiredStackSize = 0;
 
     std::string getBytecodeStrRepr() const;
 };

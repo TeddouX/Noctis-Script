@@ -1,5 +1,6 @@
 #include <ncsc/compiler.hpp>
 #include <ncsc/type_info.hpp>
+#include <iostream>
 
 namespace NCSC
 {
