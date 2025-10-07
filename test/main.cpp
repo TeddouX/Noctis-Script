@@ -1,33 +1,36 @@
 #include <ncsc/lexer.hpp>
 #include <ncsc/parser.hpp>
+#include <ncsc/compiler.hpp>
 #include <iostream>
 
 int main() {
     std::string code = 
-    "Int thisIsAGlobalVariable = 1-2+3;\n"
-    "fun WhateverFunctionFoo(Int foo, Float bar, Int whatever) {\n"
-    "   Int blabla = 1 + 1;\n"
-    "   Float blablabla = 2.0 + 30.59;\n"
-    "   Int whhhhhaaaattt = 3;\n"
+    "fun main() {\n"
+    "   Int blabla = 1 + 2 * 3 + 4 / 2;\n"
     "}\n";
 
-    auto a = NCSC::Lexer(code).tokenizeAll();
+    auto tokens = NCSC::Lexer(code).tokenizeAll();
 
     std::cout << code << std::endl;
     
-    for (auto c : a) {
-        std::cout << c.getStrRepr() << " Position: " << c.line << ":" << c.col << std::endl;
+    for (auto token : tokens) {
+        std::cout << token.getStrRepr() << " Position: " << token.line << ":" << token.col << std::endl;
     }
     std::cout << "\n";
     
-    auto b = NCSC::Parser(a);
-    auto d = b.parseAll();
-    if (b.hasErrors()) {
-        for (auto c : b.getErrors()) 
-            std::cout << c.getStrRepr() << std::endl;   
+    NCSC::Parser parser(tokens);
+    auto rootNode = parser.parseAll();
+    if (parser.hasErrors()) {
+        for (auto error : parser.getErrors()) 
+            std::cout << error.getStrRepr() << std::endl;   
     }
 
-    std::cout << d.getStrRepr() << std::endl;
+    std::cout << rootNode.getStrRepr() << std::endl;
+
+    NCSC::Compiler compiler;
+    auto script = compiler.compileScript(rootNode);
+
+    std::cout << script->functions[0].getBytecodeStrRepr();
 
     return 0;
 }

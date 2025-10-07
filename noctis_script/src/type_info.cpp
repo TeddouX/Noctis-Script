@@ -4,7 +4,7 @@ namespace NCSC
 {
 
 TypeInfo::TypeInfo(const ScriptNode &node) 
-    : node_(node) {
+    : token_(*node.token) {
     assert(node.type == ScriptNodeType::DATA_TYPE && node.token != nullptr);
 }
 

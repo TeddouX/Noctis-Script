@@ -11,7 +11,7 @@ static void intToBytes(int64_t val, Byte bytes[]) {
 
 static void floatToBytes(double val, Byte bytes[]) {
     uint64_t bits;
-    static_assert(sizeof(bits) == sizeof(val));
+    assert(sizeof(bits) == sizeof(val));
     std::memcpy(&bits, &val, sizeof(bits));
     intToBytes(bits, bytes);
 }
@@ -38,22 +38,23 @@ void Compiler::emit(Byte *bytecode, size_t size) {
 
 void Compiler::emitInt16(int16_t i) {
     Byte bytes[] {
-        i & 0xFF,
-        (i >> 8) & 0xFF
+        static_cast<Byte>(i & 0xFF),
+        static_cast<Byte>((i >> 8) & 0xFF)
     };
     emit(bytes, sizeof(bytes));
 }
-
 
 void Compiler::compileFunction(const ScriptNode &funcDecl) {
     assert(funcDecl.type == ScriptNodeType::FUNCTION);
 
     auto fun = std::make_shared<Function>();
-    fun->requiredStackSize = computeMaxStackSize(funcDecl);
+    // fun->requiredStackSize = computeMaxStackSize(funcDecl);
 
     currFunction_ = fun.get();
+    currFunction_->name = funcDecl.children[1].token->val;
 
-    for (auto &node : funcDecl.children) {
+    const ScriptNode& statementBlock = funcDecl.children.back();
+    for (auto &node : statementBlock.children) {
         switch (node.type) {
             case ScriptNodeType::VARIABLE_DECLARATION:
                 compileVariableDeclaration(node);
@@ -66,7 +67,7 @@ void Compiler::compileFunction(const ScriptNode &funcDecl) {
 }
 
 size_t Compiler::computeMaxStackSize(const ScriptNode &node) {
-    assert(node.type == ScriptNodeType::FUNCTION);
+    // assert(node.type == ScriptNodeType::FUNCTION);
 
     switch (node.type) {
         case ScriptNodeType::FUNCTION: {
@@ -97,37 +98,16 @@ size_t Compiler::computeMaxStackSize(const ScriptNode &node) {
         }
 
         case ScriptNodeType::EXPRESSION: {
-            // An expression should always have an odd number of children
-            assert(node.children.size() % 2 != 0);
-
-            if (node.children.size() == 1)
-                return computeMaxStackSize(node.children[0]);
-
-            // Start with first operand
-            size_t maxDepth = computeMaxStackSize(node.children[0]);
-            size_t currentDepth = maxDepth;
-
-            // Process operator-operand pairs
-            for (size_t i = 1; i < node.children.size(); i += 2) {
-                const ScriptNode& rhs = node.children[i + 1];
-
-                size_t rhsDepth = computeMaxStackSize(rhs);
-                // While evaluating the part on the right, the
-                // left part is already on the stack so it can be ingnored
-                maxDepth = std::max(maxDepth, currentDepth + rhsDepth);
-
-                // Operator pops two values and pushes one
-                // POP POP PUSH -> -1 net stack change
-                currentDepth--;
-            }
-
-            return maxDepth;
+            assert(0 && "TODO");
         }
     
         case ScriptNodeType::EXPRESSION_TERM: {
             // Temp
             return 1;
         }
+    
+        default:
+            return 0;
     }
 }
 
@@ -144,31 +124,83 @@ void Compiler::compileVariableDeclaration(const ScriptNode &varDecl) {
             else if (type.isFloat()) emit(Instruction::PUSHFLOAT);
 
             emit(bytes, sizeof(bytes));
-            emit(Instruction::STORELOCAL); emitInt16(currFunction_->numLocals);
         } else {
             // do whatever
         }
-    } else {
+    } else
+        // Compile the expression
+        // The result will be stored on the top of the stack
+        compileExpression(varDecl.children[2]);
 
-    }
+    emit(Instruction::STORELOCAL); emitInt16(currFunction_->numLocals);
 
     currFunction_->numLocals++;
 }
 
-        // if (type.isPrimitive()) {
-        //     Byte bytes[8]{0};
+void Compiler::compileExpression(const ScriptNode &expr) {
+    assert(expr.type == ScriptNodeType::EXPRESSION);
 
-        //     if (type.isInt()) {
-        //         int val = std::stoi(varDecl.children[0].token->val);
-        //         intToBytes(val, bytes);
-        //     } else if (type.isFloat()) {
-        //         double val = std::stod(varDecl.children[0].token->val);
-        //         floatToBytes(val, bytes);
-        //     }
+    if (expr.children.size() == 1 && expr.children[0].type == ScriptNodeType::EXPRESSION_TERM) {
+        compileConstantPush(expr.children[0]);
+        return;
+    }
 
-        //     emit(bytes, sizeof(bytes));
-        // } else {
+    ScriptNode rootOp = expr.children[0]; 
+    // first go to the left and then the right
+    recursivelyCompileExpression(rootOp.children[0]);
+    recursivelyCompileExpression(rootOp.children[1]);
+    compileOperator(rootOp);
+}
 
-        // }
+void Compiler::recursivelyCompileExpression(const ScriptNode &exprChild) {
+    if (exprChild.type == ScriptNodeType::BINOP) {
+        recursivelyCompileExpression(exprChild.children[0]);
+        recursivelyCompileExpression(exprChild.children[1]);
+        compileOperator(exprChild);
+    } else if (exprChild.type == ScriptNodeType::EXPRESSION_TERM) {
+        compileExpressionTerm(exprChild);
+    }
+}
+
+void Compiler::compileOperator(const ScriptNode &binop) {
+    assert(binop.type == ScriptNodeType::BINOP);
+
+    switch (binop.token->type) {
+        case TokenType::PLUS:  emit(Instruction::ADD);  return;
+        case TokenType::MINUS: emit(Instruction::SUB);  return;
+        case TokenType::STAR:  emit(Instruction::MUL);  return;
+        case TokenType::SLASH: emit(Instruction::DIV);  return;
+        default:               emit(Instruction::NOOP); return;
+    }
+}
+
+void Compiler::compileConstantPush(const ScriptNode &constant) {
+    assert(constant.type == ScriptNodeType::CONSTANT);
+
+    TypeInfo type(*constant.token);
+    if (type.isPrimitive()) {
+        Byte bytes[8]{0};
+
+        if (type.isInt()) {
+            int val = std::stoi(constant.token->val);
+            intToBytes(val, bytes);
+            emit(Instruction::PUSHINT);
+        } else if (type.isFloat()) {
+            double val = std::stod(constant.token->val);
+            floatToBytes(val, bytes);
+            emit(Instruction::PUSHFLOAT);
+        }
+
+        emit(bytes, sizeof(bytes));
+    } else
+        assert(0 && "TODO");
+}
+
+void Compiler::compileExpressionTerm(const ScriptNode &exprTerm) {
+    assert(exprTerm.type == ScriptNodeType::EXPRESSION_TERM);
+
+    if (exprTerm.children.size() == 1 && exprTerm.children[0].type == ScriptNodeType::CONSTANT)
+        compileConstantPush(exprTerm.children[0]);
+}
 
 } // namespace NCSC

@@ -15,6 +15,8 @@ struct NCSC_API Function {
     size_t numLocals;
     size_t numArgs;
     size_t requiredStackSize;
+
+    std::string getBytecodeStrRepr() const;
 };
 
 } // namespace NCSC

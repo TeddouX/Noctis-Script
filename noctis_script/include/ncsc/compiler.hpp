@@ -10,16 +10,6 @@
 
 namespace NCSC
 {
-    
-enum class Instruction : Byte {
-    STORELOCAL, // STORELOCAL 1 ; a ; Pops first value on the stack and stores it into local 1
-    LOADLOCAL,  // LOADLOCAL 1 ; a ; Loads variable a onto the stack
-    PUSHCONST,  // PUSHCONST 1 ; pushes constant 1 onto the stack 
-    PUSHINT,    // PUSHINT 120311321 ; pushes an int onto the stack
-    PUSHFLOAT,  // PUSHFLOAT 1203.11321 ; pui
-    POP,        // POP ; remove first value on the stack
-    ADD,        // ADD ; pop first two values on the stack, adds them and pushes the result on the stack
-};
 
 class NCSC_API Compiler {
 public:
@@ -46,6 +36,11 @@ private:
     void emit(Instruction instr) { currFunction_->bytecode.push_back(static_cast<Byte>(instr)); }
 
     void compileVariableDeclaration(const ScriptNode &varDecl);
+    void compileConstantPush(const ScriptNode &constant);
+    void compileOperator(const ScriptNode &op);
+    void compileExpression(const ScriptNode &expr);
+    void recursivelyCompileExpression(const ScriptNode &exprChild);
+    void compileExpressionTerm(const ScriptNode &exprTerm);
 };
 
 } // namespace NCSC
