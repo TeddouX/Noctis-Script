@@ -48,7 +48,7 @@ void Compiler::compileFunction(const ScriptNode &funcDecl) {
     assert(funcDecl.type == ScriptNodeType::FUNCTION);
 
     auto fun = std::make_shared<Function>();
-    // fun->requiredStackSize = computeMaxStackSize(funcDecl);
+    fun->requiredStackSize = computeMaxStackSize(funcDecl);
 
     currFunction_ = fun.get();
     currFunction_->name = funcDecl.children[1].token->val;
@@ -61,6 +61,9 @@ void Compiler::compileFunction(const ScriptNode &funcDecl) {
         }
     }
 
+    // Any function should return
+    emit(Instruction::RET);
+
     currScript_->addFunction(*fun);
 
     currFunction_ = nullptr;
@@ -71,19 +74,23 @@ size_t Compiler::computeMaxStackSize(const ScriptNode &node) {
 
     switch (node.type) {
         case ScriptNodeType::FUNCTION: {
-            const ScriptNode &args = node.children[2];
-            // Arguments' values should be by pairs (1 type 1 identifier)
-            assert(args.type == ScriptNodeType::ARGUMENT_LIST && args.children.size() % 2 == 0);
-            size_t argsSize = args.children.size() / 2;
+            size_t argsSize = 0;
+            // Possibly doesn't have any arguments
+            if (node.children[2].type == ScriptNodeType::ARGUMENT_LIST) {
+                // Arguments' values should be by pairs (1 type 1 identifier)
+                const ScriptNode &args = node.children[2];
+                assert(args.children.size() % 2 == 0);
+                argsSize = args.children.size() / 2;
+            }
             
-            const ScriptNode &stmtBlock = node.children[3];
+            const ScriptNode &stmtBlock = node.children.back();
             assert(stmtBlock.type == ScriptNodeType::STATEMENT_BLOCK);
-            size_t requiredStackBlock = 0;
+            size_t requiredStackSize = 0;
             for (const auto &stmt : stmtBlock.children) {
-                requiredStackBlock = std::max(requiredStackBlock, computeMaxStackSize(stmt));
+                requiredStackSize = std::max(requiredStackSize, computeMaxStackSize(stmt));
             }
 
-            return argsSize + requiredStackBlock;
+            return argsSize + requiredStackSize;
         }
 
         case ScriptNodeType::VARIABLE_DECLARATION: {
@@ -98,9 +105,17 @@ size_t Compiler::computeMaxStackSize(const ScriptNode &node) {
         }
 
         case ScriptNodeType::EXPRESSION: {
-            assert(0 && "TODO");
+            return computeMaxStackSize(node.children[0]);
         }
     
+        case ScriptNodeType::BINOP: {
+            size_t lhs = computeMaxStackSize(node.children[0]);
+            size_t rhs = computeMaxStackSize(node.children[1]);
+
+            // Result occupies one slot
+            return std::max(lhs, rhs + 1);
+        }
+
         case ScriptNodeType::EXPRESSION_TERM: {
             // Temp
             return 1;

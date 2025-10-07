@@ -30,7 +30,8 @@ int main() {
     NCSC::Compiler compiler;
     auto script = compiler.compileScript(rootNode);
 
-    std::cout << script->functions[0].getBytecodeStrRepr();
+    std::cout << script->functions[0].getBytecodeStrRepr() << std::endl;
+    std::cout << script->functions[0].requiredStackSize << std::endl;
 
     return 0;
 }
