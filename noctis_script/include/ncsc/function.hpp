@@ -1,5 +1,6 @@
 #pragma once
 #include "ncsc.hpp"
+#include "value.hpp"
 
 #include <string>
 #include <vector>
@@ -12,7 +13,7 @@ struct NCSC_API Function {
     std::vector<Byte> bytecode;
     std::vector<Value> constants;
 
-    size_t numLocals = 0;
+    Word   numLocals = 0;
     size_t numArgs = 0;
     size_t requiredStackSize = 0;
 

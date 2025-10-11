@@ -37,10 +37,10 @@ void Compiler::emit(Byte *bytecode, size_t size) {
         emit(bytecode[i]);
 }
 
-void Compiler::emitInt16(int16_t i) {
+void Compiler::emitWord(Word dw) {
     Byte bytes[] {
-        static_cast<Byte>(i & 0xFF),
-        static_cast<Byte>((i >> 8) & 0xFF)
+        static_cast<Byte>(dw & 0xFF),
+        static_cast<Byte>((dw >> 8) & 0xFF)
     };
     emit(bytes, sizeof(bytes));
 }
@@ -71,8 +71,6 @@ void Compiler::compileFunction(const ScriptNode &funcDecl) {
 }
 
 size_t Compiler::computeMaxStackSize(const ScriptNode &node) {
-    // assert(node.type == ScriptNodeType::FUNCTION);
-
     switch (node.type) {
         case ScriptNodeType::FUNCTION: {
             size_t argsSize = 0;
@@ -148,7 +146,8 @@ void Compiler::compileVariableDeclaration(const ScriptNode &varDecl) {
         // The result will be stored on the top of the stack
         compileExpression(varDecl.children[2]);
 
-    emit(Instruction::STORELOCAL); emitInt16(currFunction_->numLocals);
+    emit(Instruction::STORELOCAL); 
+    emitWord(currFunction_->numLocals);
 
     currFunction_->numLocals++;
 }

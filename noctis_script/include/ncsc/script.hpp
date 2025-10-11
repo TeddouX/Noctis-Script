@@ -6,10 +6,15 @@
 namespace NCSC
 {
     
-struct NCSC_API Script {
-    std::vector<Function> functions;
+class NCSC_API Script {
+public:
+    Script() = default;
 
-    void addFunction(const Function &fun) { functions.push_back(fun); }
+    void addFunction(const Function &fun) { functions_.push_back(fun); }
+    const Function *getFunction(const std::string &name);
+
+private:
+    std::vector<Function> functions_;
 };
 
 } // namespace NCSC

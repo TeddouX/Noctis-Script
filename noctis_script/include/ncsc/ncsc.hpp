@@ -3,6 +3,20 @@
 #include <stdfloat>
 #include <stdint.h>
 
+#if defined(_WIN32) || defined(_WIN64)
+    // Disable warning from using STD library 
+    // member variables in classes
+    #pragma warning(disable : 4251)
+    
+    #ifdef NCSC_BUILD
+        #define NCSC_API __declspec(dllexport)
+    #else
+        #define NCSC_API __declspec(dllimport)
+    #endif
+#else
+    #define NCSC_API
+#endif
+
 namespace NCSC 
 {
 
@@ -19,7 +33,7 @@ enum class Instruction : Byte {
     NOOP,       // NOOP ; Does nothing, used when compilation fails on an ast node
     STORELOCAL, // STORELOCAL 1 ; a ; Pops first value on the stack and stores it into local 1
     LOADLOCAL,  // LOADLOCAL 1 ; a ; Loads variable a onto the stack
-    PUSHCONST,  // PUSHCONST 1 ; pushes constant 1 onto the stack 
+    // PUSHCONST,  // PUSHCONST 1 ; pushes constant 1 onto the stack 
     PUSHINT,    // PUSHINT 120311321 ; pushes an int onto the stack
     PUSHFLOAT,  // PUSHFLOAT 1203.11321 ; pushes a float onto the stack
     POP,        // POP ; remove first value on the stack
@@ -27,34 +41,7 @@ enum class Instruction : Byte {
     SUB,        // SUB ; pop first two values on the stack, substracts them and pushes the result on the stack
     MUL,        // MUL ; pop first two values on the stack, multiplies them and pushes the result on the stack
     DIV,        // DIV ; pop first two values on the stack, divides them and pushes the result on the stack
-    RET,        // RET ; returns to the previous callframe on the callstack
-};
-
-enum class ValueType {
-    INT,
-    FLOAT,
-};
-
-struct Value {
-    ValueType type;
-    union { 
-        int64_t i; 
-        double f;
-    };
+    RET,        // RET ; returns to the previous callframe on the callstack if none are lest, execution is finished
 };
 
 } // namespace NCSC
-
-#if defined(_WIN32) || defined(_WIN64)
-    // Disable warning from using STD library 
-    // member variables in classes
-    #pragma warning(disable : 4251)
-    
-    #ifdef NCSC_BUILD
-        #define NCSC_API __declspec(dllexport)
-    #else
-        #define NCSC_API __declspec(dllimport)
-    #endif
-#else
-    #define NCSC_API
-#endif

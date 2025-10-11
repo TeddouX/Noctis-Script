@@ -5,9 +5,6 @@
 
 #include <memory>
 
-#define MAKE_INT_WORDS(i) (int64_t)i & 0xFFFF, ((int64_t)i >> 16) & 0xFFFF, ((int64_t)i >> 32) & 0xFFFF, ((int64_t)i >> 48) & 0xFFFF
-#define MAKE_FLOAT_WORDS(i) (double)i & 0xFFFF, ((double)i >> 16) & 0xFFFF, ((double)i >> 32) & 0xFFFF, ((double)i >> 48) & 0xFFFF
-
 namespace NCSC
 {
 
@@ -30,7 +27,7 @@ private:
     // Add a byte to the bytecode of the current function
     void emit(Byte bytecode) { currFunction_->bytecode.push_back(bytecode); }
     void emit(Byte *bytecode, size_t size);
-    void emitInt16(int16_t i);
+    void emitWord(Word dw);
 
     // Add an instruction to the bytecode of the current function
     void emit(Instruction instr) { currFunction_->bytecode.push_back(static_cast<Byte>(instr)); }
