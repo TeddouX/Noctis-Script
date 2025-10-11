@@ -10,15 +10,15 @@ static void intToBytes(int64_t val, Byte bytes[]) {
         bytes[i] = (val >> (i * 8)) & 0xFF;
 }
 
-static void floatToBytes(double val, Byte bytes[]) {
+static void floatToBytes(float64_t val, Byte bytes[]) {
     uint64_t bits;
     assert(sizeof(bits) == sizeof(val));
     std::memcpy(&bits, &val, sizeof(bits));
     intToBytes(bits, bytes);
 }
 
-std::shared_ptr<Script> Compiler::compileScript(const ScriptNode &root) {
-    auto script = std::make_shared<Script>(); 
+std::unique_ptr<Script> Compiler::compileScript(const ScriptNode &root) {
+    auto script = std::make_unique<Script>(); 
 
     currScript_ = script.get();
 
@@ -32,15 +32,29 @@ std::shared_ptr<Script> Compiler::compileScript(const ScriptNode &root) {
     return script;
 }
 
+void Compiler::error(const std::string &mess, const ScriptNode &node) {
+    compileErrors_.push_back(Error(mess, node));
+}
+
 void Compiler::emit(Byte *bytecode, size_t size) {
     for (size_t i = 0; i < size; i++) 
         emit(bytecode[i]);
 }
 
-void Compiler::emitWord(Word dw) {
+void Compiler::emit(Word dw) {
     Byte bytes[] {
         static_cast<Byte>(dw & 0xFF),
-        static_cast<Byte>((dw >> 8) & 0xFF)
+        static_cast<Byte>((dw >> 8) & 0xFF),
+    };
+    emit(bytes, sizeof(bytes));
+}
+
+void Compiler::emit(DWord dw) {
+    Byte bytes[] {
+        static_cast<Byte>(dw & 0xFF),
+        static_cast<Byte>((dw >> 8) & 0xFF),
+        static_cast<Byte>((dw >> 16) & 0xFF),
+        static_cast<Byte>((dw >> 24) & 0xFF),
     };
     emit(bytes, sizeof(bytes));
 }
@@ -51,6 +65,10 @@ void Compiler::compileFunction(const ScriptNode &funcDecl) {
     auto fun = std::make_shared<Function>();
     fun->requiredStackSize = computeMaxStackSize(funcDecl);
 
+    ScriptNode retType = funcDecl.children[0]; 
+    if (retType.type == ScriptNodeType::DATA_TYPE)
+        fun->returnType = TypeInfo(retType);
+
     currFunction_ = fun.get();
     currFunction_->name = funcDecl.children[1].token->val;
 
@@ -59,11 +77,24 @@ void Compiler::compileFunction(const ScriptNode &funcDecl) {
         switch (node.type) {
             case ScriptNodeType::VARIABLE_DECLARATION:
                 compileVariableDeclaration(node);
+                break;
+            case ScriptNodeType::SIMPLE_STATEMENT:
+                compileSimpleStatement(node);
+                break;
+            default:
+                emit(Instruction::NOOP);
+                break;
         }
     }
 
-    // Any function should return
-    emit(Instruction::RET);
+    // For void functions, add a return at the end if none currently exists
+    if (currFunction_->returnType.isVoid() && currFunction_->bytecode.back() != static_cast<Byte>(Instruction::RETVOID))
+        emit(Instruction::RETVOID);
+    // For non void functions, error if there is no return at the end
+    else if (currFunction_->returnType.isVoid() && currFunction_->bytecode.back() != static_cast<Byte>(Instruction::RET)) {
+        error(std::format(FUNCTION_SHOULD_RET_VAL, currFunction_->name), funcDecl.children.back());
+        return;
+    }
 
     currScript_->addFunction(*fun);
 
@@ -74,10 +105,10 @@ size_t Compiler::computeMaxStackSize(const ScriptNode &node) {
     switch (node.type) {
         case ScriptNodeType::FUNCTION: {
             size_t argsSize = 0;
+            const ScriptNode &args = node.children[2];
             // Possibly doesn't have any arguments
-            if (node.children[2].type == ScriptNodeType::ARGUMENT_LIST) {
+            if (args.hasChildren()) {
                 // Arguments' values should be by pairs (1 type 1 identifier)
-                const ScriptNode &args = node.children[2];
                 assert(args.children.size() % 2 == 0);
                 argsSize = args.children.size() / 2;
             }
@@ -147,7 +178,7 @@ void Compiler::compileVariableDeclaration(const ScriptNode &varDecl) {
         compileExpression(varDecl.children[2]);
 
     emit(Instruction::STORELOCAL); 
-    emitWord(currFunction_->numLocals);
+    emit(currFunction_->numLocals);
 
     currFunction_->numLocals++;
 }
@@ -156,7 +187,7 @@ void Compiler::compileExpression(const ScriptNode &expr) {
     assert(expr.type == ScriptNodeType::EXPRESSION);
 
     if (expr.children.size() == 1 && expr.children[0].type == ScriptNodeType::EXPRESSION_TERM) {
-        compileConstantPush(expr.children[0]);
+        compileExpressionTerm(expr.children[0]);
         return;
     }
 
@@ -214,8 +245,66 @@ void Compiler::compileConstantPush(const ScriptNode &constant) {
 void Compiler::compileExpressionTerm(const ScriptNode &exprTerm) {
     assert(exprTerm.type == ScriptNodeType::EXPRESSION_TERM);
 
-    if (exprTerm.children.size() == 1 && exprTerm.children[0].type == ScriptNodeType::CONSTANT)
-        compileConstantPush(exprTerm.children[0]);
+    if (exprTerm.children.size() == 1) {
+        if (exprTerm.children[0].type == ScriptNodeType::CONSTANT)
+            compileConstantPush(exprTerm.children[0]);
+        else if (exprTerm.children[0].type == ScriptNodeType::FUNCTION_CALL)
+            compileFunctionCall(exprTerm.children[0], true);
+    }
+}
+
+void Compiler::compileSimpleStatement(const ScriptNode &simpleStmt) {
+    assert(simpleStmt.type == ScriptNodeType::SIMPLE_STATEMENT);
+
+    auto stmt = simpleStmt.children[0]; 
+    if (stmt.type == ScriptNodeType::FUNCTION_CALL)
+        compileFunctionCall(stmt, false);
+    else if (stmt.type == ScriptNodeType::RETURN)
+        compileReturn(stmt);
+}
+
+void Compiler::compileFunctionCall(const ScriptNode &funCall, bool shouldReturnVal) {
+    assert(funCall.type == ScriptNodeType::FUNCTION_CALL);
+
+    const auto &funNameNode = funCall.children[0];
+    std::string funName = funNameNode.token->val;
+    if (isScriptFunction(funName)) {
+        DWord idx = currScript_->getFunctionIdx(funName);
+        
+        if (shouldReturnVal && currScript_->getFunction(idx)->returnType.isVoid()) {
+            error(std::format(FUNCTION_HAS_VOID_RET_TY, funName), funNameNode);
+            return;
+        }
+
+        emit(Instruction::CALLSCRFUN);
+        emit(idx);
+    }
+    else {
+        error(std::format(CANT_FIND_FUNCTION_NAMED, funName), funNameNode);
+        return;
+    }
+}
+
+void Compiler::compileReturn(const ScriptNode &ret) {
+    assert(ret.type == ScriptNodeType::RETURN);
+
+    ScriptNode expr = ret.children[0];
+    if (expr.children.empty()) {
+        if (!currFunction_->returnType.isVoid()) {
+            error(std::format(FUNCTION_SHOULD_RET_VAL, currFunction_->name), ret);
+            return;
+        }
+
+        emit(Instruction::RETVOID);
+    } else {
+        if (currFunction_->returnType.isVoid()) {
+            error(std::format(FUNCTION_SHOULDNT_RET_VAL, currFunction_->name), ret);
+            return;
+        }
+
+        compileExpression(expr);
+        emit(Instruction::RET);
+    }
 }
 
 } // namespace NCSC

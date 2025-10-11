@@ -1,27 +1,25 @@
 #include <ncsc/vm.hpp>
-#include <iostream>
+#include <print>
 
 namespace NCSC
 {
 
 void printValues(const std::vector<Value> &stack) {
+    if (stack.empty())
+        std::print("empty");
+    
     for (auto val : stack)
-        std::cout << val.operator std::string() << " ";
-    std::cout << std::endl;
+        std::print("{} ", val.operator std::string());
+    std::println();
 }
 
-static constexpr Word readWord(const Byte *bytes, size_t idx) {
-    Word w = 0;
-    w |= ((Word)bytes[idx]) & 0xFF;
-    w |= ((Word)bytes[idx + 1] >> 8) & 0xFF;
-    return w;
-}
 
-static constexpr QWord readQWord(const Byte *bytes, size_t idx) {
-    QWord qw = 0;
-    for (size_t i = 0; i < 8; ++i)
-        qw |= ((QWord)bytes[idx + i] >> (i * 8)) & 0xFF;
-    return qw;
+template <typename T>
+static T readWord(const Byte *bytes, size_t idx) {
+    T words = 0;
+    for (size_t i = 0; i < sizeof(T); ++i)
+        words |= ((T)bytes[idx + i] >> (i * 8)) & 0xFF;
+    return words;
 }
 
 
@@ -45,12 +43,12 @@ void VM::executeNext() {
             END_INSTR(1);
         
         INSTR(STORELOCAL): {
-            Word idx = readWord(bytecode, ip + 1);
+            Word idx = readWord<Word>(bytecode, ip + 1);
             stack_.push_back(pop());
             END_INSTR(sizeof(Word) + 1);
         }
         INSTR(LOADLOCAL): {
-            Word idx = readWord(bytecode, ip + 1);
+            Word idx = readWord<Word>(bytecode, ip + 1);
             push(stack_[bp + idx]);
             END_INSTR(sizeof(Word) + 1);
         }
@@ -58,14 +56,14 @@ void VM::executeNext() {
         INSTR(PUSHINT): {
             push(Value{
                 .type = ValueType::INT,
-                .i = static_cast<int64_t>(readQWord(bytecode, ip + 1)),
+                .i = static_cast<int64_t>(readWord<QWord>(bytecode, ip + 1)),
             });
             END_INSTR(sizeof(QWord) + 1);
         }
         INSTR(PUSHFLOAT): {
             push(Value{
                 .type = ValueType::FLOAT,
-                .f = static_cast<float64_t>(readQWord(bytecode, ip + 1)),
+                .f = static_cast<float64_t>(readWord<QWord>(bytecode, ip + 1)),
             });
             END_INSTR(sizeof(QWord) + 1);
         }
@@ -106,7 +104,27 @@ void VM::executeNext() {
             END_INSTR(1);
         }
 
+        INSTR(CALLSCRFUN): {
+            DWord idx = readWord<DWord>(bytecode, ip + 1);
+            ip += 1 + sizeof(DWord);
+            
+            prepareScriptFunction(script_->getFunction(idx));
+
+            END_INSTR(0);
+        }
+
         INSTR(RET): {
+            CallFrame frame = callStack_.back();
+            Value ret = pop();
+            
+            callStack_.pop_back();
+            stack_.resize(frame.bp);
+            
+            push(ret);
+
+            END_INSTR(1);
+        }
+        INSTR(RETVOID): {
             CallFrame frame = callStack_.back();
             callStack_.pop_back();
             stack_.resize(frame.bp);
@@ -116,6 +134,19 @@ void VM::executeNext() {
     }
 
     printValues(stack_);
+}
+
+void VM::prepareScriptFunction(const Function *fun) {
+    CallFrame frame {
+        .bytecode = fun->bytecode.data(),
+        .bytecodeSize = fun->bytecode.size(),
+        .bp = stack_.size(),
+        .ip = 0,
+    };
+
+    currFun = fun;
+    std::println("fun {}:\n{}", currFun->name, currFun->getBytecodeStrRepr());
+    callStack_.push_back(frame);
 }
 
 void VM::prepareFunction(const Function *fun) {

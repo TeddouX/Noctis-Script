@@ -4,7 +4,7 @@
 namespace NCSC
 {
  
-static int64_t getInt64FromBytes(const std::vector<Byte> &bytecode, size_t offset) {
+static constexpr int64_t getInt64FromBytes(const std::vector<Byte> &bytecode, size_t offset) {
     return bytecode[offset] + 
         ((int64_t)bytecode[offset + 1] << 8) + 
         ((int64_t)bytecode[offset + 2] << 16) + 
@@ -15,7 +15,7 @@ static int64_t getInt64FromBytes(const std::vector<Byte> &bytecode, size_t offse
         ((int64_t)bytecode[offset + 7] << 56);
 }
 
-static float64_t getFloat64FromBytes(const std::vector<Byte> &bytecode, size_t offset) {
+static constexpr float64_t getFloat64FromBytes(const std::vector<Byte> &bytecode, size_t offset) {
     return static_cast<float64_t>(getInt64FromBytes(bytecode, offset));
 }
 
@@ -45,8 +45,16 @@ std::string Function::getBytecodeStrRepr() const {
             case static_cast<Byte>(Instruction::STORELOCAL): {
                 oss << "STORELOCAL ";
 
-                int16_t idx = bytecode[i + 1] + ((int16_t)bytecode[i + 2] << 8);
+                Word idx = bytecode[i + 1] + ((Word)bytecode[i + 2] << 8);
                 i += 2;
+                oss << idx;
+                break;
+            }
+
+            case static_cast<Byte>(Instruction::CALLSCRFUN): {
+                oss << "CALLSCRFUN ";
+                DWord idx = bytecode[i + 1] + ((DWord)bytecode[i + 2] << 8) + ((DWord)bytecode[i + 3] << 16) + ((DWord)bytecode[i + 4] << 24);
+                i += sizeof(DWord);
                 oss << idx;
                 break;
             }
@@ -56,6 +64,7 @@ std::string Function::getBytecodeStrRepr() const {
             case static_cast<Byte>(Instruction::MUL): oss << "MUL"; break;
             case static_cast<Byte>(Instruction::DIV): oss << "DIV"; break;
             case static_cast<Byte>(Instruction::RET): oss << "RET"; break;
+            case static_cast<Byte>(Instruction::RETVOID): oss << "RETVOID"; break;
             case static_cast<Byte>(Instruction::NOOP): oss << "NOOP"; break;
             default: oss << "UNKNOWN INSTR"; break;
         }

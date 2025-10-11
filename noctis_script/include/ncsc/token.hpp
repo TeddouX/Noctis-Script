@@ -38,9 +38,10 @@ enum class TokenType : uint8_t {
     CURLY_BRACE_CLOSE, // }
 
     // Reserved keywords
-    INT_KWD,      // int
-    FLOAT_KWD,    // float
-    FUN_KWD, // function
+    INT_KWD,    // int
+    FLOAT_KWD,  // float
+    FUN_KWD,    // function
+    RETURN_KWD, // return
 
     // Special tokens
     END_OF_FILE,
@@ -50,6 +51,8 @@ struct NCSC_API Token {
     TokenType type;
     std::string val;
     uint32_t line, col;
+
+    Token() : type(TokenType::INVALID) {}
 
     Token(TokenType type, const std::string &val, uint32_t line, uint32_t column)
         : type(type), val(val), line(line), col(column) {}
@@ -84,6 +87,7 @@ const std::unordered_map<std::string, TokenType> tokensStringToTok = {
     {"Int", TokenType::INT_KWD},
     {"Float", TokenType::FLOAT_KWD},
     {"fun", TokenType::FUN_KWD},
+    {"return", TokenType::RETURN_KWD},
 };
 
 } // namespace NCSC

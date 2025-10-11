@@ -5,7 +5,7 @@ namespace NCSC
 
 TypeInfo::TypeInfo(const ScriptNode &node) 
     : token_(*node.token) {
-    assert(node.type == ScriptNodeType::DATA_TYPE && node.token != nullptr);
+    // assert(node.type == ScriptNodeType::DATA_TYPE && node.token != nullptr);
 }
 
 void TypeInfo::getDefaultValue(Byte *bytes, size_t size) {

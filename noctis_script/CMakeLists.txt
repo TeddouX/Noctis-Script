@@ -8,13 +8,13 @@ set(NCSC_SOURCES
     #      Headers
     # -------------------
     "include/ncsc/compiler.hpp"
+    "include/ncsc/error.hpp"
     "include/ncsc/function.hpp"
     "include/ncsc/lexer.hpp"
     "include/ncsc/ncsc.hpp"
     "include/ncsc/parser.hpp"
     "include/ncsc/script_node.hpp"
     "include/ncsc/script.hpp"
-    "include/ncsc/syntax_error.hpp"
     "include/ncsc/token.hpp"
     "include/ncsc/type_info.hpp"
     "include/ncsc/value.hpp"
@@ -24,12 +24,12 @@ set(NCSC_SOURCES
     #    Source files
     # -------------------
     "src/compiler.cpp"
+    "src/error.cpp"
     "src/function.cpp"
     "src/lexer.cpp"
     "src/parser.cpp"
     "src/script_node.cpp"
     "src/script.cpp"
-    "src/syntax_error.cpp"
     "src/token.cpp"
     "src/type_info.cpp"
     "src/vm.cpp"

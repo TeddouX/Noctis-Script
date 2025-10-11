@@ -15,9 +15,13 @@ enum class ScriptNodeType : uint8_t {
     IDENTIFIER,
     EXPRESSION,
     EXPRESSION_TERM,
+    FUNCTION_CALL,
+    SIMPLE_STATEMENT,
+    RETURN,
     BINOP,
     CONSTANT,
     ARGUMENT_LIST,
+    PARAMETER_LIST,
     FUNCTION,
     STATEMENT_BLOCK,
 };

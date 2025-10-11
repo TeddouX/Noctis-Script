@@ -12,6 +12,8 @@ public:
 
     void addFunction(const Function &fun) { functions_.push_back(fun); }
     const Function *getFunction(const std::string &name);
+    const Function *getFunction(DWord idx);
+    const DWord getFunctionIdx(const std::string &name);
 
 private:
     std::vector<Function> functions_;

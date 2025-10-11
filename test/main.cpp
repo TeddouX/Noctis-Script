@@ -2,41 +2,51 @@
 #include <ncsc/parser.hpp>
 #include <ncsc/compiler.hpp>
 #include <ncsc/vm.hpp>
-#include <iostream>
+#include <print>
 
 int main() {
     std::string code = 
+    "Int hello() {\n"
+    "   return 1+1;\n"
+    "}\n"
     "fun main() {\n"
-    "   Int blabla = 1/2*3;\n"
-    "   Int baaaaaa = 4+5-6;\n"
+    // "   hello();\n"
+    "   Int baaaaaa = hello() + 5 - 6;\n"
     "}\n";
 
     auto tokens = NCSC::Lexer(code).tokenizeAll();
 
-    std::cout << code << std::endl;
+    std::println("{}", code);
 
     for (auto token : tokens) {
-        std::cout << token.getStrRepr() << " Position: " << token.line << ":" << token.col << std::endl;
+        std::println("{} Position: {}:{}", token.getStrRepr(), token.line, token.col);
     }
-    std::cout << "\n";
+    std::println();
 
     NCSC::Parser parser(tokens);
     auto rootNode = parser.parseAll();
+    std::println("{}", rootNode.getStrRepr());
     if (parser.hasErrors()) {
         for (auto error : parser.getErrors()) 
-            std::cout << error.getStrRepr() << std::endl;   
+            std::println("{}", error.getString());
+
+        exit(EXIT_FAILURE);
     }
 
-    std::cout << rootNode.getStrRepr() << std::endl;
-
     NCSC::Compiler compiler;
-    auto script = compiler.compileScript(rootNode);
+    std::shared_ptr<NCSC::Script> script = compiler.compileScript(rootNode);
+    if (compiler.hasErrors()) {
+        for (auto error : compiler.getErrors())
+            std::println("{}", error.getString());
+
+        exit(EXIT_FAILURE);
+    }
 
     const NCSC::Function *fun = script->getFunction("main");
     if (fun) {
-        std::cout << fun->getBytecodeStrRepr() << std::endl;
+        std::println("fun {}:\n{}", fun->name, fun->getBytecodeStrRepr());
 
-        NCSC::VM vm;
+        NCSC::VM vm(script);
         vm.prepareFunction(fun);
         vm.execute();
     }

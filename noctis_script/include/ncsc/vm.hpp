@@ -1,5 +1,9 @@
+#pragma once
 #include "function.hpp"
+#include "script.hpp"
 #include "value.hpp"
+
+#include <memory>
 
 namespace NCSC
 {
@@ -13,12 +17,14 @@ struct CallFrame {
 
 class NCSC_API VM {
 public:
-    VM() = default;
+    VM(std::shared_ptr<Script> script)
+        : script_(script) {}
 
     void prepareFunction(const Function *fun);
     bool execute();
 
 private:
+    std::shared_ptr<Script> script_; 
     const Function *currFun = nullptr;
     
     // Stack
@@ -34,6 +40,8 @@ private:
     void error(const std::string &mess);
 
     void executeNext();
+
+    void prepareScriptFunction(const Function *fun);
 };
  
 } // namespace NCSC

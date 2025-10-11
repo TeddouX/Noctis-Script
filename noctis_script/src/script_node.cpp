@@ -15,10 +15,14 @@ static std::string getNodeTypeStrRepr(ScriptNodeType type) {
         case ScriptNodeType::EXPRESSION_TERM:      return "<EXPRESSION_TERM>";
         case ScriptNodeType::BINOP:                return "<BINOP>";
         case ScriptNodeType::CONSTANT:             return "<CONSTANT>";
-        case ScriptNodeType::ARGUMENT_LIST:        return "<ARGUMENT_LIST>";
+        case ScriptNodeType::PARAMETER_LIST:       return "<PARAMETER_LIST>";
         case ScriptNodeType::FUNCTION:             return "<FUNCTION>";
         case ScriptNodeType::STATEMENT_BLOCK:      return "<STATEMENT_BLOCK>";
+        case ScriptNodeType::SIMPLE_STATEMENT:     return "<SIMPLE_STATEMENT>";
         case ScriptNodeType::TOKEN:                return "<TOKEN>";
+        case ScriptNodeType::ARGUMENT_LIST:        return "<ARGUMENT_LIST>";
+        case ScriptNodeType::FUNCTION_CALL:        return "<FUNCTION_CALL>";
+        case ScriptNodeType::RETURN:               return "<RETURN>";
         default:                                   return "<please add the missing node(s)>";
     }
 }
