@@ -13,6 +13,8 @@ struct CallFrame {
     size_t bytecodeSize;
     size_t bp;
     size_t ip;
+    size_t sp;
+    size_t stackSize;
 };
 
 class NCSC_API VM {
@@ -21,7 +23,11 @@ public:
         : script_(script) {}
 
     void prepareFunction(const Function *fun);
+    // Returns false if there was an error during execution
     bool execute();
+    std::string getStackStrRepr() const;
+
+    const std::string &getLastError() { return lastError_; }
 
 private:
     std::shared_ptr<Script> script_; 
@@ -29,6 +35,9 @@ private:
     
     // Stack
     std::vector<Value> stack_;
+    // In this implementation, the stack pointer points at the 
+    // next free spot on the stack
+    size_t sp_;
     std::vector<CallFrame> callStack_;
 
     bool hasError_ = false;

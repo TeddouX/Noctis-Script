@@ -22,7 +22,15 @@ private:
     Script   *currScript_;
     Function *currFunction_;
 
-    std::vector<Error> compileErrors_; 
+    std::vector<Error> compileErrors_;
+
+    struct LocalVar {
+        std::string name;
+        TypeInfo type;
+    };
+    std::vector<LocalVar> localVariables_;
+
+    TypeInfo lastTypeOnStack_;
 
     void error(const std::string &mess, const ScriptNode &node);
 
@@ -43,7 +51,7 @@ private:
     // Add an instruction to the bytecode of the current function
     void emit(Instruction instr) { currFunction_->bytecode.push_back(static_cast<Byte>(instr)); }
 
-    void compileVariableDeclaration(const ScriptNode &varDecl);
+    void compileVariableDeclaration(const ScriptNode &varDecl, bool global);
     void compileConstantPush(const ScriptNode &constant);
     void compileOperator(const ScriptNode &op);
     void compileExpression(const ScriptNode &expr);
@@ -52,11 +60,15 @@ private:
     void compileSimpleStatement(const ScriptNode &simpleStmt);
     void compileFunctionCall(const ScriptNode &funCall, bool shouldReturnVal);
     void compileReturn(const ScriptNode &ret);
+    void compileVariableAccess(const ScriptNode &varAccess);
 
-    inline static constexpr std::string_view CANT_FIND_FUNCTION_NAMED   = "Error: Can't find function named '{}'";
-    inline static constexpr std::string_view FUNCTION_HAS_VOID_RET_TY   = "Error: Function '{}' has a void return type, but it is still being used in an expression";
-    inline static constexpr std::string_view FUNCTION_SHOULD_RET_VAL    = "Error: Function '{}' should return a value";
-    inline static constexpr std::string_view FUNCTION_SHOULDNT_RET_VAL  = "Error: Function '{}' has a return type of void, so it shouldn't return anything";
+    inline static constexpr std::string_view CANT_FIND_FUNCTION_NAMED      = "Error: Can't find function named '{}'";
+    inline static constexpr std::string_view CANT_FIND_VAR_NAMED           = "Error: Can't find variable named '{}'";
+    inline static constexpr std::string_view FUNCTION_HAS_VOID_RET_TY      = "Error: Function '{}' has a void return type, but it is still being used in an expression";
+    inline static constexpr std::string_view FUNCTION_SHOULD_RET_VAL       = "Error: Function '{}' should return a value";
+    inline static constexpr std::string_view FUNCTION_SHOULDNT_RET_VAL     = "Error: Function '{}' has a return type of void, so it shouldn't return anything";
+    inline static constexpr std::string_view EXPECTED_TYPE_INSTEAD_GOT     = "Error: Expected type '{}', instead got '{}'";
+    inline static constexpr std::string_view EXPECTED_NUM_ARGS_INSTEAD_GOT = "Error: Expected {} arguments for function {} instead got {}";
 };
 
 } // namespace NCSC

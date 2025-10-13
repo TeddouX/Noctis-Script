@@ -7,6 +7,7 @@ namespace NCSC
 {
     
 enum class ValueType {
+    UNINITIALIZED,
     INT,
     FLOAT,
 };
@@ -20,6 +21,7 @@ struct Value {
 
     operator std::string() { 
         switch (type) {
+            case ValueType::UNINITIALIZED: return "{UNINITIALIZED}";
             case ValueType::INT: return "{INT; " + std::to_string(i) + "}";
             case ValueType::FLOAT: return "{FLOAT; " + std::to_string(f) + "}";
             default: return "";

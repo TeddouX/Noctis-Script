@@ -117,7 +117,7 @@ std::unique_ptr<Token> Lexer::getCurrent() {
         int len = 1;
         while (currIdx_ + len < source_.length()) {
             char charAt = source_.at(currIdx_ + len);
-            if (std::isalpha(charAt) || charAt == '_') {
+            if (std::isalpha(charAt) || std::isdigit(charAt) || charAt == '_') {
                 len++;
                 continue;
             }

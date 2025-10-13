@@ -34,6 +34,10 @@ enum class Instruction : Byte {
 
     STORELOCAL, // STORELOCAL 1 ; a ; Pops first value on the stack and stores it into local 1
     LOADLOCAL,  // LOADLOCAL 1 ; a ; Loads variable a onto the stack
+
+    STOREGLOBAL, // STORELOCAL 1 ; Pops first value on the stack and stores it into global 1 
+    LOADGLOBAL,  // LOADLOCAL 1 ; a ; Loads a global variable a onto the stack
+
     // PUSHCONST,  // PUSHCONST 1 ; pushes constant 1 onto the stack 
 
     PUSHINT,    // PUSHINT 120311321 ; pushes an int onto the stack

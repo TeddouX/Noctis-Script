@@ -1,14 +1,14 @@
+#define NCSC_BUILD // Remove errors from defining the static variables
 #include <ncsc/type_info.hpp>
 
 namespace NCSC
 {
 
-TypeInfo::TypeInfo(const ScriptNode &node) 
-    : token_(*node.token) {
-    // assert(node.type == ScriptNodeType::DATA_TYPE && node.token != nullptr);
-}
+const TypeInfo TypeInfo::INT   = TypeInfo(TokenType::INT_KWD);
+const TypeInfo TypeInfo::FLOAT = TypeInfo(TokenType::FLOAT_KWD);
+const TypeInfo TypeInfo::VOID  = TypeInfo(TokenType::INVALID);
 
-void TypeInfo::getDefaultValue(Byte *bytes, size_t size) {
+void TypeInfo::getDefaultValue(Byte* bytes, size_t size) const {
     if (isInt() || isFloat()) {
         assert(size == 8);
 

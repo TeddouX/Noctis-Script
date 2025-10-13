@@ -51,6 +51,15 @@ std::string Function::getBytecodeStrRepr() const {
                 break;
             }
 
+            case static_cast<Byte>(Instruction::LOADLOCAL): {
+                oss << "LOADLOCAL ";
+
+                Word idx = bytecode[i + 1] + ((Word)bytecode[i + 2] << 8);
+                i += 2;
+                oss << idx;
+                break;
+            }
+
             case static_cast<Byte>(Instruction::CALLSCRFUN): {
                 oss << "CALLSCRFUN ";
                 DWord idx = bytecode[i + 1] + ((DWord)bytecode[i + 2] << 8) + ((DWord)bytecode[i + 3] << 16) + ((DWord)bytecode[i + 4] << 24);

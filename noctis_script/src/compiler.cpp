@@ -25,6 +25,8 @@ std::unique_ptr<Script> Compiler::compileScript(const ScriptNode &root) {
     for (auto &node : root.children) {
         if (node.type == ScriptNodeType::FUNCTION)
             compileFunction(node);
+        else if (node.type == ScriptNodeType::VARIABLE_DECLARATION)
+            compileVariableDeclaration(node, true);
     }
 
     currScript_ = nullptr;
@@ -63,20 +65,31 @@ void Compiler::compileFunction(const ScriptNode &funcDecl) {
     assert(funcDecl.type == ScriptNodeType::FUNCTION);
 
     auto fun = std::make_shared<Function>();
-    fun->requiredStackSize = computeMaxStackSize(funcDecl);
-
+    
     ScriptNode retType = funcDecl.children[0]; 
     if (retType.type == ScriptNodeType::DATA_TYPE)
-        fun->returnType = TypeInfo(retType);
-
+        fun->returnType = TypeInfo(retType.token->type);
+    
     currFunction_ = fun.get();
     currFunction_->name = funcDecl.children[1].token->val;
+    currFunction_->requiredStackSize = computeMaxStackSize(funcDecl);
+
+    ScriptNode paramsNode = funcDecl.children[2];
+    currFunction_->numParams = paramsNode.children.size() / 2;
+    currFunction_->numLocals = currFunction_->numParams;
+    for (int i = 0; i < paramsNode.children.size(); i++) {
+        TypeInfo ty(paramsNode.children[i].token->type);
+        
+        // Arguments are treated as local variables
+        localVariables_.push_back(LocalVar(paramsNode.children[++i].token->val, ty));
+        currFunction_->paramTypes.push_back(ty);   
+    }
 
     const ScriptNode& statementBlock = funcDecl.children.back();
     for (auto &node : statementBlock.children) {
         switch (node.type) {
             case ScriptNodeType::VARIABLE_DECLARATION:
-                compileVariableDeclaration(node);
+                compileVariableDeclaration(node, false);
                 break;
             case ScriptNodeType::SIMPLE_STATEMENT:
                 compileSimpleStatement(node);
@@ -87,31 +100,34 @@ void Compiler::compileFunction(const ScriptNode &funcDecl) {
         }
     }
 
-    // For void functions, add a return at the end if none currently exists
-    if (currFunction_->returnType.isVoid() && currFunction_->bytecode.back() != static_cast<Byte>(Instruction::RETVOID))
-        emit(Instruction::RETVOID);
-    // For non void functions, error if there is no return at the end
-    else if (currFunction_->returnType.isVoid() && currFunction_->bytecode.back() != static_cast<Byte>(Instruction::RET)) {
-        error(std::format(FUNCTION_SHOULD_RET_VAL, currFunction_->name), funcDecl.children.back());
-        return;
+    if (!hasErrors()) {
+        // For void functions, add a return at the end if none currently exists
+        if (currFunction_->returnType.isVoid() && currFunction_->bytecode.back() != static_cast<Byte>(Instruction::RETVOID))
+            emit(Instruction::RETVOID);
+        // For non void functions, error if there is no return at the end
+        else if (currFunction_->returnType.isVoid() && currFunction_->bytecode.back() != static_cast<Byte>(Instruction::RET)) {
+            error(std::format(FUNCTION_SHOULD_RET_VAL, currFunction_->name), funcDecl.children.back());
+            return;
+        }
     }
 
     currScript_->addFunction(*fun);
 
     currFunction_ = nullptr;
+    localVariables_.clear();
 }
 
 size_t Compiler::computeMaxStackSize(const ScriptNode &node) {
     switch (node.type) {
         case ScriptNodeType::FUNCTION: {
-            size_t argsSize = 0;
-            const ScriptNode &args = node.children[2];
-            // Possibly doesn't have any arguments
-            if (args.hasChildren()) {
-                // Arguments' values should be by pairs (1 type 1 identifier)
-                assert(args.children.size() % 2 == 0);
-                argsSize = args.children.size() / 2;
-            }
+            //size_t argsSize = 0;
+            //const ScriptNode &args = node.children[2];
+            //// Possibly doesn't have any arguments
+            //if (args.hasChildren()) {
+            //    // Arguments' values should be by pairs (1 type 1 identifier)
+            //    assert(args.children.size() % 2 == 0);
+            //    argsSize = args.children.size() / 2;
+            //}
             
             const ScriptNode &stmtBlock = node.children.back();
             assert(stmtBlock.type == ScriptNodeType::STATEMENT_BLOCK);
@@ -120,21 +136,19 @@ size_t Compiler::computeMaxStackSize(const ScriptNode &node) {
                 requiredStackSize = std::max(requiredStackSize, computeMaxStackSize(stmt));
             }
 
-            return argsSize + requiredStackSize;
+            return requiredStackSize;
         }
 
         case ScriptNodeType::VARIABLE_DECLARATION: {
-            // int i;
             if (node.children.size() == 2)
-                // PUSH 1
-                // STORELOCAL n
                 return 1;
             else
                 // Compute expression size
                 return computeMaxStackSize(node.children[2]);   
         }
 
-        case ScriptNodeType::EXPRESSION: {
+        case ScriptNodeType::EXPRESSION:
+        case ScriptNodeType::EXPRESSION_TERM: {
             return computeMaxStackSize(node.children[0]);
         }
     
@@ -146,41 +160,71 @@ size_t Compiler::computeMaxStackSize(const ScriptNode &node) {
             return std::max(lhs, rhs + 1);
         }
 
-        case ScriptNodeType::EXPRESSION_TERM: {
-            // Temp
-            return 1;
+        case ScriptNodeType::SIMPLE_STATEMENT:
+        case ScriptNodeType::RETURN: {
+            if (node.hasChildren())
+                return computeMaxStackSize(node.children[0]);
+            return 0;
         }
+        
+        case ScriptNodeType::FUNCTION_CALL: {
+            size_t requiredStackSize = 0;
+            for (const auto &expr : node.children[1].children) {
+                requiredStackSize += computeMaxStackSize(expr);
+            }
+            return requiredStackSize;
+        }
+            
+
+        case ScriptNodeType::CONSTANT:
+        // Variable access
+        case ScriptNodeType::IDENTIFIER:
+            return 1;
     
         default:
             return 0;
     }
 }
 
-void Compiler::compileVariableDeclaration(const ScriptNode &varDecl) {
+void Compiler::compileVariableDeclaration(const ScriptNode &varDecl, bool global) {
     assert(varDecl.type == ScriptNodeType::VARIABLE_DECLARATION);
 
+    TypeInfo varType(varDecl.children[0].token->type);
     if (varDecl.children.size() == 2) {
-        TypeInfo type(varDecl.children[0]);
-        if (type.isPrimitive()) {
+        if (varType.isPrimitive()) {
             Byte bytes[8]{0};
-            type.getDefaultValue(bytes, sizeof(bytes));
+            varType.getDefaultValue(bytes, sizeof(bytes));
 
-            if (type.isInt())        emit(Instruction::PUSHINT);
-            else if (type.isFloat()) emit(Instruction::PUSHFLOAT);
+            if (varType.isInt())        emit(Instruction::PUSHINT);
+            else if (varType.isFloat()) emit(Instruction::PUSHFLOAT);
 
             emit(bytes, sizeof(bytes));
         } else {
             // do whatever
         }
-    } else
+    } else {
         // Compile the expression
         // The result will be stored on the top of the stack
         compileExpression(varDecl.children[2]);
 
-    emit(Instruction::STORELOCAL); 
-    emit(currFunction_->numLocals);
+        if (lastTypeOnStack_ != varType) {
+            error(std::format(EXPECTED_TYPE_INSTEAD_GOT, varType.getStrRepr(), lastTypeOnStack_.getStrRepr()), varDecl.children[0]);
+            return;
+        }
+    }
 
-    currFunction_->numLocals++;
+    if (global) {
+        // emit(Instruction::STOREGLOBAL);
+        // emit(currScript_->numGlobals);
+
+        // currScript_->numGlobals++;
+    } else {
+        emit(Instruction::STORELOCAL); 
+        emit(currFunction_->numLocals);
+
+        currFunction_->numLocals++;
+        localVariables_.push_back(LocalVar(varDecl.children[1].token->val, varType));
+    }
 }
 
 void Compiler::compileExpression(const ScriptNode &expr) {
@@ -192,16 +236,27 @@ void Compiler::compileExpression(const ScriptNode &expr) {
     }
 
     ScriptNode rootOp = expr.children[0]; 
-    // first go to the left and then the right
+    TypeInfo exprType;
+
     recursivelyCompileExpression(rootOp.children[0]);
+    exprType = lastTypeOnStack_;
+
     recursivelyCompileExpression(rootOp.children[1]);
+    // The float type overrides everything
+    if (exprType == TypeInfo::FLOAT)
+        lastTypeOnStack_ = TypeInfo::FLOAT;
+    
     compileOperator(rootOp);
 }
 
 void Compiler::recursivelyCompileExpression(const ScriptNode &exprChild) {
     if (exprChild.type == ScriptNodeType::BINOP) {
+    TypeInfo exprType;
         recursivelyCompileExpression(exprChild.children[0]);
+        exprType = lastTypeOnStack_;
         recursivelyCompileExpression(exprChild.children[1]);
+        if (exprType == TypeInfo::FLOAT)
+            lastTypeOnStack_ = TypeInfo::FLOAT;
         compileOperator(exprChild);
     } else if (exprChild.type == ScriptNodeType::EXPRESSION_TERM) {
         compileExpressionTerm(exprChild);
@@ -223,33 +278,37 @@ void Compiler::compileOperator(const ScriptNode &binop) {
 void Compiler::compileConstantPush(const ScriptNode &constant) {
     assert(constant.type == ScriptNodeType::CONSTANT);
 
-    TypeInfo type(*constant.token);
-    if (type.isPrimitive()) {
-        Byte bytes[8]{0};
+    Byte bytes[8]{0};
+    if (constant.token->type == TokenType::FLOAT_CONSTANT) {
+        float64_t val = std::stod(constant.token->val);
+        lastTypeOnStack_ = TypeInfo::fromLiteral(val);
 
-        if (type.isInt()) {
-            int val = std::stoi(constant.token->val);
-            intToBytes(val, bytes);
-            emit(Instruction::PUSHINT);
-        } else if (type.isFloat()) {
-            double val = std::stod(constant.token->val);
-            floatToBytes(val, bytes);
-            emit(Instruction::PUSHFLOAT);
-        }
-
-        emit(bytes, sizeof(bytes));
+        floatToBytes(val, bytes);
+        emit(Instruction::PUSHFLOAT);
+    } else if (constant.token->type == TokenType::INT_CONSTANT) {
+        int val = std::stoi(constant.token->val);
+        lastTypeOnStack_ = TypeInfo::fromLiteral(val);
+        
+        intToBytes(val, bytes);
+        emit(Instruction::PUSHINT);
     } else
         assert(0 && "TODO");
+    
+    emit(bytes, sizeof(bytes));
+    
 }
 
 void Compiler::compileExpressionTerm(const ScriptNode &exprTerm) {
     assert(exprTerm.type == ScriptNodeType::EXPRESSION_TERM);
 
     if (exprTerm.children.size() == 1) {
-        if (exprTerm.children[0].type == ScriptNodeType::CONSTANT)
-            compileConstantPush(exprTerm.children[0]);
-        else if (exprTerm.children[0].type == ScriptNodeType::FUNCTION_CALL)
-            compileFunctionCall(exprTerm.children[0], true);
+        ScriptNode firstChild = exprTerm.children[0];
+        if (firstChild.type == ScriptNodeType::CONSTANT)
+            compileConstantPush(firstChild);
+        else if (firstChild.type == ScriptNodeType::FUNCTION_CALL)
+            compileFunctionCall(firstChild, true);
+        else if (firstChild.type == ScriptNodeType::IDENTIFIER)
+            compileVariableAccess(firstChild);
     }
 }
 
@@ -270,10 +329,31 @@ void Compiler::compileFunctionCall(const ScriptNode &funCall, bool shouldReturnV
     std::string funName = funNameNode.token->val;
     if (isScriptFunction(funName)) {
         DWord idx = currScript_->getFunctionIdx(funName);
-        
-        if (shouldReturnVal && currScript_->getFunction(idx)->returnType.isVoid()) {
+        const Function *fun = currScript_->getFunction(idx);
+
+        if (shouldReturnVal && fun->returnType.isVoid()) {
             error(std::format(FUNCTION_HAS_VOID_RET_TY, funName), funNameNode);
             return;
+        }
+
+        ScriptNode argsNode = funCall.children[1];
+        if (argsNode.hasChildren()) {
+            size_t argsNum = argsNode.children.size();
+            if (argsNum != fun->numParams) {
+                error(std::format(EXPECTED_NUM_ARGS_INSTEAD_GOT, fun->numParams, fun->name, argsNum), funNameNode);
+                return;
+            }
+
+            for (int i = 0; i < argsNum; i++) {
+                compileExpression(argsNode.children[i]);
+
+                // Compare parameter type with given argument type
+                const TypeInfo &paramType = fun->paramTypes[i]; 
+                if (paramType != lastTypeOnStack_) {
+                    error(std::format(EXPECTED_TYPE_INSTEAD_GOT, paramType.getStrRepr(), lastTypeOnStack_.getStrRepr()), funNameNode);
+                    return;
+                }
+            }
         }
 
         emit(Instruction::CALLSCRFUN);
@@ -306,5 +386,30 @@ void Compiler::compileReturn(const ScriptNode &ret) {
         emit(Instruction::RET);
     }
 }
+
+void Compiler::compileVariableAccess(const ScriptNode &varAccess) {
+    assert(varAccess.type == ScriptNodeType::IDENTIFIER);
+
+    bool found = false;
+    Word idx = 0;
+    for (Word i = 0; i < localVariables_.size(); i++) {
+        const std::string &varName = localVariables_[i].name;
+
+        if (varName == varAccess.token->val) {
+            found = true;
+            idx = i;
+        }
+    }
+
+    if (!found) {
+        error(std::format(CANT_FIND_VAR_NAMED, varAccess.token->val), varAccess);
+        return;
+    }
+
+    emit(Instruction::LOADLOCAL);
+    emit(idx);
+    lastTypeOnStack_ = localVariables_[idx].type;
+}
+
 
 } // namespace NCSC

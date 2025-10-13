@@ -1,16 +1,17 @@
 #include <ncsc/vm.hpp>
-#include <print>
+#include <sstream>
 
 namespace NCSC
 {
 
-void printValues(const std::vector<Value> &stack) {
+static std::string getStackString(const std::vector<Value> &stack) {
     if (stack.empty())
-        std::print("empty");
-    
+        return "empty";
+
+    std::ostringstream oss;
     for (auto val : stack)
-        std::print("{} ", val.operator std::string());
-    std::println();
+        oss << val.operator std::string() << " ";
+    return oss.str();
 }
 
 
@@ -44,7 +45,7 @@ void VM::executeNext() {
         
         INSTR(STORELOCAL): {
             Word idx = readWord<Word>(bytecode, ip + 1);
-            stack_.push_back(pop());
+            stack_[bp + idx] = pop();
             END_INSTR(sizeof(Word) + 1);
         }
         INSTR(LOADLOCAL): {
@@ -107,45 +108,69 @@ void VM::executeNext() {
         INSTR(CALLSCRFUN): {
             DWord idx = readWord<DWord>(bytecode, ip + 1);
             ip += 1 + sizeof(DWord);
-            
-            prepareScriptFunction(script_->getFunction(idx));
+
+            const Function *fun = script_->getFunction(idx);
+            sp_ -= fun->numParams;
+
+            prepareScriptFunction(fun);
 
             END_INSTR(0);
         }
 
         INSTR(RET): {
-            CallFrame frame = callStack_.back();
             Value ret = pop();
-            
+            if (callStack_.size() >= 2) {
+                const CallFrame &lastFrame = callStack_[callStack_.size() - 2];
+                stack_.resize(lastFrame.stackSize);
+                sp_ = lastFrame.sp;
+            }
+                        
             callStack_.pop_back();
-            stack_.resize(frame.bp);
-            
+
             push(ret);
+
+            // std::println("ret");
 
             END_INSTR(1);
         }
         INSTR(RETVOID): {
-            CallFrame frame = callStack_.back();
+            if (callStack_.size() >= 2) {
+                const CallFrame &lastFrame = callStack_[callStack_.size() - 2];
+                stack_.resize(lastFrame.stackSize);
+                sp_ = lastFrame.sp;
+            }
+
             callStack_.pop_back();
-            stack_.resize(frame.bp);
+            // std::println("ret");
 
             END_INSTR(1);
         }
     }
 
-    printValues(stack_);
+    // std::println("EndOP");
+    // printValues(stack_);
 }
 
 void VM::prepareScriptFunction(const Function *fun) {
     CallFrame frame {
         .bytecode = fun->bytecode.data(),
         .bytecodeSize = fun->bytecode.size(),
-        .bp = stack_.size(),
+        .bp = sp_,
         .ip = 0,
+        .sp = sp_ + fun->numLocals,
+        .stackSize = fun->requiredStackSize + fun->numLocals,
     };
 
+    callStack_.back().sp = sp_;
+
+    // std::println("Calling {}, bp={}, num args={}, num locals={}, starting sp={}, required stack size={}", 
+    //     fun->name, frame.bp, fun->numParams, fun->numLocals, frame.sp, fun->requiredStackSize);
+    // std::println("{}", fun->getBytecodeStrRepr());
+
+    sp_ = frame.sp;
+    stack_.resize(sp_ + fun->requiredStackSize);
+
     currFun = fun;
-    std::println("fun {}:\n{}", currFun->name, currFun->getBytecodeStrRepr());
     callStack_.push_back(frame);
 }
 
@@ -155,7 +180,7 @@ void VM::prepareFunction(const Function *fun) {
 
     currFun = fun;
     stack_.clear();
-    stack_.reserve(currFun->numLocals + currFun->requiredStackSize);
+    stack_.resize(currFun->numParams + currFun->numLocals + currFun->requiredStackSize);
     
     callStack_.clear();
     callStack_.reserve(1);
@@ -168,25 +193,48 @@ bool VM::execute() {
     CallFrame baseFrame{
         .bytecode = currFun->bytecode.data(),
         .bytecodeSize = currFun->bytecode.size(),
-        .bp = stack_.size(),
-        .ip = 0
+        .bp = 0,
+        .ip = 0,
+        .sp = currFun->numParams + currFun->numLocals,
+        .stackSize = currFun->requiredStackSize + currFun->numParams + currFun->numLocals,
     };
     callStack_.push_back(baseFrame);
+    sp_ = baseFrame.sp;
 
     while (callStack_.size() > 0 && !hasError_)
         executeNext();
 
-    return hasError_;
+    return !hasError_;
+}
+
+std::string VM::getStackStrRepr() const {
+    return getStackString(stack_);
 }
 
 Value VM::pop() {
-    Value val = stack_.back();
-    stack_.pop_back();
+    if (sp_ < callStack_.back().bp + currFun->numLocals) {
+        error("Stack underflow");
+        return Value{};
+    }
+
+    sp_--;
+    Value val = stack_[sp_];
     return val;
 }
 
 void VM::push(const Value &val) {
-    stack_.push_back(val);
+    if (sp_ > stack_.size()) {
+        error("Stack overflow");
+        return;
+    }
+
+    if (sp_ == 0 && stack_[0].type == ValueType::UNINITIALIZED) {
+        stack_[0] = val;
+        return;
+    }
+
+    stack_[sp_] = val;
+    sp_++;
 }
 
 void VM::error(const std::string &mess) {

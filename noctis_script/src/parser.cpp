@@ -424,7 +424,7 @@ ScriptNode Parser::parseSimpleStatement() {
     else if (t.type == TokenType::RETURN_KWD) {
         ScriptNode returnNode(ScriptNodeType::RETURN);
         returnNode.token = &t;
-        
+
         consume();
 
         returnNode.addChild(parseExpression());
@@ -451,10 +451,12 @@ ScriptNode Parser::parseFunctionCall() {
     Token &t1 = peek(0); 
     if (t1.type != TokenType::PARENTHESIS_CLOSE) {
         for (;;) {
-            Token& t3 = consume();
+            argListNode.addChild(parseExpression()); CHECK_SYNTAX_ERROR;
+
+            Token &t3 = consume();
             if (t3.type == TokenType::COMMA)
-                argListNode.addChild(parseExpression()); CHECK_SYNTAX_ERROR;
-            else if (t3.type == TokenType::PARENTHESIS_CLOSE)
+                continue;
+            else if (t3.type == TokenType::PARENTHESIS_CLOSE) 
                 break;
             else {
                 createSyntaxError(std::format(EXPECTED_TOKEN_OR_TOKEN, ",", ")"), t3);

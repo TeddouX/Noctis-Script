@@ -13,10 +13,12 @@ struct NCSC_API Function {
     std::string name;
     std::vector<Byte> bytecode;
     std::vector<Value> constants;
+
+    std::vector<TypeInfo> paramTypes;
     TypeInfo returnType;
 
     Word   numLocals = 0;
-    size_t numArgs = 0;
+    size_t numParams = 0;
     size_t requiredStackSize = 0;
 
     std::string getBytecodeStrRepr() const;
