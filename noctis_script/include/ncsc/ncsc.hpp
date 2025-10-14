@@ -1,6 +1,7 @@
 #pragma once
 #include <assert.h>
 #include <stdfloat>
+#include <unordered_map>
 #include <stdint.h>
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -25,6 +26,8 @@ typedef uint16_t  Word;
 typedef uint32_t  DWord;
 typedef uint64_t  QWord;
 typedef uintptr_t PtrWord;
+
+#define NCSC_INVALID_IDX (DWord)(-1)
 
 typedef double float64_t;
 typedef float  float32_t;
@@ -55,5 +58,36 @@ enum class Instruction : Byte {
 
     CALLSCRFUN, // CALLSCRFUN 0 ; calls script function at index 0
 };
+
+// Instruction -> (name & operand size)
+static const std::unordered_map<Instruction, std::pair<const char *, size_t>> INSTR_INFO = {
+    { Instruction::PUSHINT,     {"PUSHINT",     sizeof(int64_t)} },
+    { Instruction::PUSHFLOAT,   {"PUSHFLOAT",   sizeof(float64_t)} },
+    
+    { Instruction::LOADGLOBAL,  {"LOADGLOBAL",  sizeof(DWord)} },
+    { Instruction::STOREGLOBAL, {"STOREGLOBAL", sizeof(DWord)} },
+    { Instruction::CALLSCRFUN,  {"CALLSCRFUN",  sizeof(DWord)} },
+    
+    { Instruction::STORELOCAL,  {"STORELOCAL",  sizeof(Word)} },
+    { Instruction::LOADLOCAL,   {"LOADLOCAL",   sizeof(Word)} },
+    
+    { Instruction::ADD,         {"ADD",         0} },
+    { Instruction::SUB,         {"SUB",         0} },
+    { Instruction::MUL,         {"MUL",         0} },
+    { Instruction::DIV,         {"DIV",         0} },
+    
+    { Instruction::RET,         {"RET",         0} },
+    { Instruction::RETVOID,     {"RETVOID",     0} },
+
+    { Instruction::NOOP,        {"NOOP",        0} },
+};
+
+template <typename T>
+inline constexpr T readWord(const Byte *bytes, size_t idx) {
+    T words = 0;
+    for (size_t i = 0; i < sizeof(T); ++i)
+        words |= ((T)bytes[idx + i] >> (i * 8)) & 0xFF;
+    return words;
+}
 
 } // namespace NCSC

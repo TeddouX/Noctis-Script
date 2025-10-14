@@ -11,16 +11,17 @@ namespace NCSC
 struct CallFrame {
     const Byte *bytecode;
     size_t bytecodeSize;
-    size_t bp;
-    size_t ip;
-    size_t sp;
-    size_t stackSize;
+    size_t bp = 0;
+    size_t ip = 0;
+    size_t sp = 0;
+    size_t stackSize = 0;
 };
 
 class NCSC_API VM {
 public:
-    VM(std::shared_ptr<Script> script)
-        : script_(script) {}
+    VM(std::shared_ptr<Script> script);
+
+    bool computeGlobals();
 
     void prepareFunction(const Function *fun);
     // Returns false if there was an error during execution
@@ -37,8 +38,11 @@ private:
     std::vector<Value> stack_;
     // In this implementation, the stack pointer points at the 
     // next free spot on the stack
-    size_t sp_;
+    size_t sp_ = 0;
     std::vector<CallFrame> callStack_;
+
+    // Computed when the vm instance is created
+    std::vector<Value> globalVariables_;
 
     bool hasError_ = false;
     std::string lastError_;

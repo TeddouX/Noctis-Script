@@ -1,41 +1,99 @@
 #include <ncsc/compiler.hpp>
 #include <ncsc/type_info.hpp>
-#include <iostream>
+#include <sstream>
+#include <format>
+#include <iomanip>
 
 namespace NCSC
 {
 
-static void intToBytes(int64_t val, Byte bytes[]) {
+static constexpr void intToBytes(int64_t val, Byte bytes[]) {
     for (int i = 0; i < 8; ++i)
         bytes[i] = (val >> (i * 8)) & 0xFF;
 }
 
-static void floatToBytes(float64_t val, Byte bytes[]) {
-    uint64_t bits;
-    assert(sizeof(bits) == sizeof(val));
-    std::memcpy(&bits, &val, sizeof(bits));
+static constexpr void floatToBytes(float64_t val, Byte bytes[]) {
+    uint64_t bits = std::bit_cast<uint64_t>(val);;
     intToBytes(bits, bytes);
+}
+
+template <typename T>
+static constexpr T fetchOperand(const std::vector<Byte>& bc, size_t& i) {
+    T val = readWord<T>(bc.data(), i);
+    i += sizeof(T);
+    return val;
+}
+
+std::string Compiler::disassemble(const std::vector<Byte>& bc) {
+    std::ostringstream oss;
+
+    for (size_t i = 0; i < bc.size();) {
+        size_t offset = i;
+        Byte op = bc[i++];
+
+        auto it = INSTR_INFO.find(static_cast<Instruction>(op));
+        if (it == INSTR_INFO.end()) {
+            oss << std::setw(4) << offset << ": UNKNOWN INSTR\n";
+            continue;
+        }
+
+        const auto& info = it->second;
+        oss << std::setw(4) << offset << ": " << info.first;
+
+        if (info.second > 0) {
+            oss << " ";
+            switch (info.second) {
+                case 2: oss << fetchOperand<uint16_t>(bc, i); break;
+                case 4: oss << fetchOperand<uint32_t>(bc, i); break;
+                case 8: oss << fetchOperand<uint64_t>(bc, i); break;
+                default: oss << "(invalid size)";
+            }
+        }
+
+        oss << "\n";
+    }
+
+    return oss.str();
 }
 
 std::unique_ptr<Script> Compiler::compileScript(const ScriptNode &root) {
     auto script = std::make_unique<Script>(); 
-
     currScript_ = script.get();
 
     for (auto &node : root.children) {
         if (node.type == ScriptNodeType::FUNCTION)
             compileFunction(node);
-        else if (node.type == ScriptNodeType::VARIABLE_DECLARATION)
+        else if (node.type == ScriptNodeType::VARIABLE_DECLARATION) {
             compileVariableDeclaration(node, true);
+            // So the VM is able to stop
+            emit(Instruction::RETVOID);
+
+            GlobalVar gv {
+                .name = node.children[1].token->val,
+                .bytecode = tempCompiledBytecode_,
+                .requiredStackSize = computeMaxStackSize(node),
+                .type = lastTypeOnStack_,
+            };
+
+            currScript_->addGlovalVar(gv);
+            tempCompiledBytecode_.clear();
+        }
     }
 
     currScript_ = nullptr;
-
     return script;
 }
 
 void Compiler::error(const std::string &mess, const ScriptNode &node) {
     compileErrors_.push_back(Error(mess, node));
+}
+
+void Compiler::emit(Byte byte) {
+    tempCompiledBytecode_.push_back(byte);
+}
+
+void Compiler::emit(Instruction instr) {
+    emit(static_cast<Byte>(instr));
 }
 
 void Compiler::emit(Byte *bytecode, size_t size) {
@@ -102,13 +160,16 @@ void Compiler::compileFunction(const ScriptNode &funcDecl) {
 
     if (!hasErrors()) {
         // For void functions, add a return at the end if none currently exists
-        if (currFunction_->returnType.isVoid() && currFunction_->bytecode.back() != static_cast<Byte>(Instruction::RETVOID))
+        if (currFunction_->returnType.isVoid() && tempCompiledBytecode_.back() != static_cast<Byte>(Instruction::RETVOID))
             emit(Instruction::RETVOID);
         // For non void functions, error if there is no return at the end
-        else if (currFunction_->returnType.isVoid() && currFunction_->bytecode.back() != static_cast<Byte>(Instruction::RET)) {
+        else if (currFunction_->returnType.isVoid() && tempCompiledBytecode_.back() != static_cast<Byte>(Instruction::RET)) {
             error(std::format(FUNCTION_SHOULD_RET_VAL, currFunction_->name), funcDecl.children.back());
             return;
         }
+
+        currFunction_->bytecode = tempCompiledBytecode_;
+        tempCompiledBytecode_.clear();
     }
 
     currScript_->addFunction(*fun);
@@ -120,15 +181,6 @@ void Compiler::compileFunction(const ScriptNode &funcDecl) {
 size_t Compiler::computeMaxStackSize(const ScriptNode &node) {
     switch (node.type) {
         case ScriptNodeType::FUNCTION: {
-            //size_t argsSize = 0;
-            //const ScriptNode &args = node.children[2];
-            //// Possibly doesn't have any arguments
-            //if (args.hasChildren()) {
-            //    // Arguments' values should be by pairs (1 type 1 identifier)
-            //    assert(args.children.size() % 2 == 0);
-            //    argsSize = args.children.size() / 2;
-            //}
-            
             const ScriptNode &stmtBlock = node.children.back();
             assert(stmtBlock.type == ScriptNodeType::STATEMENT_BLOCK);
             size_t requiredStackSize = 0;
@@ -214,10 +266,10 @@ void Compiler::compileVariableDeclaration(const ScriptNode &varDecl, bool global
     }
 
     if (global) {
-        // emit(Instruction::STOREGLOBAL);
-        // emit(currScript_->numGlobals);
+        emit(Instruction::STOREGLOBAL);
+        emit(currScript_->numGlobalVariables);
 
-        // currScript_->numGlobals++;
+        currScript_->numGlobalVariables++;
     } else {
         emit(Instruction::STORELOCAL); 
         emit(currFunction_->numLocals);
@@ -402,13 +454,21 @@ void Compiler::compileVariableAccess(const ScriptNode &varAccess) {
     }
 
     if (!found) {
-        error(std::format(CANT_FIND_VAR_NAMED, varAccess.token->val), varAccess);
+        DWord idx = currScript_->getGlobalVarIdx(varAccess.token->val);
+        if (idx == NCSC_INVALID_IDX)
+            error(std::format(CANT_FIND_VAR_NAMED, varAccess.token->val), varAccess);
+
+        emit(Instruction::LOADGLOBAL);
+        emit(idx);
+        lastTypeOnStack_ = currScript_->getGlobalVar(idx)->type;
+
         return;
+    } else {
+        emit(Instruction::LOADLOCAL);
+        emit(idx);
+        lastTypeOnStack_ = localVariables_[idx].type;
     }
 
-    emit(Instruction::LOADLOCAL);
-    emit(idx);
-    lastTypeOnStack_ = localVariables_[idx].type;
 }
 
 

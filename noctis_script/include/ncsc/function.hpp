@@ -20,8 +20,6 @@ struct NCSC_API Function {
     Word   numLocals = 0;
     size_t numParams = 0;
     size_t requiredStackSize = 0;
-
-    std::string getBytecodeStrRepr() const;
 };
 
 } // namespace NCSC

@@ -13,6 +13,8 @@ class NCSC_API Compiler {
 public:
     Compiler() = default;
 
+    static std::string disassemble(const std::vector<Byte> &bc);
+
     std::unique_ptr<Script> compileScript(const ScriptNode &root);
 
     bool hasErrors() { return !compileErrors_.empty(); }
@@ -21,6 +23,8 @@ public:
 private:
     Script   *currScript_;
     Function *currFunction_;
+
+    std::vector<Byte> tempCompiledBytecode_;
 
     std::vector<Error> compileErrors_;
 
@@ -43,13 +47,13 @@ private:
     size_t computeMaxStackSize(const ScriptNode &node);
 
     // Add a byte to the bytecode of the current function
-    void emit(Byte bytecode) { currFunction_->bytecode.push_back(bytecode); }
+    void emit(Byte bytecode);
     void emit(Byte *bytecode, size_t size);
     void emit(Word w);
     void emit(DWord dw);
 
     // Add an instruction to the bytecode of the current function
-    void emit(Instruction instr) { currFunction_->bytecode.push_back(static_cast<Byte>(instr)); }
+    void emit(Instruction instr);
 
     void compileVariableDeclaration(const ScriptNode &varDecl, bool global);
     void compileConstantPush(const ScriptNode &constant);

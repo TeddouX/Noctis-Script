@@ -25,7 +25,6 @@ set(NCSC_SOURCES
     # -------------------
     "src/compiler.cpp"
     "src/error.cpp"
-    "src/function.cpp"
     "src/lexer.cpp"
     "src/parser.cpp"
     "src/script_node.cpp"

@@ -1,5 +1,6 @@
 #include <ncsc/vm.hpp>
 #include <sstream>
+#include <print>
 
 namespace NCSC
 {
@@ -15,14 +16,11 @@ static std::string getStackString(const std::vector<Value> &stack) {
 }
 
 
-template <typename T>
-static T readWord(const Byte *bytes, size_t idx) {
-    T words = 0;
-    for (size_t i = 0; i < sizeof(T); ++i)
-        words |= ((T)bytes[idx + i] >> (i * 8)) & 0xFF;
-    return words;
+VM::VM(std::shared_ptr<Script> script)
+    : script_(script) 
+{
+    globalVariables_.resize(script_->numGlobalVariables);
 }
-
 
 void VM::executeNext() {
     CallFrame &currFrame = callStack_.back();
@@ -52,6 +50,16 @@ void VM::executeNext() {
             Word idx = readWord<Word>(bytecode, ip + 1);
             push(stack_[bp + idx]);
             END_INSTR(sizeof(Word) + 1);
+        }
+        INSTR(STOREGLOBAL): {
+            DWord idx = readWord<DWord>(bytecode, ip + 1);
+            globalVariables_[idx] = pop();
+            END_INSTR(sizeof(DWord) + 1);
+        }
+        INSTR(LOADGLOBAL): {
+            DWord idx = readWord<DWord>(bytecode, ip + 1);
+            push(globalVariables_[idx]);
+            END_INSTR(sizeof(DWord) + 1);
         }
 
         INSTR(PUSHINT): {
@@ -148,7 +156,8 @@ void VM::executeNext() {
     }
 
     // std::println("EndOP");
-    // printValues(stack_);
+    // std::println("{}", getStackStrRepr());
+    // std::println("{}", sp_);
 }
 
 void VM::prepareScriptFunction(const Function *fun) {
@@ -186,6 +195,37 @@ void VM::prepareFunction(const Function *fun) {
     callStack_.reserve(1);
 }
 
+bool VM::computeGlobals() {
+    if (!script_) {
+        error("No script attached to the VM");
+        return false;
+    }
+
+    // Compute values for all global variables
+    for (const auto &global : script_->getAllGlobalVars()) {
+        CallFrame cf {
+            .bytecode = global.bytecode.data(),
+            .bytecodeSize = global.bytecode.size(),
+            .stackSize = global.requiredStackSize,
+        };
+        
+        sp_ = 0;
+        callStack_.push_back(cf);
+        stack_.resize(global.requiredStackSize);
+
+        while (callStack_.size() > 0 && !hasError_)
+            executeNext();
+        
+        stack_.clear();
+        callStack_.clear();
+
+        if (hasError_)
+            return false;
+    }
+
+    return true;
+}
+
 bool VM::execute() {
     if (!currFun)
         return false;
@@ -193,13 +233,12 @@ bool VM::execute() {
     CallFrame baseFrame{
         .bytecode = currFun->bytecode.data(),
         .bytecodeSize = currFun->bytecode.size(),
-        .bp = 0,
-        .ip = 0,
         .sp = currFun->numParams + currFun->numLocals,
         .stackSize = currFun->requiredStackSize + currFun->numParams + currFun->numLocals,
     };
-    callStack_.push_back(baseFrame);
+
     sp_ = baseFrame.sp;
+    callStack_.push_back(baseFrame);
 
     while (callStack_.size() > 0 && !hasError_)
         executeNext();
@@ -212,9 +251,17 @@ std::string VM::getStackStrRepr() const {
 }
 
 Value VM::pop() {
-    if (sp_ < callStack_.back().bp + currFun->numLocals) {
-        error("Stack underflow");
+    if (sp_ - 1 == UINT64_MAX) {
+        error("Stack underflow (empty stack)");
         return Value{};
+    }
+
+    if (currFun) {
+        size_t frameBase = callStack_.back().bp;
+        if (sp_ < frameBase) {
+            error("Stack underflow (below current frame)");
+            return Value{};
+        }
     }
 
     sp_--;
@@ -225,11 +272,6 @@ Value VM::pop() {
 void VM::push(const Value &val) {
     if (sp_ > stack_.size()) {
         error("Stack overflow");
-        return;
-    }
-
-    if (sp_ == 0 && stack_[0].type == ValueType::UNINITIALIZED) {
-        stack_[0] = val;
         return;
     }
 
