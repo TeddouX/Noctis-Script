@@ -84,10 +84,10 @@ static const std::unordered_map<Instruction, std::pair<const char *, size_t>> IN
 
 template <typename T>
 inline constexpr T readWord(const Byte *bytes, size_t idx) {
-    T words = 0;
+    std::make_unsigned_t<T> words = 0;
     for (size_t i = 0; i < sizeof(T); ++i)
-        words |= ((T)bytes[idx + i] >> (i * 8)) & 0xFF;
-    return words;
+        words |= (static_cast<T>(bytes[idx + i]) << (i * 8));
+    return static_cast<T>(words);
 }
 
 } // namespace NCSC
