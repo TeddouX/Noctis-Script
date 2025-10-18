@@ -5,70 +5,14 @@ namespace NCSC
 {
     
 // BOOL < INT16 < UINT16 < INT32 < UINT32 < INT64 < UINT64 < FLOAT32 < FLOAT64
-static int getRank(ValueType ty) {
-    switch (ty) {
-        case ValueType::BOOL:    return 0;
-        case ValueType::INT16:   return 1;
-        case ValueType::UINT16:  return 2;
-        case ValueType::INT32:   return 3;
-        case ValueType::UINT32:  return 4;
-        case ValueType::INT64:   return 5;
-        case ValueType::UINT64:  return 6;
-        case ValueType::FLOAT32: return 7;
-        case ValueType::FLOAT64: return 8;
-        default:                 return -1;
-    }
-}
+static int getRank(ValueType ty);
 
-static bool isUnsigned(ValueType ty) {
-    return ty == ValueType::UINT16 ||
-           ty == ValueType::UINT32 ||
-           ty == ValueType::UINT64;
-}
+static bool isUnsigned(ValueType ty);
+static bool isFloat(ValueType ty);
 
-static bool isFloat(ValueType ty) {
-    return ty == ValueType::FLOAT32 || ty == ValueType::FLOAT64;
-}
+static ValueType promoteType(ValueType a, ValueType b);
 
-// INT16 + UINT16 -> UINT16
-// INT32 + UINT16 -> INT32
-// UINT32 + INT32 -> UINT32
-// INT32 + FLOAT64 -> FLOAT64
-// UINT64 + INT32 -> UINT64
-static ValueType promoteType(ValueType a, ValueType b) {
-    // Both are the same type
-    if (a == b)
-        return a;
-
-    // Floats rank above everything
-    if (isFloat(a) || isFloat(b)) {
-        if (a == ValueType::FLOAT64 || b == ValueType::FLOAT64)
-            return ValueType::FLOAT64;
-        return ValueType::FLOAT32;
-    }
-
-    int rankA = getRank(a);
-    int rankB = getRank(b);
-
-    ValueType higher = (rankA > rankB) ? a : b;
-    ValueType lower  = (rankA > rankB) ? b : a;
-
-    // If higher is unsigned, result is unsigned
-    if (isUnsigned(higher))
-        return higher;
- 
-    // If higher is signed and has higher rank -> signed
-    if (!isUnsigned(higher) && rankA != rankB)
-        return higher;
-
-    // If same rank but one unsigned -> unsigned version
-    if (rankA == rankB) {
-        if (isUnsigned(a)) return a;
-        if (isUnsigned(b)) return b;
-    }
-
-    return higher;  
-}
+static size_t setValueProp(const Byte *bytes, ValueType ty, Value &val, size_t readOff);
 
 template <typename T>
 static T toNumType(const Value& v) {
@@ -86,6 +30,7 @@ static T toNumType(const Value& v) {
     }
 }
 
+// Utility macro
 #define VALUE_OPERATOR(op) Value Value::operator op(const Value &other) {           \
     ValueType resultType = promoteType(ty, other.ty);                               \
     Value val{ .ty = resultType };                                                  \
@@ -146,7 +91,83 @@ Value::operator std::string() {
     }
 }
 
-static size_t setValueProp(const Byte *bytes, ValueType ty, Value &val, size_t readOff) {
+Value Value::fromBytes(const Byte *bytes, size_t readOff, size_t &readSize) {
+    readSize = sizeof(ValueType);
+    
+    auto ty = static_cast<ValueType>(readWord<DWord>(bytes, readOff));
+    
+    Value val{ .ty = ty };
+    readSize += setValueProp(bytes, ty, val, readOff + readSize);
+    
+    return val;
+}
+
+int getRank(ValueType ty) {
+    switch (ty) {
+        case ValueType::BOOL:    return 0;
+        case ValueType::INT16:   return 1;
+        case ValueType::UINT16:  return 2;
+        case ValueType::INT32:   return 3;
+        case ValueType::UINT32:  return 4;
+        case ValueType::INT64:   return 5;
+        case ValueType::UINT64:  return 6;
+        case ValueType::FLOAT32: return 7;
+        case ValueType::FLOAT64: return 8;
+        default:                 return -1;
+    }
+}
+
+bool isUnsigned(ValueType ty) {
+    return ty == ValueType::UINT16 ||
+           ty == ValueType::UINT32 ||
+           ty == ValueType::UINT64;
+}
+
+bool isFloat(ValueType ty) {
+    return ty == ValueType::FLOAT32 || ty == ValueType::FLOAT64;
+}
+
+// INT16 + UINT16 -> UINT16
+// INT32 + UINT16 -> INT32
+// UINT32 + INT32 -> UINT32
+// INT32 + FLOAT64 -> FLOAT64
+// UINT64 + INT32 -> UINT64
+ValueType promoteType(ValueType a, ValueType b) {
+    // Both are the same type
+    if (a == b)
+        return a;
+
+    // Floats rank above everything
+    if (isFloat(a) || isFloat(b)) {
+        if (a == ValueType::FLOAT64 || b == ValueType::FLOAT64)
+            return ValueType::FLOAT64;
+        return ValueType::FLOAT32;
+    }
+
+    int rankA = getRank(a);
+    int rankB = getRank(b);
+
+    ValueType higher = (rankA > rankB) ? a : b;
+    ValueType lower  = (rankA > rankB) ? b : a;
+
+    // If higher is unsigned, result is unsigned
+    if (isUnsigned(higher))
+        return higher;
+ 
+    // If higher is signed and has higher rank -> signed
+    if (!isUnsigned(higher) && rankA != rankB)
+        return higher;
+
+    // If same rank but one unsigned -> unsigned version
+    if (rankA == rankB) {
+        if (isUnsigned(a)) return a;
+        if (isUnsigned(b)) return b;
+    }
+
+    return higher;  
+}
+
+size_t setValueProp(const Byte *bytes, ValueType ty, Value &val, size_t readOff) {
     switch (ty)
     {
         case ValueType::INT16: val.i16 = readWord<int16_t>(bytes, readOff); return sizeof(int16_t);
@@ -167,17 +188,6 @@ static size_t setValueProp(const Byte *bytes, ValueType ty, Value &val, size_t r
         default:
             return 0;
     }
-}
-
-Value Value::fromBytes(const Byte *bytes, size_t readOff, size_t &readSize) {
-    readSize = sizeof(ValueType);
-    
-    auto ty = static_cast<ValueType>(readWord<DWord>(bytes, readOff));
-    
-    Value val{ .ty = ty };
-    readSize += setValueProp(bytes, ty, val, readOff + readSize);
-    
-    return val;
 }
 
 } // namespace NCSC

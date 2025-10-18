@@ -194,7 +194,7 @@ size_t Compiler::computeMaxStackSize(const ScriptNode &node) {
 
         case ScriptNodeType::VARIABLE_DECLARATION: {
             if (node.children.size() == 2)
-                return getValueSize(1ULL);
+                return 1;
             else
                 // Compute expression size
                 return computeMaxStackSize(node.children[2]);   
@@ -232,8 +232,7 @@ size_t Compiler::computeMaxStackSize(const ScriptNode &node) {
         case ScriptNodeType::CONSTANT:
         // Variable access
         case ScriptNodeType::IDENTIFIER:
-            // Overallocate for simplicity :/
-            return getValueSize(1ULL);
+            return 1;
     
         default:
             return 0;

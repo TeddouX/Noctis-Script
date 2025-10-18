@@ -94,7 +94,7 @@ int main() {
     NCSC::Value val1{ .ty = NCSC::ValueType::FLOAT32, .f32 = 12.f };
     NCSC::Value val2{ .ty = NCSC::ValueType::INT32, .i32 = 12 };
 
-    auto val3 = val1 + val2;
+    auto val3 = val1 / val2;
 
     std::println("Result: {}", val3.operator std::string());
 
