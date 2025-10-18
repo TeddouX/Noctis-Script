@@ -62,23 +62,20 @@ void VM::executeNext() {
             END_INSTR(sizeof(DWord) + 1);
         }
 
-        INSTR(PUSHINT): {
-            push(Value{
-                .type = ValueType::INT,
-                .i = static_cast<int64_t>(readWord<QWord>(bytecode, ip + 1)),
-            });
-            END_INSTR(sizeof(QWord) + 1);
-        }
-        INSTR(PUSHFLOAT): {
-            push(Value{
-                .type = ValueType::FLOAT,
-                .f = static_cast<float64_t>(readWord<QWord>(bytecode, ip + 1)),
-            });
-            END_INSTR(sizeof(QWord) + 1);
-        }
-        INSTR(POP):
-            pop();
-            END_INSTR(1);
+        // INSTR(PUSHINT): {
+        //     push(Value{
+        //         .type = ValueType::INT,
+        //         .i = static_cast<int64_t>(readWord<QWord>(bytecode, ip + 1)),
+        //     });
+        //     END_INSTR(sizeof(QWord) + 1);
+        // }
+        // INSTR(PUSHFLOAT): {
+        //     push(Value{
+        //         .type = ValueType::FLOAT,
+        //         .f = static_cast<float64_t>(readWord<QWord>(bytecode, ip + 1)),
+        //     });
+        //     END_INSTR(sizeof(QWord) + 1);
+        // }
 
         INSTR(ADD): {
             Value b = pop();

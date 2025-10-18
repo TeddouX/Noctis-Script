@@ -12,7 +12,7 @@ namespace NCSC
 struct NCSC_API Function {
     std::string name;
     std::vector<Byte> bytecode;
-    std::vector<Value> constants;
+    // std::vector<Value> constants;
 
     std::vector<TypeInfo> paramTypes;
     TypeInfo returnType;

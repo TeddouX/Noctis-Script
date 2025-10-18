@@ -3,8 +3,10 @@
 #include "script.hpp"
 #include "ncsc.hpp"
 #include "error.hpp"
+#include "value.hpp"
 
 #include <memory>
+#include <format>
 
 namespace NCSC
 {
@@ -34,7 +36,7 @@ private:
     };
     std::vector<LocalVar> localVariables_;
 
-    TypeInfo lastTypeOnStack_;
+    TypeInfo expectedExpressionType_;
 
     void error(const std::string &mess, const ScriptNode &node);
 
@@ -55,6 +57,38 @@ private:
     // Add an instruction to the bytecode of the current function
     void emit(Instruction instr);
 
+    template <typename T>
+    requires std::is_integral_v<T> 
+    void emitIntConstant(const ScriptNode &constant, ValueType vtype) {
+        using IntermediateTy_ = std::conditional_t<std::is_signed_v<T>, int64_t, uint64_t>;
+        IntermediateTy_ intermediate{};
+
+        if constexpr (std::is_signed_v<IntermediateTy_>)
+            intermediate = std::strtoll(constant.token->val.c_str(), nullptr, 0);
+        else
+            intermediate = std::strtoull(constant.token->val.c_str(), nullptr, 0);
+
+        if constexpr (std::is_signed_v<T>) {
+            if (intermediate < std::numeric_limits<T>::min()) {
+                error(std::format(NUMBER_IS_TOO_SMALL_FOR_TY, constant.token->val, VTYPE_NAMES.at(vtype)), constant);
+                return;
+            }
+        }
+
+        if (intermediate > std::numeric_limits<T>::max()) {
+            error(std::format(NUMBER_IS_TOO_BIG_FOR_TY, constant.token->val, VTYPE_NAMES.at(vtype)), constant);
+            return;
+        }
+
+        T val = static_cast<T>(intermediate);
+        
+        constexpr size_t bytesSize = getValueSize(T{}); 
+        Byte bytes[bytesSize];
+        makeValueBytes(val, vtype, bytes, 0);
+        emit(Instruction::PUSH);
+        emit(bytes, bytesSize);
+    }
+
     void compileVariableDeclaration(const ScriptNode &varDecl, bool global);
     void compileConstantPush(const ScriptNode &constant);
     void compileOperator(const ScriptNode &op);
@@ -73,6 +107,9 @@ private:
     inline static constexpr std::string_view FUNCTION_SHOULDNT_RET_VAL     = "Error: Function '{}' has a return type of void, so it shouldn't return anything";
     inline static constexpr std::string_view EXPECTED_TYPE_INSTEAD_GOT     = "Error: Expected type '{}', instead got '{}'";
     inline static constexpr std::string_view EXPECTED_NUM_ARGS_INSTEAD_GOT = "Error: Expected {} arguments for function {} instead got {}";
+    inline static constexpr std::string_view EXPECTED_NON_FLOATING_POINT   = "Error: Unexpected floating point number '{}'";
+    inline static constexpr std::string_view NUMBER_IS_TOO_BIG_FOR_TY      = "Error: Number '{}' is too big for an {}";
+    inline static constexpr std::string_view NUMBER_IS_TOO_SMALL_FOR_TY    = "Error: Number '{}' is too small for an {}";
 };
 
 } // namespace NCSC

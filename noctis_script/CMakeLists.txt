@@ -31,7 +31,8 @@ set(NCSC_SOURCES
     "src/script.cpp"
     "src/token.cpp"
     "src/type_info.cpp"
-    "src/vm.cpp"
+    "src/value.cpp"
+    # "src/vm.cpp"
 )
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${NCSC_SOURCES})

@@ -1,58 +1,37 @@
 #pragma once
-#include "ncsc.hpp"
-
 #include <string>
+#include "ncsc.hpp"
 
 namespace NCSC
 {
     
-enum class ValueType {
-    UNINITIALIZED,
-    INT,
-    FLOAT,
-};
+struct NCSC_API Value {
+    ValueType ty;
+    union {
+        int16_t i16; 
+        int32_t i32; 
+        int64_t i64;
+        
+        uint16_t ui16;
+        uint32_t ui32;
+        uint64_t ui64;
 
-struct Value {
-    ValueType type;
-    union { 
-        int64_t i; 
-        float64_t f;
+        float32_t f32;
+        float64_t f64;
+
+        bool b;
     };
 
-    operator std::string() { 
-        switch (type) {
-            case ValueType::UNINITIALIZED: return "{UNINITIALIZED}";
-            case ValueType::INT: return "{INT; " + std::to_string(i) + "}";
-            case ValueType::FLOAT: return "{FLOAT; " + std::to_string(f) + "}";
-            default: return "";
-        }
-    }
+    Value operator+(const Value &other);
+    Value operator-(const Value &other);
+    Value operator*(const Value &other);
+    Value operator/(const Value &other);
+
+    operator std::string();
+
+    // Reads the value at the end of the bytes array, 
+    // big endian meaning that the value is first and the ValueType is last
+    static Value fromBytes(const Byte *bytes, size_t readOff, size_t &readSize);
 };
-
-inline float64_t toFloat(const Value& v) {
-    return v.type == ValueType::INT ? static_cast<float64_t>(v.i) : v.f;
-}
-
-inline Value operator+(Value lhs, const Value& rhs) { 
-    if (lhs.type == ValueType::INT && rhs.type == ValueType::INT) 
-        return Value{ .type = ValueType::INT, .i = lhs.i + rhs.i, }; 
-    else return Value{ .type = ValueType::FLOAT, .f = toFloat(lhs) + toFloat(rhs), }; 
-}
-
-inline Value operator-(Value lhs, const Value& rhs) { 
-    if (lhs.type == ValueType::INT && rhs.type == ValueType::INT) 
-        return Value{ .type = ValueType::INT, .i = lhs.i - rhs.i, }; 
-    else return Value{ .type = ValueType::FLOAT, .f = toFloat(lhs) - toFloat(rhs), }; 
-}
-
-inline Value operator*(Value lhs, const Value& rhs) { 
-    if (lhs.type == ValueType::INT && rhs.type == ValueType::INT) 
-        return Value{ .type = ValueType::INT, .i = lhs.i * rhs.i, }; 
-    else return Value{ .type = ValueType::FLOAT, .f = toFloat(lhs) * toFloat(rhs), }; 
-}
-
-inline Value operator/(Value lhs, const Value& rhs) { 
-    return Value{ .type = ValueType::FLOAT, .f = toFloat(lhs) / toFloat(rhs), };
-}
 
 } // namespace NCSC

@@ -65,8 +65,15 @@ Token &Parser::peek(int amount) {
 bool Parser::isDataType(TokenType type) {
     // TODO: Compare against a list of cached types
     switch (type) {
-        case TokenType::INT_KWD:
-        case TokenType::FLOAT_KWD:
+        case TokenType::INT16_KWD:
+        case TokenType::INT32_KWD:
+        case TokenType::INT64_KWD:
+        case TokenType::UINT16_KWD:
+        case TokenType::UINT32_KWD:
+        case TokenType::UINT64_KWD:
+        case TokenType::FLOAT32_KWD:
+        case TokenType::FLOAT64_KWD:
+        case TokenType::BOOL_KWD:
             return true;
             break;
         default:
