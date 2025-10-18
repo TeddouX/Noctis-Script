@@ -11,7 +11,7 @@ static std::string getStackString(const std::vector<Value> &stack) {
 
     std::ostringstream oss;
     for (auto val : stack)
-        oss << val.operator std::string() << " ";
+        oss << val.operator std::string() << ", ";
     return oss.str();
 }
 
@@ -62,20 +62,11 @@ void VM::executeNext() {
             END_INSTR(sizeof(DWord) + 1);
         }
 
-        // INSTR(PUSHINT): {
-        //     push(Value{
-        //         .type = ValueType::INT,
-        //         .i = static_cast<int64_t>(readWord<QWord>(bytecode, ip + 1)),
-        //     });
-        //     END_INSTR(sizeof(QWord) + 1);
-        // }
-        // INSTR(PUSHFLOAT): {
-        //     push(Value{
-        //         .type = ValueType::FLOAT,
-        //         .f = static_cast<float64_t>(readWord<QWord>(bytecode, ip + 1)),
-        //     });
-        //     END_INSTR(sizeof(QWord) + 1);
-        // }
+        INSTR(PUSH): {
+            size_t operandSize = 0;
+            push(Value::fromBytes(bytecode, ip + 1, operandSize));
+            END_INSTR(operandSize + 1);
+        }
 
         INSTR(ADD): {
             Value b = pop();
@@ -134,8 +125,6 @@ void VM::executeNext() {
 
             push(ret);
 
-            // std::println("ret");
-
             END_INSTR(1);
         }
         INSTR(RETVOID): {
@@ -146,15 +135,10 @@ void VM::executeNext() {
             }
 
             callStack_.pop_back();
-            // std::println("ret");
 
             END_INSTR(1);
         }
     }
-
-    // std::println("EndOP");
-    // std::println("{}", getStackStrRepr());
-    // std::println("{}", sp_);
 }
 
 void VM::prepareScriptFunction(const Function *fun) {
@@ -168,10 +152,6 @@ void VM::prepareScriptFunction(const Function *fun) {
     };
 
     callStack_.back().sp = sp_;
-
-    // std::println("Calling {}, bp={}, num args={}, num locals={}, starting sp={}, required stack size={}", 
-    //     fun->name, frame.bp, fun->numParams, fun->numLocals, frame.sp, fun->requiredStackSize);
-    // std::println("{}", fun->getBytecodeStrRepr());
 
     sp_ = frame.sp;
     stack_.resize(sp_ + fun->requiredStackSize);

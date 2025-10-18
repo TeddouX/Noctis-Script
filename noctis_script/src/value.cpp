@@ -10,6 +10,12 @@ static int getRank(ValueType ty);
 static bool isUnsigned(ValueType ty);
 static bool isFloat(ValueType ty);
 
+// Examples: 
+// INT16 + UINT16 -> UINT16
+// INT32 + UINT16 -> INT32
+// UINT32 + INT32 -> UINT32
+// INT32 + FLOAT64 -> FLOAT64
+// UINT64 + INT32 -> UINT64
 static ValueType promoteType(ValueType a, ValueType b);
 
 static size_t setValueProp(const Byte *bytes, ValueType ty, Value &val, size_t readOff);
@@ -127,11 +133,6 @@ bool isFloat(ValueType ty) {
     return ty == ValueType::FLOAT32 || ty == ValueType::FLOAT64;
 }
 
-// INT16 + UINT16 -> UINT16
-// INT32 + UINT16 -> INT32
-// UINT32 + INT32 -> UINT32
-// INT32 + FLOAT64 -> FLOAT64
-// UINT64 + INT32 -> UINT64
 ValueType promoteType(ValueType a, ValueType b) {
     // Both are the same type
     if (a == b)
