@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
 #include <ncsc/lexer.hpp>
-#include <print>
 
 using namespace NCSC;
 

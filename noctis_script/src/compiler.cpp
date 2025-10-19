@@ -1,5 +1,4 @@
 #include <ncsc/compiler.hpp>
-#include <ncsc/type_info.hpp>
 #include <sstream>
 #include <format>
 #include <iomanip>
@@ -64,7 +63,7 @@ std::unique_ptr<Script> Compiler::compileScript(const ScriptNode &root) {
         if (node.type == ScriptNodeType::FUNCTION)
             compileFunction(node);
         else if (node.type == ScriptNodeType::VARIABLE_DECLARATION) {
-            expectedExpressionType_ = TypeInfo(node.children[0].token->type);
+            expectedExpressionType_ = valueTypeFromTok(*node.children[0].token);
             compileVariableDeclaration(node, true);
             // So the VM is able to stop
             emit(Instruction::RETVOID);
@@ -128,7 +127,9 @@ void Compiler::compileFunction(const ScriptNode &funcDecl) {
     
     ScriptNode retType = funcDecl.children[0]; 
     if (retType.type == ScriptNodeType::DATA_TYPE)
-        currFunction_->returnType = TypeInfo(retType.token->type);
+        currFunction_->returnType = valueTypeFromTok(*retType.token);
+    else
+        currFunction_->returnType = ValueType::VOID;
     
     currFunction_->name = funcDecl.children[1].token->val;
     currFunction_->requiredStackSize = computeMaxStackSize(funcDecl);
@@ -137,7 +138,7 @@ void Compiler::compileFunction(const ScriptNode &funcDecl) {
     currFunction_->numParams = paramsNode.children.size() / 2;
     currFunction_->numLocals = currFunction_->numParams;
     for (int i = 0; i < paramsNode.children.size(); i++) {
-        TypeInfo ty(paramsNode.children[i].token->type);
+        ValueType ty = valueTypeFromTok(*paramsNode.children[i].token);
         
         // Arguments are treated as local variables
         localVariables_.push_back(LocalVar(paramsNode.children[++i].token->val, ty));
@@ -161,10 +162,15 @@ void Compiler::compileFunction(const ScriptNode &funcDecl) {
 
     if (!hasErrors()) {
         // For void functions, add a return at the end if none currently exists
-        if (currFunction_->returnType.isVoid() && tempCompiledBytecode_.back() != static_cast<Byte>(Instruction::RETVOID))
+        if (currFunction_->returnType == ValueType::VOID 
+         && tempCompiledBytecode_.back() != static_cast<Byte>(Instruction::RETVOID)) 
+        {
             emit(Instruction::RETVOID);
+        }
         // For non void functions, error if there is no return at the end
-        else if (currFunction_->returnType.isVoid() && tempCompiledBytecode_.back() != static_cast<Byte>(Instruction::RET)) {
+        else if (currFunction_->returnType == ValueType::VOID 
+              && tempCompiledBytecode_.back() != static_cast<Byte>(Instruction::RET)) 
+        {
             error(std::format(FUNCTION_SHOULD_RET_VAL, currFunction_->name), funcDecl.children.back());
             return;
         }
@@ -242,9 +248,9 @@ size_t Compiler::computeMaxStackSize(const ScriptNode &node) {
 void Compiler::compileVariableDeclaration(const ScriptNode &varDecl, bool global) {
     assert(varDecl.type == ScriptNodeType::VARIABLE_DECLARATION);
 
-    TypeInfo varType(varDecl.children[0].token->type);
+    ValueType varType = valueTypeFromTok(*varDecl.children[0].token);
     if (varDecl.children.size() == 2) {
-        if (varType.isPrimitive()) {
+        if (isPrimitive(varType)) {
             // Get default value
         } else {
             // do whatever
@@ -285,7 +291,6 @@ void Compiler::compileExpression(const ScriptNode &expr) {
 
 void Compiler::recursivelyCompileExpression(const ScriptNode &exprChild) {
     if (exprChild.type == ScriptNodeType::BINOP) {
-        TypeInfo exprType;
         recursivelyCompileExpression(exprChild.children[0]);
         recursivelyCompileExpression(exprChild.children[1]);
         compileOperator(exprChild);
@@ -309,41 +314,65 @@ void Compiler::compileOperator(const ScriptNode &binop) {
 void Compiler::compileConstantPush(const ScriptNode &constant) {
     assert(constant.type == ScriptNodeType::CONSTANT);
 
-    if (constant.token->type == TokenType::FLOAT_CONSTANT) {
-        if (expectedExpressionType_ == TypeInfo::FLOAT64) {
-            float64_t val = std::stod(constant.token->val);
-            Byte bytes[getValueSize(val)];
-            makeValueBytes(std::bit_cast<uint64_t>(val), ValueType::FLOAT64, bytes, 0);
-            emit(Instruction::PUSH);
-            emit(bytes, sizeof(bytes));
-        } else if (expectedExpressionType_ == TypeInfo::FLOAT32) {
-            float32_t val = std::stof(constant.token->val);
-            Byte bytes[getValueSize(val)];
-            makeValueBytes(std::bit_cast<uint32_t>(val), ValueType::FLOAT32, bytes, 0);
-            emit(Instruction::PUSH);
-            emit(bytes, sizeof(bytes));
-        } else {
-            error(std::format(EXPECTED_NON_FLOATING_POINT, constant.token->val), constant);
+    TokenType constTokTy = constant.token->type; 
+    const std::string &constTokVal = constant.token->val;
+    if (constTokTy == TokenType::FLOAT_CONSTANT) {
+        switch(expectedExpressionType_) {
+            case ValueType::FLOAT32: {
+                float32_t val = std::stof(constTokVal);
+                Byte bytes[getValueSize(val)];
+                makeValueBytes(std::bit_cast<uint32_t>(val), ValueType::FLOAT32, bytes, 0);
+                emit(Instruction::PUSH);
+                emit(bytes, sizeof(bytes));
+                break;
+            }
+            case ValueType::FLOAT64: {
+                float64_t val = std::stod(constTokVal);
+                Byte bytes[getValueSize(val)];
+                makeValueBytes(std::bit_cast<uint64_t>(val), ValueType::FLOAT64, bytes, 0);
+                emit(Instruction::PUSH);
+                emit(bytes, sizeof(bytes));
+                break;
+            }
+            default:
+                error(std::format(EXPECTED_NON_FLOATING_POINT, constTokVal), constant);
+                return;
+        }
+    } else if (constTokTy == TokenType::INT_CONSTANT) {
+        switch(expectedExpressionType_) {
+            // Bools are ints
+            case ValueType::BOOL:   emitIntConstant<int8_t>(constTokVal, constant, ValueType::BOOL);   break;
+            
+            case ValueType::INT8:   emitIntConstant<int8_t>(constTokVal, constant, ValueType::INT8);   break;
+            case ValueType::INT16:  emitIntConstant<int16_t>(constTokVal, constant, ValueType::INT16); break;
+            case ValueType::INT32:  emitIntConstant<int32_t>(constTokVal, constant, ValueType::INT32); break;
+            case ValueType::INT64:  emitIntConstant<int64_t>(constTokVal, constant, ValueType::INT64); break;
+
+            case ValueType::UINT8:  emitIntConstant<uint8_t>(constTokVal, constant, ValueType::UINT8);   break;
+            case ValueType::UINT16: emitIntConstant<uint16_t>(constTokVal, constant, ValueType::UINT16); break;
+            case ValueType::UINT32: emitIntConstant<uint32_t>(constTokVal, constant, ValueType::UINT32); break;
+            case ValueType::UINT64: emitIntConstant<uint64_t>(constTokVal, constant, ValueType::UINT64); break;
+            
+            // If a float is expected for the expression, we can safely emit an int
+            // and the VM will be able to use it as a float
+            case ValueType::FLOAT32: emitIntConstant<int32_t>(constTokVal, constant, ValueType::INT32); break;
+            case ValueType::FLOAT64: emitIntConstant<int64_t>(constTokVal, constant, ValueType::INT64); break;
+
+            default: assert(0 && "Wtf");
+        }
+    } else if (constTokTy == TokenType::TRUE_KWD || constTokTy == TokenType::FALSE_KWD) {
+        if (expectedExpressionType_ != ValueType::BOOL) {
+            error(std::format(CANT_PROMOTE_TY_TO, 
+                VTYPE_NAMES.at(expectedExpressionType_), 
+                VTYPE_NAMES.at(ValueType::BOOL)), constant);
             return;
         }
-    } else if (constant.token->type == TokenType::INT_CONSTANT) {
-        if (expectedExpressionType_ == TypeInfo::INT16)       emitIntConstant<int16_t>(constant, ValueType::INT16);
-        else if (expectedExpressionType_ == TypeInfo::INT32)  emitIntConstant<int32_t>(constant, ValueType::INT32);
-        else if (expectedExpressionType_ == TypeInfo::INT64)  emitIntConstant<int64_t>(constant, ValueType::INT64);
-
-        else if (expectedExpressionType_ == TypeInfo::UINT16) emitIntConstant<uint16_t>(constant, ValueType::UINT16);
-        else if (expectedExpressionType_ == TypeInfo::UINT32) emitIntConstant<uint32_t>(constant, ValueType::UINT32);
-        else if (expectedExpressionType_ == TypeInfo::UINT64) emitIntConstant<uint64_t>(constant, ValueType::UINT64);
         
-        // If a float is expected for the expression, we can safely emit an int
-        // and the VM will be able to use it as a float
-        else if (expectedExpressionType_ == TypeInfo::FLOAT32) emitIntConstant<int32_t>(constant, ValueType::INT64);
-        else if (expectedExpressionType_ == TypeInfo::FLOAT64) emitIntConstant<int64_t>(constant, ValueType::INT64);
-        else assert(0 && "Wtf");
+        if (constTokTy == TokenType::TRUE_KWD)
+            emitIntConstant<int8_t>("1", constant, ValueType::BOOL);
+        else 
+            emitIntConstant<int8_t>("0", constant, ValueType::BOOL);
     }
-
-    else
-        assert(0 && "TODO");    
 }
 
 void Compiler::compileExpressionTerm(const ScriptNode &exprTerm) {
@@ -379,7 +408,7 @@ void Compiler::compileFunctionCall(const ScriptNode &funCall, bool shouldReturnV
         DWord idx = currScript_->getFunctionIdx(funName);
         const Function *fun = currScript_->getFunction(idx);
 
-        if (shouldReturnVal && fun->returnType.isVoid()) {
+        if (shouldReturnVal && fun->returnType == ValueType::VOID) {
             error(std::format(FUNCTION_HAS_VOID_RET_TY, funName), funNameNode);
             return;
         }
@@ -411,16 +440,16 @@ void Compiler::compileReturn(const ScriptNode &ret) {
     assert(ret.type == ScriptNodeType::RETURN);
 
     ScriptNode expr = ret.children[0];
-    TypeInfo funRetTy = currFunction_->returnType;
+    ValueType funRetTy = currFunction_->returnType;
     if (expr.children.empty()) {
-        if (!funRetTy.isVoid()) {
+        if (funRetTy != ValueType::VOID) {
             error(std::format(FUNCTION_SHOULD_RET_VAL, currFunction_->name), ret);
             return;
         }
 
         emit(Instruction::RETVOID);
     } else {
-        if (funRetTy.isVoid()) {
+        if (funRetTy == ValueType::VOID) {
             error(std::format(FUNCTION_SHOULDNT_RET_VAL, currFunction_->name), ret);
             return;
         }
@@ -447,28 +476,38 @@ void Compiler::compileVariableAccess(const ScriptNode &varAccess) {
     }
 
     if (found) {
-        TypeInfo varType = localVariables_[idx].type; 
-        if (varType != expectedExpressionType_) {
-            error(std::format(EXPECTED_TYPE_INSTEAD_GOT, expectedExpressionType_.getStrRepr(), varType.getStrRepr()), varAccess);
-            return;
-        }
+        ValueType varType = localVariables_[idx].type;
+        if (varType != expectedExpressionType_)
+            compileDifferentValueTypePush(varType, expectedExpressionType_, varAccess);
  
         emit(Instruction::LOADLOCAL);
         emit(idx);
     } else {
+        // Search in globals
         DWord globalIdx = currScript_->getGlobalVarIdx(varAccess.token->val);
         if (globalIdx == NCSC_INVALID_IDX)
             error(std::format(CANT_FIND_VAR_NAMED, varAccess.token->val), varAccess);
         
-        TypeInfo varType = currScript_->getGlobalVar(globalIdx)->type; 
-        if (varType != expectedExpressionType_) {
-            error(std::format(EXPECTED_TYPE_INSTEAD_GOT, expectedExpressionType_.getStrRepr(), varType.getStrRepr()), varAccess);
-            return;
-        }
+        ValueType varType = currScript_->getGlobalVar(globalIdx)->type; 
+        if (varType != expectedExpressionType_)
+            compileDifferentValueTypePush(varType, expectedExpressionType_, varAccess);
 
         emit(Instruction::LOADGLOBAL);
         emit(globalIdx);
     }
 }
+
+void Compiler::compileDifferentValueTypePush(ValueType from, ValueType to, const ScriptNode &node) {
+    assert(from != to);
+
+    if (!canPromoteType(from, to)) {
+        error(std::format(CANT_PROMOTE_TY_TO, VTYPE_NAMES.at(from), VTYPE_NAMES.at(to)), node);
+        return;
+    }
+
+    emit(Instruction::TYCAST);
+    emit(static_cast<DWord>(expectedExpressionType_));
+}
+
 
 } // namespace NCSC

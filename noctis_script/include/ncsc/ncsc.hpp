@@ -18,6 +18,9 @@
     #define NCSC_API
 #endif
 
+// Faster but may cause problems if unaligned
+#define NCSC_USE_UNSAFE_WORD_READING false
+
 namespace NCSC 
 {
 
@@ -48,6 +51,8 @@ enum class Instruction : Byte {
     MUL,         // MUL ; pop first two values on the stack, multiplies them and pushes the result on the stack
     DIV,         // DIV ; pop first two values on the stack, divides them and pushes the result on the stack
 
+    TYCAST,      // TYCAST b ; pops the last value on the stack and changes it type to b 
+
     RET,         // RET ; returns to the previous callframe on the callstack, pops temporary value and pushes it to caller
     RETVOID,     // RETVOID ; returns to the previous callframe on the callstack and removes locals and temporaries
 
@@ -69,6 +74,8 @@ const std::unordered_map<Instruction, std::pair<const char *, size_t>> INSTR_INF
     { Instruction::SUB,         {"SUB",         0} },
     { Instruction::MUL,         {"MUL",         0} },
     { Instruction::DIV,         {"DIV",         0} },
+
+    { Instruction::TYCAST,      {"TYCAST",      sizeof(DWord)} },
     
     { Instruction::RET,         {"RET",         0} },
     { Instruction::RETVOID,     {"RETVOID",     0} },
@@ -76,65 +83,21 @@ const std::unordered_map<Instruction, std::pair<const char *, size_t>> INSTR_INF
     { Instruction::NOOP,        {"NOOP",        0} },
 };
 
-enum class ValueType : NCSC::DWord {
-    INVALID = 0x0,
-
-    INT16   = 0x1,
-    INT32   = 0x2,
-    INT64   = 0x3,
-
-    UINT16   = 0x4,
-    UINT32   = 0x5,
-    UINT64   = 0x6,
-
-    FLOAT32 = 0x7,
-    FLOAT64 = 0x8,
-
-    BOOL    = 0x9,
-};
-
-const std::unordered_map<ValueType, const char *> VTYPE_NAMES = {
-    { ValueType::INT16, "Int16" }, 
-    { ValueType::INT32, "Int32" }, 
-    { ValueType::INT64, "Int64" }, 
-
-    { ValueType::UINT16, "UInt16" }, 
-    { ValueType::UINT32, "UInt32" }, 
-    { ValueType::UINT64, "UInt64" }, 
-
-    { ValueType::FLOAT32, "FLoat32" }, 
-    { ValueType::FLOAT64, "FLoat64" }, 
-
-    { ValueType::BOOL, "Bool" }, 
-};
-
 template <typename T>
 inline T readWord(const Byte *bytes, size_t idx) {
-    using U = std::make_unsigned_t<T>; 
-    U words = 0;
-    for (size_t i = 0; i < sizeof(T); ++i)
-        words |= (static_cast<U>(bytes[idx + i]) << (i * 8));
-    return static_cast<T>(words);
+#if NCSC_USE_UNSAFE_WORD_READING
+    return *reinterpret_cast<const T*>(bytes + idx);
+#else
+    T val{};
+    std::memcpy(&val, bytes + idx, sizeof(T));
+    return val;
+#endif
 }
 
 template <typename T>
 inline void makeBytes(const T &val, Byte *bytes, size_t off = 0) {
     for (int i = 0; i < sizeof(T); ++i)
         bytes[off + i] = static_cast<Byte>((val >> (i * 8)) & 0xFF);
-}
-
-template <typename T>
-inline void makeValueBytes(const T &val, ValueType ty, Byte *bytes, size_t off = 0) {
-    // VM will reverse this order when pushind to the stack
-    // ValueType bytes first
-    makeBytes(static_cast<DWord>(ty), bytes, off);
-    // val bytes last
-    makeBytes(val, bytes, off + sizeof(ValueType));
-}
-
-template <typename T>
-inline constexpr size_t getValueSize(const T &) {
-    return sizeof(ValueType) + sizeof(T); 
 }
 
 } // namespace NCSC

@@ -101,6 +101,20 @@ void VM::executeNext() {
             END_INSTR(1);
         }
 
+        INSTR(TYCAST): {
+            Value val = pop();
+            ValueType castTy = static_cast<ValueType>(readWord<DWord>(bytecode, ip + 1));
+            if (!canPromoteType(val.ty, castTy)) {
+                // Might mess up the stack and cause weird errors
+                error("Unsafe cast");
+                break;
+            }
+            val.ty = castTy;
+            push(val);
+
+            END_INSTR(1 + sizeof(DWord));
+        }
+
         INSTR(CALLSCRFUN): {
             DWord idx = readWord<DWord>(bytecode, ip + 1);
             ip += 1 + sizeof(DWord);

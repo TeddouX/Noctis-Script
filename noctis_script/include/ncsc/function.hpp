@@ -1,7 +1,6 @@
 #pragma once
 #include "ncsc.hpp"
 #include "value.hpp"
-#include "type_info.hpp"
 
 #include <string>
 #include <vector>
@@ -14,8 +13,8 @@ struct NCSC_API Function {
     std::vector<Byte> bytecode;
     // std::vector<Value> constants;
 
-    std::vector<TypeInfo> paramTypes;
-    TypeInfo returnType;
+    std::vector<ValueType> paramTypes;
+    ValueType returnType;
 
     Word   numLocals = 0;
     size_t numParams = 0;

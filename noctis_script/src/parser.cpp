@@ -65,9 +65,11 @@ Token &Parser::peek(int amount) {
 bool Parser::isDataType(TokenType type) {
     // TODO: Compare against a list of cached types
     switch (type) {
+        case TokenType::INT8_KWD:
         case TokenType::INT16_KWD:
         case TokenType::INT32_KWD:
         case TokenType::INT64_KWD:
+        case TokenType::UINT8_KWD:
         case TokenType::UINT16_KWD:
         case TokenType::UINT32_KWD:
         case TokenType::UINT64_KWD:
@@ -86,6 +88,8 @@ bool Parser::isConstantValue(TokenType type) {
     switch (type) {
         case TokenType::INT_CONSTANT:
         case TokenType::FLOAT_CONSTANT:
+        case TokenType::TRUE_KWD:
+        case TokenType::FALSE_KWD:
             return true;
             break;   
         default:
@@ -276,15 +280,16 @@ ScriptNode Parser::parseExpressionTerm() {
     
     Token &t = peek(0);
     if (isConstantValue(t.type)) {
-        node.addChild(parseConstant());
-        return node;
-    }
+        node.addChild(parseConstant());         CHECK_SYNTAX_ERROR;
+    } 
     else if (t.type == TokenType::ID) {
-        if (isFunctionCall())
-            node.addChild(parseFunctionCall());
-        else
-            node.addChild(parseIdentifier());
-    }
+        if (isFunctionCall()) {
+            node.addChild(parseFunctionCall()); CHECK_SYNTAX_ERROR;
+        } 
+        else {
+            node.addChild(parseIdentifier());   CHECK_SYNTAX_ERROR;
+        }
+    } 
     else {
         consume();
         createSyntaxError(std::string(EXPECTED_EXPRESSION_TERM), t);
@@ -318,7 +323,8 @@ ScriptNode Parser::parseFunction() {
     else if (t.type == TokenType::FUN_KWD) {
         consume();
         node.addChild(parseToken(t));
-    } else {
+    } 
+    else {
         createSyntaxError(std::string(EXPECTED_A_DATA_TYPE_OR_FUN), t);
         return node;
     }
@@ -375,10 +381,12 @@ ScriptNode Parser::parseStatementBlock() {
         else if (t1.type == TokenType::CURLY_BRACE_CLOSE) {
             consume();
             return node;
-        } else if (t1.type == TokenType::END_OF_FILE) {
+        } 
+        else if (t1.type == TokenType::END_OF_FILE) {
             createSyntaxError(std::string(UNEXPECTED_EOF), t1);
             return node;
-        } else {
+        } 
+        else {
             node.addChild(parseStatement());
             CHECK_SYNTAX_ERROR;
         }
@@ -388,23 +396,26 @@ ScriptNode Parser::parseStatementBlock() {
             // Try exitting the problematic line or block of code
             int level = 0;
             for (int i = 0;; i++) {
-                t1 = consume();
-
-                if (t1.type == TokenType::SEMICOLON && level == 0)
+                t1 = peek(0);
+                if (t1.type == TokenType::SEMICOLON && level == 0) {
                     // The comma isn't in an unsafe nested block so 
                     // its safe to break out of the loop
+                    consume();
                     break;
-                else if (t1.type == TokenType::CURLY_BRACE_OPEN)
+                } 
+                else if (t1.type == TokenType::CURLY_BRACE_OPEN) {
+                    consume();
                     level++;
+                } 
                 else if (t1.type == TokenType::CURLY_BRACE_CLOSE) {
                     // End of nested block. The bracket will get handled 
                     // in the next iteration of the outer for loop
                     if (level == 0)
                         break;
-                    
+
+                    consume();
                     level--;
-                }
-                    
+                } 
                 else if (t1.type == TokenType::END_OF_FILE) {
                     createSyntaxError(std::string(UNEXPECTED_EOF), t1);
                     return node;
@@ -437,8 +448,13 @@ ScriptNode Parser::parseSimpleStatement() {
         returnNode.addChild(parseExpression());
         node.addChild(returnNode); CHECK_SYNTAX_ERROR;
     }
-    else if (t.type == TokenType::SEMICOLON);
+    else if (t.type == TokenType::SEMICOLON)
         consume();
+    else {
+        createSyntaxError(std::string(EXPECTED_STATEMENT), t);
+        return node;
+    }
+
 
     return node;
 }

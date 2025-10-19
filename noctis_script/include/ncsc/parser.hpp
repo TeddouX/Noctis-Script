@@ -64,6 +64,7 @@ private:
     inline static constexpr std::string_view EXPECTED_AN_OPERATOR        = "Syntax error: Expected an operator ('+', '-', '*', '/', ...)";
     inline static constexpr std::string_view EXPECTED_TOKEN              = "Syntax error: Expected '{}'";
     inline static constexpr std::string_view EXPECTED_TOKEN_OR_TOKEN     = "Syntax error: Expected '{}' or '{}'";
+    inline static constexpr std::string_view EXPECTED_STATEMENT          = "Syntax error: Expected a statement";
     inline static constexpr std::string_view UNEXPECTED_TOKEN            = "Syntax error: Unexpected token '{}'";
     inline static constexpr std::string_view UNEXPECTED_EOF              = "Syntax error: Unexpected end of file";
 };

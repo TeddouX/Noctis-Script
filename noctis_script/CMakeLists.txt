@@ -16,7 +16,7 @@ set(NCSC_SOURCES
     "include/ncsc/script_node.hpp"
     "include/ncsc/script.hpp"
     "include/ncsc/token.hpp"
-    "include/ncsc/type_info.hpp"
+    "include/ncsc/value_type.hpp"
     "include/ncsc/value.hpp"
     "include/ncsc/vm.hpp"
 
@@ -30,7 +30,7 @@ set(NCSC_SOURCES
     "src/script_node.cpp"
     "src/script.cpp"
     "src/token.cpp"
-    "src/type_info.cpp"
+    "src/value_type.cpp"
     "src/value.cpp"
     "src/vm.cpp"
 )
@@ -64,6 +64,8 @@ enable_testing()
 
 add_executable(NCSCTests
     tests/lexer_tests.cpp
+    tests/parser_tests.cpp
+    tests/value_type_tests.cpp
 )
 target_link_libraries(NCSCTests
     NoctisScript

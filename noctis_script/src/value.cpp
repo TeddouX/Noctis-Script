@@ -3,20 +3,6 @@
 
 namespace NCSC
 {
-    
-// BOOL < INT16 < UINT16 < INT32 < UINT32 < INT64 < UINT64 < FLOAT32 < FLOAT64
-static int getRank(ValueType ty);
-
-static bool isUnsigned(ValueType ty);
-static bool isFloat(ValueType ty);
-
-// Examples: 
-// INT16 + UINT16 -> UINT16
-// INT32 + UINT16 -> INT32
-// UINT32 + INT32 -> UINT32
-// INT32 + FLOAT64 -> FLOAT64
-// UINT64 + INT32 -> UINT64
-static ValueType promoteType(ValueType a, ValueType b);
 
 static size_t setValueProp(const Byte *bytes, ValueType ty, Value &val, size_t readOff);
 
@@ -29,6 +15,8 @@ static T toNumType(const Value& v) {
         case ValueType::UINT32:  return static_cast<T>(v.ui32);
         case ValueType::INT16:   return static_cast<T>(v.i16);
         case ValueType::UINT16:  return static_cast<T>(v.ui16);
+        case ValueType::INT8:    return static_cast<T>(v.i8);
+        case ValueType::UINT8:   return static_cast<T>(v.ui8);
         case ValueType::FLOAT32: return static_cast<T>(v.f32);
         case ValueType::FLOAT64: return static_cast<T>(v.f64);
         case ValueType::BOOL:    return static_cast<T>(v.b);
@@ -65,6 +53,12 @@ static T toNumType(const Value& v) {
         case ValueType::UINT16:                                                     \
             val.ui16 = toNumType<uint16_t>(*this) op toNumType<uint16_t>(other);    \
             break;                                                                  \
+        case ValueType::INT8:                                                       \
+            val.i8 = toNumType<int8_t>(*this) op toNumType<int8_t>(other);          \
+            break;                                                                  \
+        case ValueType::UINT8:                                                      \
+            val.ui8 = toNumType<uint8_t>(*this) op toNumType<uint8_t>(other);       \
+            break;                                                                  \
         default:                                                                    \
             val.ty = ValueType::INVALID;                                            \
             break;                                                                  \
@@ -83,16 +77,21 @@ Value Value::operator/(const Value &other) {
 
 Value::operator std::string() {
     switch (ty) {
-        case ValueType::INT16: return std::to_string(i16) + "i16";
-        case ValueType::INT32: return std::to_string(i32) + "i32";
-        case ValueType::INT64: return std::to_string(i64) + "i64";
+        case ValueType::INT8:    return std::to_string(i8) + "i8";
+        case ValueType::INT16:   return std::to_string(i16) + "i16";
+        case ValueType::INT32:   return std::to_string(i32) + "i32";
+        case ValueType::INT64:   return std::to_string(i64) + "i64";
     
-        case ValueType::UINT16: return std::to_string(ui16) + "ui16";
-        case ValueType::UINT32: return std::to_string(ui32) + "ui32";
-        case ValueType::UINT64: return std::to_string(ui64) + "ui64";
+        case ValueType::UINT8:   return std::to_string(ui8) + "ui8";
+        case ValueType::UINT16:  return std::to_string(ui16) + "ui16";
+        case ValueType::UINT32:  return std::to_string(ui32) + "ui32";
+        case ValueType::UINT64:  return std::to_string(ui64) + "ui64";
 
         case ValueType::FLOAT32: return std::to_string(f32) + "f32";
         case ValueType::FLOAT64: return std::to_string(f64) + "f64";
+
+        case ValueType::BOOL:    return std::to_string(b) + "(bool)";
+
         default: return "";
     }
 }
@@ -108,73 +107,18 @@ Value Value::fromBytes(const Byte *bytes, size_t readOff, size_t &readSize) {
     return val;
 }
 
-int getRank(ValueType ty) {
-    switch (ty) {
-        case ValueType::BOOL:    return 0;
-        case ValueType::INT16:   return 1;
-        case ValueType::UINT16:  return 2;
-        case ValueType::INT32:   return 3;
-        case ValueType::UINT32:  return 4;
-        case ValueType::INT64:   return 5;
-        case ValueType::UINT64:  return 6;
-        case ValueType::FLOAT32: return 7;
-        case ValueType::FLOAT64: return 8;
-        default:                 return -1;
-    }
-}
-
-bool isUnsigned(ValueType ty) {
-    return ty == ValueType::UINT16 ||
-           ty == ValueType::UINT32 ||
-           ty == ValueType::UINT64;
-}
-
-bool isFloat(ValueType ty) {
-    return ty == ValueType::FLOAT32 || ty == ValueType::FLOAT64;
-}
-
-ValueType promoteType(ValueType a, ValueType b) {
-    // Both are the same type
-    if (a == b)
-        return a;
-
-    // Floats rank above everything
-    if (isFloat(a) || isFloat(b)) {
-        if (a == ValueType::FLOAT64 || b == ValueType::FLOAT64)
-            return ValueType::FLOAT64;
-        return ValueType::FLOAT32;
-    }
-
-    int rankA = getRank(a);
-    int rankB = getRank(b);
-
-    ValueType higher = (rankA > rankB) ? a : b;
-    ValueType lower  = (rankA > rankB) ? b : a;
-
-    // If higher is unsigned, result is unsigned
-    if (isUnsigned(higher))
-        return higher;
- 
-    // If higher is signed and has higher rank -> signed
-    if (!isUnsigned(higher) && rankA != rankB)
-        return higher;
-
-    // If same rank but one unsigned -> unsigned version
-    if (rankA == rankB) {
-        if (isUnsigned(a)) return a;
-        if (isUnsigned(b)) return b;
-    }
-
-    return higher;  
-}
-
 size_t setValueProp(const Byte *bytes, ValueType ty, Value &val, size_t readOff) {
-    switch (ty)
-    {
-        case ValueType::INT16: val.i16 = readWord<int16_t>(bytes, readOff); return sizeof(int16_t);
-        case ValueType::INT32: val.i32 = readWord<int32_t>(bytes, readOff); return sizeof(int32_t);
-        case ValueType::INT64: val.i64 = readWord<int64_t>(bytes, readOff); return sizeof(int64_t);
+    switch (ty) {
+        case ValueType::BOOL: 
+            val.b = static_cast<bool>(readWord<int8_t>(bytes, readOff));        
+            return sizeof(bool);
 
+        case ValueType::INT8:   val.i8  = readWord<int8_t>(bytes, readOff);    return sizeof(int8_t);
+        case ValueType::INT16:  val.i16 = readWord<int16_t>(bytes, readOff);   return sizeof(int16_t);
+        case ValueType::INT32:  val.i32 = readWord<int32_t>(bytes, readOff);   return sizeof(int32_t);
+        case ValueType::INT64:  val.i64 = readWord<int64_t>(bytes, readOff);   return sizeof(int64_t);
+
+        case ValueType::UINT8:  val.ui8  = readWord<uint8_t>(bytes, readOff);  return sizeof(uint8_t);
         case ValueType::UINT16: val.ui16 = readWord<uint16_t>(bytes, readOff); return sizeof(uint16_t);
         case ValueType::UINT32: val.ui32 = readWord<uint32_t>(bytes, readOff); return sizeof(uint32_t);
         case ValueType::UINT64: val.ui64 = readWord<uint64_t>(bytes, readOff); return sizeof(uint64_t);

@@ -32,11 +32,11 @@ private:
 
     struct LocalVar {
         std::string name;
-        TypeInfo type;
+        ValueType type;
     };
     std::vector<LocalVar> localVariables_;
 
-    TypeInfo expectedExpressionType_;
+    ValueType expectedExpressionType_;
 
     void error(const std::string &mess, const ScriptNode &node);
 
@@ -59,24 +59,20 @@ private:
 
     template <typename T>
     requires std::is_integral_v<T> 
-    void emitIntConstant(const ScriptNode &constant, ValueType vtype) {
+    void emitIntConstant(const std::string &valStr, const ScriptNode &constant, ValueType vtype) {
         using IntermediateTy_ = std::conditional_t<std::is_signed_v<T>, int64_t, uint64_t>;
         IntermediateTy_ intermediate{};
 
         if constexpr (std::is_signed_v<IntermediateTy_>)
-            intermediate = std::strtoll(constant.token->val.c_str(), nullptr, 0);
+            intermediate = std::strtoll(valStr.c_str(), nullptr, 0);
         else
-            intermediate = std::strtoull(constant.token->val.c_str(), nullptr, 0);
+            intermediate = std::strtoull(valStr.c_str(), nullptr, 0);
 
-        if constexpr (std::is_signed_v<T>) {
-            if (intermediate < std::numeric_limits<T>::min()) {
-                error(std::format(NUMBER_IS_TOO_SMALL_FOR_TY, constant.token->val, VTYPE_NAMES.at(vtype)), constant);
-                return;
-            }
-        }
-
-        if (intermediate > std::numeric_limits<T>::max()) {
-            error(std::format(NUMBER_IS_TOO_BIG_FOR_TY, constant.token->val, VTYPE_NAMES.at(vtype)), constant);
+        if (intermediate < std::numeric_limits<T>::min()) {
+            error(std::format(NUMBER_IS_TOO_SMALL_FOR_TY, valStr, VTYPE_NAMES.at(vtype)), constant);
+            return;
+        } else if (intermediate > std::numeric_limits<T>::max()) {
+            error(std::format(NUMBER_IS_TOO_BIG_FOR_TY, valStr, VTYPE_NAMES.at(vtype)), constant);
             return;
         }
 
@@ -99,6 +95,7 @@ private:
     void compileFunctionCall(const ScriptNode &funCall, bool shouldReturnVal);
     void compileReturn(const ScriptNode &ret);
     void compileVariableAccess(const ScriptNode &varAccess);
+    void compileDifferentValueTypePush(ValueType from, ValueType to, const ScriptNode &node);
 
     inline static constexpr std::string_view CANT_FIND_FUNCTION_NAMED      = "Error: Can't find function named '{}'";
     inline static constexpr std::string_view CANT_FIND_VAR_NAMED           = "Error: Can't find variable named '{}'";
@@ -108,6 +105,7 @@ private:
     inline static constexpr std::string_view EXPECTED_TYPE_INSTEAD_GOT     = "Error: Expected type '{}', instead got '{}'";
     inline static constexpr std::string_view EXPECTED_NUM_ARGS_INSTEAD_GOT = "Error: Expected {} arguments for function {} instead got {}";
     inline static constexpr std::string_view EXPECTED_NON_FLOATING_POINT   = "Error: Unexpected floating point number '{}'";
+    inline static constexpr std::string_view CANT_PROMOTE_TY_TO            = "Error: Unable to convert type {} to {}";
     inline static constexpr std::string_view NUMBER_IS_TOO_BIG_FOR_TY      = "Error: Number '{}' is too big for an {}";
     inline static constexpr std::string_view NUMBER_IS_TOO_SMALL_FOR_TY    = "Error: Number '{}' is too small for an {}";
 };

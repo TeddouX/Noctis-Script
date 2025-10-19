@@ -10,7 +10,7 @@ struct GlobalVar {
     std::string name;
     std::vector<Byte> bytecode;
     size_t requiredStackSize;
-    TypeInfo type;
+    ValueType type;
 };
 
 class NCSC_API Script {
