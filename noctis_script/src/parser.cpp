@@ -402,11 +402,11 @@ ScriptNode Parser::parseStatementBlock() {
                     // its safe to break out of the loop
                     consume();
                     break;
-                } 
+                }
                 else if (t1.type == TokenType::CURLY_BRACE_OPEN) {
                     consume();
                     level++;
-                } 
+                }
                 else if (t1.type == TokenType::CURLY_BRACE_CLOSE) {
                     // End of nested block. The bracket will get handled 
                     // in the next iteration of the outer for loop
@@ -415,11 +415,13 @@ ScriptNode Parser::parseStatementBlock() {
 
                     consume();
                     level--;
-                } 
+                }
                 else if (t1.type == TokenType::END_OF_FILE) {
                     createSyntaxError(std::string(UNEXPECTED_EOF), t1);
                     return node;
                 }
+                else
+                    consume();
             }
             
             hasSyntaxError_ = false;
