@@ -7,47 +7,15 @@
 #include <chrono>
 
 int main() {
-    std::string code = 
-    // "Int add(Int i, Int i1) {\n"
-    // "   return i+i1;\n"
-    // "}\n"
+    std::ifstream ifs;
 
-    // "Int globalVar = add(1, 1);\n"
-    // "Int globalVar1 = globalVar + 4;\n"
+    std::stringstream buf;
+    ifs.open("test/code.ncsc");
+    buf << ifs.rdbuf();
 
-    "fun main() {\n"
-    // "   Int16 a = 1;\n"
-    // "   UInt16 b = 1;\n"
-    "   Bool c = false;\n"
-    "   Bool c = true;\n"
-    "   Bool f = 1;\n"
-    "   Bool g = 0;\n"
-    "}\n";
+    std::string fileContents = buf.str();
 
-    // "fun addNoRet(Int i, Int i1) {\n"
-    // "   Int a = i+i1;\n"
-    // "}\n"
-    // "Int add(Int i, Int i1) {\n"
-    // "   return i+i1;\n"
-    // "}\n"
-    // "Int addMultiple(Int i, Int i1, Int i2) {\n"
-    // "   return i+i1+i2;\n"
-    // "}\n"
-    // "Int mul(Int i, Int i1) {\n"
-    // "   return i*i1;\n"
-    // "}\n"
-    // "fun main() {\n"
-    // "   addNoRet(1,1);\n"
-    // "   Int a = add(1,2);\n"
-    // "   Int b = addMultiple(3,4,5);\n"
-    // "   Int c = mul(6,7);\n"
-    // "   Int d = mul(2,2)*mul(2,2);\n"
-    // "}\n";
-
-    // auto tokens = NCSC::Lexer(code).tokenizeAll();
-
-    // std::println("{}", code);
-
+    // auto tokens = NCSC::Lexer(fileContents).tokenizeAll();
     // for (auto token : tokens) {
     //     std::println("{} Position: {}:{}", token.getStrRepr(), token.line, token.col);
     // }
@@ -63,9 +31,10 @@ int main() {
     //     exit(EXIT_FAILURE);
     // }
 
-    std::println("{}", code);
+    std::println("{}", fileContents);
+
     NCSC::Compiler compiler;
-    std::shared_ptr<NCSC::Script> script = compiler.compileScript(code);
+    std::shared_ptr<NCSC::Script> script = compiler.compileScript(fileContents);
     if (compiler.hasErrors()) {
         for (auto error : compiler.getErrors())
             std::println("{}", error.getString());

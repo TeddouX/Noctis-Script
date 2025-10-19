@@ -64,6 +64,24 @@ std::unique_ptr<Token> Lexer::getCurrent() {
         return nullptr;
     }
 
+    // Comment
+    if (currChar == '/' && source_[currIdx_ + 1] == '/') {
+        int len = 0;
+        while (currIdx_ + len < source_.length()) {
+            char charAt = source_.at(currIdx_ + len);
+            if (charAt == '\n')
+                break;
+            len++;
+        }
+        
+        advance(len);
+
+        line_++;
+        column_ = 1;
+        
+        return nullptr;
+    }
+
     // 1234 or 123.456 or .1 or 1.
     // Also tokenizes .
     if (std::isdigit(currChar) || currChar == '.') {

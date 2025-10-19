@@ -186,7 +186,7 @@ void Compiler::compileFunction(const ScriptNode &funcDecl) {
             emit(Instruction::RETVOID);
         }
         // For non void functions, error if there is no return at the end
-        else if (currFunction_->returnType == ValueType::VOID 
+        else if (currFunction_->returnType != ValueType::VOID 
               && tempCompiledBytecode_.back() != static_cast<Byte>(Instruction::RET)) 
         {
             error(std::format(FUNCTION_SHOULD_RET_VAL, currFunction_->name), funcDecl.children.back());

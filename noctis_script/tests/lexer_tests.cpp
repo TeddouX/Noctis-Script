@@ -20,6 +20,14 @@ TEST(LexerTests, WhitespacesAreCleared) {
     ASSERT_EQ(tokens[4].val, "e");
 }
 
+TEST(LexerTests, SingleCommentsAreIgnored) {
+    auto tokens = Lexer("// HELLLOLOOOOODSQDQKDLQkdlKQS //\nInt /// bro\n Int").tokenizeAll();
+
+    ASSERT_EQ(tokens.size(), 3);
+    ASSERT_EQ(tokens[0].type, TokenType::INT32_KWD);
+    ASSERT_EQ(tokens[1].type, TokenType::INT32_KWD);
+}
+
 TEST(LexerTests, IntLiteral) {
     auto tokens = Lexer("123456789123456748923123").tokenizeAll();
 

@@ -1,0 +1,4 @@
+// Hello, World
+fun main() {
+    Int a = 0;
+}
