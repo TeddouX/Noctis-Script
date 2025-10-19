@@ -43,27 +43,29 @@ int main() {
     // "   Int c = mul(6,7);\n"
     // "   Int d = mul(2,2)*mul(2,2);\n"
     // "}\n";
-    auto tokens = NCSC::Lexer(code).tokenizeAll();
+
+    // auto tokens = NCSC::Lexer(code).tokenizeAll();
+
+    // std::println("{}", code);
+
+    // for (auto token : tokens) {
+    //     std::println("{} Position: {}:{}", token.getStrRepr(), token.line, token.col);
+    // }
+    // std::println();
+
+    // NCSC::Parser parser(tokens);
+    // auto rootNode = parser.parseAll();
+    // std::println("{}", rootNode.getStrRepr());
+    // if (parser.hasErrors()) {
+    //     for (auto error : parser.getErrors()) 
+    //         std::println("{}", error.getString());
+
+    //     exit(EXIT_FAILURE);
+    // }
 
     std::println("{}", code);
-
-    for (auto token : tokens) {
-        std::println("{} Position: {}:{}", token.getStrRepr(), token.line, token.col);
-    }
-    std::println();
-
-    NCSC::Parser parser(tokens);
-    auto rootNode = parser.parseAll();
-    std::println("{}", rootNode.getStrRepr());
-    if (parser.hasErrors()) {
-        for (auto error : parser.getErrors()) 
-            std::println("{}", error.getString());
-
-        exit(EXIT_FAILURE);
-    }
-
     NCSC::Compiler compiler;
-    std::shared_ptr<NCSC::Script> script = compiler.compileScript(rootNode);
+    std::shared_ptr<NCSC::Script> script = compiler.compileScript(code);
     if (compiler.hasErrors()) {
         for (auto error : compiler.getErrors())
             std::println("{}", error.getString());

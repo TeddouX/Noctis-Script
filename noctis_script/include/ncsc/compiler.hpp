@@ -17,6 +17,7 @@ public:
 
     static std::string disassemble(const std::vector<Byte> &bc);
 
+    std::unique_ptr<Script> compileScript(const std::string &code);
     std::unique_ptr<Script> compileScript(const ScriptNode &root);
 
     bool hasErrors() { return !compileErrors_.empty(); }
@@ -97,17 +98,17 @@ private:
     void compileVariableAccess(const ScriptNode &varAccess);
     void compileDifferentValueTypePush(ValueType from, ValueType to, const ScriptNode &node);
 
-    inline static constexpr std::string_view CANT_FIND_FUNCTION_NAMED      = "Error: Can't find function named '{}'";
-    inline static constexpr std::string_view CANT_FIND_VAR_NAMED           = "Error: Can't find variable named '{}'";
-    inline static constexpr std::string_view FUNCTION_HAS_VOID_RET_TY      = "Error: Function '{}' has a void return type, but it is still being used in an expression";
-    inline static constexpr std::string_view FUNCTION_SHOULD_RET_VAL       = "Error: Function '{}' should return a value";
-    inline static constexpr std::string_view FUNCTION_SHOULDNT_RET_VAL     = "Error: Function '{}' has a return type of void, so it shouldn't return anything";
-    inline static constexpr std::string_view EXPECTED_TYPE_INSTEAD_GOT     = "Error: Expected type '{}', instead got '{}'";
-    inline static constexpr std::string_view EXPECTED_NUM_ARGS_INSTEAD_GOT = "Error: Expected {} arguments for function {} instead got {}";
-    inline static constexpr std::string_view EXPECTED_NON_FLOATING_POINT   = "Error: Unexpected floating point number '{}'";
-    inline static constexpr std::string_view CANT_PROMOTE_TY_TO            = "Error: Unable to convert type {} to {}";
-    inline static constexpr std::string_view NUMBER_IS_TOO_BIG_FOR_TY      = "Error: Number '{}' is too big for an {}";
-    inline static constexpr std::string_view NUMBER_IS_TOO_SMALL_FOR_TY    = "Error: Number '{}' is too small for an {}";
+    inline static constexpr std::string_view CANT_FIND_FUNCTION_NAMED      = "Error C1: Can't find function named '{}'";
+    inline static constexpr std::string_view CANT_FIND_VAR_NAMED           = "Error C2: Can't find variable named '{}'";
+    inline static constexpr std::string_view FUNCTION_HAS_VOID_RET_TY      = "Error C3: Function '{}' has a void return type, but it is still being used in an expression";
+    inline static constexpr std::string_view FUNCTION_SHOULD_RET_VAL       = "Error C4: Function '{}' should return a value";
+    inline static constexpr std::string_view FUNCTION_SHOULDNT_RET_VAL     = "Error C5: Function '{}' has a return type of void, so it shouldn't return anything";
+    inline static constexpr std::string_view EXPECTED_TYPE_INSTEAD_GOT     = "Error C6: Expected type '{}', instead got '{}'";
+    inline static constexpr std::string_view EXPECTED_NUM_ARGS_INSTEAD_GOT = "Error C7: Expected {} arguments for function {} instead got {}";
+    inline static constexpr std::string_view EXPECTED_NON_FLOATING_POINT   = "Error C8: Unexpected floating point number '{}'";
+    inline static constexpr std::string_view CANT_PROMOTE_TY_TO            = "Error C9: Unable to convert type {} to {}";
+    inline static constexpr std::string_view NUMBER_IS_TOO_BIG_FOR_TY      = "Error C10: Number '{}' is too big for an {}";
+    inline static constexpr std::string_view NUMBER_IS_TOO_SMALL_FOR_TY    = "Error C11: Number '{}' is too small for an {}";
 };
 
 } // namespace NCSC

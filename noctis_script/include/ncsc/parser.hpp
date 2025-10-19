@@ -55,18 +55,18 @@ private:
     ScriptNode parseSimpleStatement();
     ScriptNode parseFunctionCall();
 
-    inline static constexpr std::string_view EXPECTED_A_SEMICOLON        = "Syntax error: Expected a semicolon (';')";
-    inline static constexpr std::string_view EXPECTED_EXPRESSION_TERM    = "Syntax error: Expected an expression term (function call, constant, variable...)";
-    inline static constexpr std::string_view EXPECTED_CONSTANT_VALUE     = "Syntax error: Expected a constant value (1234, 123.456, ...)";
-    inline static constexpr std::string_view EXPECTED_AN_IDENTIFIER      = "Syntax error: Expected an identifier";
-    inline static constexpr std::string_view EXPECTED_A_DATA_TYPE        = "Syntax error: Expected a data type (Int, Float, ...)";
-    inline static constexpr std::string_view EXPECTED_A_DATA_TYPE_OR_FUN = "Syntax error: Expected a data type (Int, Float, ...) or 'fun'";
-    inline static constexpr std::string_view EXPECTED_AN_OPERATOR        = "Syntax error: Expected an operator ('+', '-', '*', '/', ...)";
-    inline static constexpr std::string_view EXPECTED_TOKEN              = "Syntax error: Expected '{}'";
-    inline static constexpr std::string_view EXPECTED_TOKEN_OR_TOKEN     = "Syntax error: Expected '{}' or '{}'";
-    inline static constexpr std::string_view EXPECTED_STATEMENT          = "Syntax error: Expected a statement";
-    inline static constexpr std::string_view UNEXPECTED_TOKEN            = "Syntax error: Unexpected token '{}'";
-    inline static constexpr std::string_view UNEXPECTED_EOF              = "Syntax error: Unexpected end of file";
+    inline static constexpr std::string_view EXPECTED_A_SEMICOLON        = "Syntax error S1: Expected a semicolon (';')";
+    inline static constexpr std::string_view EXPECTED_EXPRESSION_TERM    = "Syntax error S2: Expected an expression term (function call, constant, variable...)";
+    inline static constexpr std::string_view EXPECTED_CONSTANT_VALUE     = "Syntax error S3: Expected a constant value (1234, 123.456, ...)";
+    inline static constexpr std::string_view EXPECTED_AN_IDENTIFIER      = "Syntax error S4: Expected an identifier";
+    inline static constexpr std::string_view EXPECTED_A_DATA_TYPE        = "Syntax error S5: Expected a data type (Int, Float, ...)";
+    inline static constexpr std::string_view EXPECTED_A_DATA_TYPE_OR_FUN = "Syntax error S6: Expected a data type (Int, Float, ...) or 'fun'";
+    inline static constexpr std::string_view EXPECTED_AN_OPERATOR        = "Syntax error S7: Expected an operator ('+', '-', '*', '/', ...)";
+    inline static constexpr std::string_view EXPECTED_TOKEN              = "Syntax error S8: Expected '{}'";
+    inline static constexpr std::string_view EXPECTED_TOKEN_OR_TOKEN     = "Syntax error S9: Expected '{}' or '{}'";
+    inline static constexpr std::string_view EXPECTED_STATEMENT          = "Syntax error S10: Expected a statement";
+    inline static constexpr std::string_view UNEXPECTED_TOKEN            = "Syntax error S11: Unexpected token '{}'";
+    inline static constexpr std::string_view UNEXPECTED_EOF              = "Syntax error S12: Unexpected end of file";
 };
 
 } // namespace NCSC

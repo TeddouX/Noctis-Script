@@ -1,4 +1,7 @@
 #include <ncsc/compiler.hpp>
+#include <ncsc/lexer.hpp>
+#include <ncsc/parser.hpp>
+
 #include <sstream>
 #include <format>
 #include <iomanip>
@@ -53,6 +56,21 @@ std::string Compiler::disassemble(const std::vector<Byte>& bc) {
     }
 
     return oss.str();
+}
+
+std::unique_ptr<Script> Compiler::compileScript(const std::string &code) {
+    std::vector<Token> tokens = Lexer(code).tokenizeAll();
+    Parser parser(tokens);
+    
+    ScriptNode root = parser.parseAll();
+    if (parser.hasErrors()) {
+        std::vector<Error> parserErrors = parser.getErrors();
+        compileErrors_.insert(compileErrors_.end(), parserErrors.begin(), parserErrors.end()); 
+    
+        return nullptr;
+    }
+
+    return compileScript(root);
 }
 
 std::unique_ptr<Script> Compiler::compileScript(const ScriptNode &root) {
