@@ -31,7 +31,7 @@ int main() {
     //     exit(EXIT_FAILURE);
     // }
 
-    std::println("{}", fileContents);
+    // std::println("{}", fileContents);
 
     NCSC::Compiler compiler;
     std::shared_ptr<NCSC::Script> script = compiler.compileScript(fileContents);
@@ -48,17 +48,27 @@ int main() {
     for (const auto &fun : script->getAllFunctions())
         std::println("fun {}:\n{}", fun.name, NCSC::Compiler::disassemble(fun.bytecode));
 
-    const NCSC::Function *fun = script->getFunction("main");
+    const NCSC::Function *fun = script->getFunction("caca");
     if (fun) {
         NCSC::VM vm(script);
         vm.computeGlobals();
         vm.prepareFunction(fun);
+
+        if (!vm.setArguments(2, 3.0f, static_cast<uint8_t>(1))) {
+            std::println("{}", vm.getLastError());
+            exit(EXIT_FAILURE);
+        }
         
         bool success = vm.execute();
-        if (!success)
-            std::println("Error: {}", vm.getLastError());
-        else
-            std::println("Stack: {}", vm.getStackStrRepr());
+        if (!success) {
+            std::println("{}", vm.getLastError());
+            exit(EXIT_FAILURE);
+        }
+        std::println("{}", vm.getStackStrRepr());
+
+        float returned = 0;
+        vm.getFunctionReturn(returned);
+        std::println("{} returned {}", fun->name, std::to_string(returned));
     }
 
     return 0;

@@ -186,10 +186,11 @@ void Compiler::compileFunction(const ScriptNode &funcDecl) {
             emit(Instruction::RETVOID);
         }
         // For non void functions, error if there is no return at the end
-        else if (currFunction_->returnType != ValueType::VOID 
-              && tempCompiledBytecode_.back() != static_cast<Byte>(Instruction::RET)) 
+        else if (currFunction_->returnType != ValueType::VOID
+              && tempCompiledBytecode_.empty()
+              || tempCompiledBytecode_.back() != static_cast<Byte>(Instruction::RET))
         {
-            error(std::format(FUNCTION_SHOULD_RET_VAL, currFunction_->name), funcDecl.children.back());
+            error(std::format(FUNCTION_SHOULD_RET_VAL, currFunction_->name), funcDecl.children[0]);
             return;
         }
 
@@ -409,6 +410,9 @@ void Compiler::compileExpressionTerm(const ScriptNode &exprTerm) {
 
 void Compiler::compileSimpleStatement(const ScriptNode &simpleStmt) {
     assert(simpleStmt.type == ScriptNodeType::SIMPLE_STATEMENT);
+
+    if (!simpleStmt.hasChildren())
+        return;
 
     auto stmt = simpleStmt.children[0]; 
     if (stmt.type == ScriptNodeType::FUNCTION_CALL)

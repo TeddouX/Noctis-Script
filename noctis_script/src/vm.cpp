@@ -106,7 +106,7 @@ void VM::executeNext() {
             ValueType castTy = static_cast<ValueType>(readWord<DWord>(bytecode, ip + 1));
             if (!canPromoteType(val.ty, castTy)) {
                 // Might mess up the stack and cause weird errors
-                error("Unsafe cast");
+                error(std::format(UNSAFE_CAST, VTYPE_NAMES.at(val.ty), VTYPE_NAMES.at(castTy)));
                 break;
             }
             val.ty = castTy;
@@ -129,7 +129,9 @@ void VM::executeNext() {
 
         INSTR(RET): {
             Value ret = pop();
-            if (callStack_.size() >= 2) {
+            // Don't resize if its the first function pushed on the 
+            // callstack is being returned from
+            if (callStack_.size() > 1) {
                 const CallFrame &lastFrame = callStack_[callStack_.size() - 2];
                 stack_.resize(lastFrame.stackSize);
                 sp_ = lastFrame.sp;
@@ -142,17 +144,22 @@ void VM::executeNext() {
             END_INSTR(1);
         }
         INSTR(RETVOID): {
-            if (callStack_.size() >= 2) {
+            if (callStack_.size() > 1) {
                 const CallFrame &lastFrame = callStack_[callStack_.size() - 2];
                 stack_.resize(lastFrame.stackSize);
                 sp_ = lastFrame.sp;
             }
+            else
+                stack_.clear();
 
             callStack_.pop_back();
 
             END_INSTR(1);
         }
     }
+
+#undef INSTR
+#undef END_INSTR
 }
 
 void VM::prepareScriptFunction(const Function *fun) {
@@ -170,7 +177,7 @@ void VM::prepareScriptFunction(const Function *fun) {
     sp_ = frame.sp;
     stack_.resize(sp_ + fun->requiredStackSize);
 
-    currFun = fun;
+    currFun_ = fun;
     callStack_.push_back(frame);
 }
 
@@ -178,9 +185,9 @@ void VM::prepareFunction(const Function *fun) {
     if (!fun)
         return;
 
-    currFun = fun;
+    currFun_ = fun;
     stack_.clear();
-    stack_.resize(currFun->numParams + currFun->numLocals + currFun->requiredStackSize);
+    stack_.resize(currFun_->numLocals + currFun_->requiredStackSize);
     
     callStack_.clear();
     callStack_.reserve(1);
@@ -188,7 +195,7 @@ void VM::prepareFunction(const Function *fun) {
 
 bool VM::computeGlobals() {
     if (!script_) {
-        error("No script attached to the VM");
+        error(std::string(NO_SCRIPT_ATTACHED));
         return false;
     }
 
@@ -218,14 +225,19 @@ bool VM::computeGlobals() {
 }
 
 bool VM::execute() {
-    if (!currFun)
+    executionFinished_ = false;
+    hasError_ = false;
+
+    if (!currFun_) {
+        error(std::string(NO_FUN_PREPD));
         return false;
+    }
 
     CallFrame baseFrame{
-        .bytecode = currFun->bytecode.data(),
-        .bytecodeSize = currFun->bytecode.size(),
-        .sp = currFun->numParams + currFun->numLocals,
-        .stackSize = currFun->requiredStackSize + currFun->numParams + currFun->numLocals,
+        .bytecode = currFun_->bytecode.data(),
+        .bytecodeSize = currFun_->bytecode.size(),
+        .sp = currFun_->numLocals,
+        .stackSize = currFun_->requiredStackSize + currFun_->numLocals,
     };
 
     sp_ = baseFrame.sp;
@@ -234,6 +246,7 @@ bool VM::execute() {
     while (callStack_.size() > 0 && !hasError_)
         executeNext();
 
+    executionFinished_ = true;
     return !hasError_;
 }
 
@@ -243,14 +256,14 @@ std::string VM::getStackStrRepr() const {
 
 Value VM::pop() {
     if (sp_ - 1 == UINT64_MAX) {
-        error("Stack underflow (empty stack)");
+        error(std::string(STACK_UNDERFLOW_EMPTY));
         return Value{};
     }
 
-    if (currFun) {
+    if (currFun_ && !callStack_.empty()) {
         size_t frameBase = callStack_.back().bp;
         if (sp_ < frameBase) {
-            error("Stack underflow (below current frame)");
+            error(std::string(STACK_UNDERFLOW_STACK_FRAME));
             return Value{};
         }
     }
@@ -262,7 +275,7 @@ Value VM::pop() {
 
 void VM::push(const Value &val) {
     if (sp_ > stack_.size()) {
-        error("Stack overflow");
+        error(std::string(STACK_OVERFLOW));
         return;
     }
 

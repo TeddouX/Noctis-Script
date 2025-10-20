@@ -4,25 +4,7 @@
 namespace NCSC
 {
 
-static size_t setValueProp(const Byte *bytes, ValueType ty, Value &val, size_t readOff);
-
-template <typename T>
-static T toNumType(const Value& v) {
-    switch (v.ty) {
-        case ValueType::INT64:   return static_cast<T>(v.i64);
-        case ValueType::UINT64:  return static_cast<T>(v.ui64);
-        case ValueType::INT32:   return static_cast<T>(v.i32);
-        case ValueType::UINT32:  return static_cast<T>(v.ui32);
-        case ValueType::INT16:   return static_cast<T>(v.i16);
-        case ValueType::UINT16:  return static_cast<T>(v.ui16);
-        case ValueType::INT8:    return static_cast<T>(v.i8);
-        case ValueType::UINT8:   return static_cast<T>(v.ui8);
-        case ValueType::FLOAT32: return static_cast<T>(v.f32);
-        case ValueType::FLOAT64: return static_cast<T>(v.f64);
-        case ValueType::BOOL:    return static_cast<T>(v.b);
-        default:                 return 0;
-    }
-}
+static size_t setValuePropFromBytes(const Byte *bytes, ValueType ty, Value &val, size_t readOff);
 
 // Utility macro
 #define VALUE_OPERATOR(op) Value Value::operator op(const Value &other) {           \
@@ -30,34 +12,34 @@ static T toNumType(const Value& v) {
     Value val{ .ty = resultType };                                                  \
     switch (resultType) {                                                           \
         case ValueType::FLOAT64:                                                    \
-            val.f64 = toNumType<float64_t>(*this) op toNumType<float64_t>(other);   \
+            val.f64 = castTo<float64_t>() op other.castTo<float64_t>();             \
             break;                                                                  \
         case ValueType::FLOAT32:                                                    \
-            val.f32 = toNumType<float32_t>(*this) op toNumType<float32_t>(other);   \
+            val.f32 = castTo<float32_t>() op other.castTo<float32_t>();             \
             break;                                                                  \
         case ValueType::INT64:                                                      \
-            val.i64 = toNumType<int64_t>(*this) op toNumType<int64_t>(other);       \
+            val.i64 = castTo<int64_t>() op other.castTo<int64_t>();                 \
             break;                                                                  \
         case ValueType::UINT64:                                                     \
-            val.ui64 = toNumType<uint64_t>(*this) op toNumType<uint64_t>(other);    \
+            val.ui64 = castTo<uint64_t>() op other.castTo<uint64_t>();              \
             break;                                                                  \
         case ValueType::INT32:                                                      \
-            val.i32 = toNumType<int32_t>(*this) op toNumType<int32_t>(other);       \
+            val.i32 = castTo<int32_t>() op other.castTo<int32_t>();                 \
             break;                                                                  \
         case ValueType::UINT32:                                                     \
-            val.ui32 = toNumType<uint32_t>(*this) op toNumType<uint32_t>(other);    \
+            val.ui32 = castTo<uint32_t>() op other.castTo<uint32_t>();              \
             break;                                                                  \
         case ValueType::INT16:                                                      \
-            val.i16 = toNumType<int16_t>(*this) op toNumType<int16_t>(other);       \
+            val.i16 = castTo<int16_t>() op other.castTo<int16_t>();                 \
             break;                                                                  \
         case ValueType::UINT16:                                                     \
-            val.ui16 = toNumType<uint16_t>(*this) op toNumType<uint16_t>(other);    \
+            val.ui16 = castTo<uint16_t>() op other.castTo<uint16_t>();              \
             break;                                                                  \
         case ValueType::INT8:                                                       \
-            val.i8 = toNumType<int8_t>(*this) op toNumType<int8_t>(other);          \
+            val.i8 = castTo<int8_t>() op other.castTo<int8_t>();                    \
             break;                                                                  \
         case ValueType::UINT8:                                                      \
-            val.ui8 = toNumType<uint8_t>(*this) op toNumType<uint8_t>(other);       \
+            val.ui8 = castTo<uint8_t>() op other.castTo<uint8_t>();                 \
             break;                                                                  \
         default:                                                                    \
             val.ty = ValueType::INVALID;                                            \
@@ -72,11 +54,13 @@ VALUE_OPERATOR(*)
 
 // Division always returns a float64
 Value Value::operator/(const Value &other) {
-    return Value{ .ty = ValueType::FLOAT64, .f64 = toNumType<float64_t>(*this) / toNumType<float64_t>(other) };
+    return Value{ .ty = ValueType::FLOAT64, .f64 = castTo<float64_t>() / other.castTo<float64_t>() };
 }
 
 Value::operator std::string() {
     switch (ty) {
+        case ValueType::INVALID: return "invalid";
+
         case ValueType::INT8:    return std::to_string(i8) + "i8";
         case ValueType::INT16:   return std::to_string(i16) + "i16";
         case ValueType::INT32:   return std::to_string(i32) + "i32";
@@ -92,7 +76,7 @@ Value::operator std::string() {
 
         case ValueType::BOOL:    return std::to_string(b) + "(bool)";
 
-        default: return "";
+        default: return "empty";
     }
 }
 
@@ -102,12 +86,12 @@ Value Value::fromBytes(const Byte *bytes, size_t readOff, size_t &readSize) {
     auto ty = static_cast<ValueType>(readWord<DWord>(bytes, readOff));
     
     Value val{ .ty = ty };
-    readSize += setValueProp(bytes, ty, val, readOff + readSize);
+    readSize += setValuePropFromBytes(bytes, ty, val, readOff + readSize);
     
     return val;
 }
 
-size_t setValueProp(const Byte *bytes, ValueType ty, Value &val, size_t readOff) {
+size_t setValuePropFromBytes(const Byte *bytes, ValueType ty, Value &val, size_t readOff) {
     switch (ty) {
         case ValueType::BOOL: 
             val.b = static_cast<bool>(readWord<int8_t>(bytes, readOff));        

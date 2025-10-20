@@ -457,6 +457,9 @@ ScriptNode Parser::parseSimpleStatement() {
         return node;
     }
 
+    Token &t1 = consume();
+    if (t1.type != TokenType::SEMICOLON)
+        createSyntaxError(std::string(EXPECTED_A_SEMICOLON), t1);
 
     return node;
 }

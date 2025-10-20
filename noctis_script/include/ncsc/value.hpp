@@ -5,7 +5,7 @@
 
 namespace NCSC
 {
-    
+
 struct NCSC_API Value {
     ValueType ty;
     union {
@@ -25,6 +25,17 @@ struct NCSC_API Value {
         bool b;
     };
 
+    // Reads the value at the end of the bytes array, 
+    static Value fromBytes(const Byte *bytes, size_t readOff, size_t &readSize);
+
+    template <typename T>
+    static Value fromLiteral(const T &lit) {
+        ValueType ty = valueTypeFromLiteral(lit);
+        Value val{ .ty = ty };
+    
+        setValueProperty(lit, ty);
+    }
+
     Value operator+(const Value &other);
     Value operator-(const Value &other);
     Value operator*(const Value &other);
@@ -32,9 +43,54 @@ struct NCSC_API Value {
 
     operator std::string();
 
-    // Reads the value at the end of the bytes array, 
-    // big endian meaning that the value is first and the ValueType is last
-    static Value fromBytes(const Byte *bytes, size_t readOff, size_t &readSize);
+    template <typename T>
+    void setProperty(const T &val, ValueType valTy) {
+#define ASSURE_T_EQ(ty) assert(typeid(ty) == typeid(T) && "Value and ValueType don't match")
+
+        ty = valTy;
+        switch (ty) {
+            case ValueType::INT8:    ASSURE_T_EQ(int8_t);    i8 = val;   break;
+            case ValueType::INT16:   ASSURE_T_EQ(int16_t);   i16 = val;  break;
+            case ValueType::INT32:   ASSURE_T_EQ(int32_t);   i32 = val;  break;
+            case ValueType::INT64:   ASSURE_T_EQ(int64_t);   i64 = val;  break;
+
+            case ValueType::UINT8:   ASSURE_T_EQ(uint8_t);   ui8 = val;  break;
+            case ValueType::UINT16:  ASSURE_T_EQ(uint16_t);  ui16 = val; break;
+            case ValueType::UINT32:  ASSURE_T_EQ(uint32_t);  ui32 = val; break;
+            case ValueType::UINT64:  ASSURE_T_EQ(uint64_t);  ui64 = val; break;
+
+            case ValueType::FLOAT32: ASSURE_T_EQ(float32_t); f32 = val;  break;
+            case ValueType::FLOAT64: ASSURE_T_EQ(float64_t); f64 = val;  break;
+
+            case ValueType::BOOL:    ASSURE_T_EQ(bool);      b = val;    break;
+
+            default: return;
+        }
+
+#undef ASSURE_T_EQ
+    }
+
+    template <typename T>
+    T castTo() const {
+        switch (ty) {
+            case ValueType::INT8:    return static_cast<T>(i8);
+            case ValueType::INT32:   return static_cast<T>(i32);
+            case ValueType::INT16:   return static_cast<T>(i16);
+            case ValueType::INT64:   return static_cast<T>(i64);
+
+            case ValueType::UINT8:   return static_cast<T>(ui8);
+            case ValueType::UINT16:  return static_cast<T>(ui16);
+            case ValueType::UINT32:  return static_cast<T>(ui32);
+            case ValueType::UINT64:  return static_cast<T>(ui64);
+            
+            case ValueType::FLOAT32: return static_cast<T>(f32);
+            case ValueType::FLOAT64: return static_cast<T>(f64);
+            
+            case ValueType::BOOL:    return static_cast<T>(b);
+            
+            default:                 return 0;
+        }
+    }
 };
 
 template <typename T>

@@ -69,9 +69,9 @@ std::unique_ptr<Token> Lexer::getCurrent() {
         int len = 0;
         while (currIdx_ + len < source_.length()) {
             char charAt = source_.at(currIdx_ + len);
+            len++;
             if (charAt == '\n')
                 break;
-            len++;
         }
         
         advance(len);

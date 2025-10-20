@@ -2,3 +2,12 @@
 fun main() {
     Int a = 0;
 }
+
+Float32 caca(Int32 a, Float32 b, UInt8 c) {
+    Float32 res = a + b + c;
+    return res;
+}
+
+Int32 add(Int32 a, Int32 b) {
+    return a + b;
+}
