@@ -25,7 +25,7 @@ public:
 
     bool computeGlobals();
 
-    void prepareFunction(const Function *fun);
+    void prepareFunction(const ScriptFunction *fun);
     // Returns false if there was an error during execution
     bool execute();
     std::string getStackStrRepr() const;
@@ -44,7 +44,7 @@ public:
 
         size_t argIdx = 0;
         // Unfold args
-        return (setArgument(args, argIdx), ...);
+        return (setArgument(args, argIdx) | ...);
     }
 
     // Returns false on failure
@@ -54,7 +54,7 @@ public:
             error(std::string(NO_SCRIPT_EXECUTED));
             return false;
         }
-        else if (currFun_->returnType == ValueType::VOID) {
+        else if (currFun_->returnTy == ValueType::VOID) {
             error(std::format(FUN_HAS_VOID_RET_TY_SO_NO_VAL, currFun_->name));
             return false;
         }
@@ -75,7 +75,7 @@ public:
 
 private:
     std::shared_ptr<Script> script_; 
-    const Function *currFun_ = nullptr;
+    const ScriptFunction *currFun_ = nullptr;
     
     bool executionFinished_ = false;
 
@@ -99,7 +99,7 @@ private:
 
     void executeNext();
 
-    void prepareScriptFunction(const Function *fun);
+    void prepareScriptFunction(const ScriptFunction *fun);
 
     template <typename T>
     bool setArgument(const T &arg, size_t &idx) {

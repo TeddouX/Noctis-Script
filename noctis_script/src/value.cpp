@@ -7,46 +7,46 @@ namespace NCSC
 static size_t setValuePropFromBytes(const Byte *bytes, ValueType ty, Value &val, size_t readOff);
 
 // Utility macro
-#define VALUE_OPERATOR(op) Value Value::operator op(const Value &other) {           \
-    ValueType resultType = promoteType(ty, other.ty);                               \
-    Value val{ .ty = resultType };                                                  \
-    switch (resultType) {                                                           \
-        case ValueType::FLOAT64:                                                    \
-            val.f64 = castTo<float64_t>() op other.castTo<float64_t>();             \
-            break;                                                                  \
-        case ValueType::FLOAT32:                                                    \
-            val.f32 = castTo<float32_t>() op other.castTo<float32_t>();             \
-            break;                                                                  \
-        case ValueType::INT64:                                                      \
-            val.i64 = castTo<int64_t>() op other.castTo<int64_t>();                 \
-            break;                                                                  \
-        case ValueType::UINT64:                                                     \
-            val.ui64 = castTo<uint64_t>() op other.castTo<uint64_t>();              \
-            break;                                                                  \
-        case ValueType::INT32:                                                      \
-            val.i32 = castTo<int32_t>() op other.castTo<int32_t>();                 \
-            break;                                                                  \
-        case ValueType::UINT32:                                                     \
-            val.ui32 = castTo<uint32_t>() op other.castTo<uint32_t>();              \
-            break;                                                                  \
-        case ValueType::INT16:                                                      \
-            val.i16 = castTo<int16_t>() op other.castTo<int16_t>();                 \
-            break;                                                                  \
-        case ValueType::UINT16:                                                     \
-            val.ui16 = castTo<uint16_t>() op other.castTo<uint16_t>();              \
-            break;                                                                  \
-        case ValueType::INT8:                                                       \
-            val.i8 = castTo<int8_t>() op other.castTo<int8_t>();                    \
-            break;                                                                  \
-        case ValueType::UINT8:                                                      \
-            val.ui8 = castTo<uint8_t>() op other.castTo<uint8_t>();                 \
-            break;                                                                  \
-        default:                                                                    \
-            val.ty = ValueType::INVALID;                                            \
-            break;                                                                  \
-    }                                                                               \
-    return val;                                                                     \
-}                                                                                   \
+#define VALUE_OPERATOR(op) Value Value::operator op(const Value &other) {   \
+    ValueType resultType = promoteType(ty, other.ty);                       \
+    Value val{ .ty = resultType };                                          \
+    switch (resultType) {                                                   \
+        case ValueType::FLOAT64:                                            \
+            val.f64 = castTo<float64_t>() op other.castTo<float64_t>();     \
+            break;                                                          \
+        case ValueType::FLOAT32:                                            \
+            val.f32 = castTo<float32_t>() op other.castTo<float32_t>();     \
+            break;                                                          \
+        case ValueType::INT64:                                              \
+            val.i64 = castTo<int64_t>() op other.castTo<int64_t>();         \
+            break;                                                          \
+        case ValueType::UINT64:                                             \
+            val.ui64 = castTo<uint64_t>() op other.castTo<uint64_t>();      \
+            break;                                                          \
+        case ValueType::INT32:                                              \
+            val.i32 = castTo<int32_t>() op other.castTo<int32_t>();         \
+            break;                                                          \
+        case ValueType::UINT32:                                             \
+            val.ui32 = castTo<uint32_t>() op other.castTo<uint32_t>();      \
+            break;                                                          \
+        case ValueType::INT16:                                              \
+            val.i16 = castTo<int16_t>() op other.castTo<int16_t>();         \
+            break;                                                          \
+        case ValueType::UINT16:                                             \
+            val.ui16 = castTo<uint16_t>() op other.castTo<uint16_t>();      \
+            break;                                                          \
+        case ValueType::INT8:                                               \
+            val.i8 = castTo<int8_t>() op other.castTo<int8_t>();            \
+            break;                                                          \
+        case ValueType::UINT8:                                              \
+            val.ui8 = castTo<uint8_t>() op other.castTo<uint8_t>();         \
+            break;                                                          \
+        default:                                                            \
+            val.ty = ValueType::INVALID;                                    \
+            break;                                                          \
+    }                                                                       \
+    return val;                                                             \
+}                                                                           \
 
 VALUE_OPERATOR(+)
 VALUE_OPERATOR(-)

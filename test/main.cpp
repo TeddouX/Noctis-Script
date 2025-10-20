@@ -1,10 +1,23 @@
 #include <ncsc/lexer.hpp>
 #include <ncsc/parser.hpp>
 #include <ncsc/compiler.hpp>
+#include <ncsc/script_context.hpp>
 #include <ncsc/vm.hpp>
 #include <print>
 #include <fstream>
 #include <chrono>
+
+void printHello() {
+    std::println("Hello from CPP!");
+}
+
+int add(int a, int b) {
+    return a + b;
+}
+
+int add4(int a, int b, int c, int d) {
+    return a + b + c + d;
+}
 
 int main() {
     std::ifstream ifs;
@@ -33,7 +46,12 @@ int main() {
 
     std::println("{}", fileContents);
 
-    NCSC::Compiler compiler;
+    auto scriptCtx = std::make_shared<NCSC::ScriptContext>();
+    scriptCtx->registerGlobalFunction("printHello", printHello);
+    scriptCtx->registerGlobalFunction("add", add);
+    scriptCtx->registerGlobalFunction("add4", add4);
+
+    NCSC::Compiler compiler(scriptCtx);
     std::shared_ptr<NCSC::Script> script = compiler.compileScript(fileContents);
     if (compiler.hasErrors()) {
         for (auto error : compiler.getErrors())
@@ -48,16 +66,11 @@ int main() {
     for (const auto &fun : script->getAllFunctions())
         std::println("fun {}:\n{}", fun.name, NCSC::Compiler::disassemble(fun.bytecode));
 
-    const NCSC::Function *fun = script->getFunction("caca");
+    const NCSC::ScriptFunction *fun = script->getFunction("main");
     if (fun) {
         NCSC::VM vm(script);
         vm.computeGlobals();
         vm.prepareFunction(fun);
-
-        if (!vm.setArguments(2, 3.0f, static_cast<uint8_t>(1))) {
-            std::println("{}", vm.getLastError());
-            exit(EXIT_FAILURE);
-        }
         
         bool success = vm.execute();
         if (!success) {
@@ -65,13 +78,6 @@ int main() {
             exit(EXIT_FAILURE);
         }
         std::println("{}", vm.getStackStrRepr());
-
-        float returned = 0;
-        if (!vm.getFunctionReturn(returned)) {
-            std::println("{}", vm.getLastError());
-            exit(EXIT_FAILURE);
-        }
-        std::println("{} returned {}", fun->name, std::to_string(returned));
     }
 
     return 0;

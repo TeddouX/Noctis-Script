@@ -81,7 +81,9 @@ std::unique_ptr<Script> Compiler::compileScript(const std::string &code) {
 }
 
 std::unique_ptr<Script> Compiler::compileScript(const ScriptNode &root) {
-    auto script = std::make_unique<Script>(); 
+    auto script = std::make_unique<Script>();
+    script->ctx = ctx_;
+
     currScript_ = script.get();
 
     for (auto &node : root.children) {
@@ -144,19 +146,33 @@ void Compiler::emit(DWord dw) {
     emit(bytes, sizeof(bytes));
 }
 
+bool Compiler::hasLocalVariable(const std::string &name) const {
+    for (auto localVar : localVariables_) {
+        if (localVar.name == name)
+            return true;
+    }
+    return false;
+}
+
 void Compiler::compileFunction(const ScriptNode &funcDecl) {
     assert(funcDecl.type == ScriptNodeType::FUNCTION);
 
-    auto fun = std::make_shared<Function>();
+    std::string funcDeclName = funcDecl.children[1].token->val;
+    if (currScript_->getFunction(funcDeclName)) {
+        error(std::format(FUNC_ALREADY_EXISTS, funcDeclName), funcDecl.children[1]);
+        return;
+    }
+
+    auto fun = std::make_shared<ScriptFunction>();
     currFunction_ = fun.get();
     
     ScriptNode retType = funcDecl.children[0]; 
     if (retType.type == ScriptNodeType::DATA_TYPE)
-        currFunction_->returnType = valueTypeFromTok(*retType.token);
+        currFunction_->returnTy = valueTypeFromTok(*retType.token);
     else
-        currFunction_->returnType = ValueType::VOID;
+        currFunction_->returnTy = ValueType::VOID;
     
-    currFunction_->name = funcDecl.children[1].token->val;
+    currFunction_->name = funcDeclName;
     currFunction_->requiredStackSize = computeMaxStackSize(funcDecl);
 
     ScriptNode paramsNode = funcDecl.children[2];
@@ -187,13 +203,13 @@ void Compiler::compileFunction(const ScriptNode &funcDecl) {
 
     if (!hasErrors()) {
         // For void functions, add a return at the end if none currently exists
-        if (currFunction_->returnType == ValueType::VOID 
+        if (currFunction_->returnTy == ValueType::VOID 
          && tempCompiledBytecode_.back() != static_cast<Byte>(Instruction::RETVOID)) 
         {
             emit(Instruction::RETVOID);
         }
         // For non void functions, error if there is no return at the end
-        else if (currFunction_->returnType != ValueType::VOID
+        else if (currFunction_->returnTy != ValueType::VOID
               && tempCompiledBytecode_.empty()
               || tempCompiledBytecode_.back() != static_cast<Byte>(Instruction::RET))
         {
@@ -274,10 +290,19 @@ size_t Compiler::computeMaxStackSize(const ScriptNode &node) {
 void Compiler::compileVariableDeclaration(const ScriptNode &varDecl, bool global) {
     assert(varDecl.type == ScriptNodeType::VARIABLE_DECLARATION);
 
+    std::string varDeclName = varDecl.children[1].token->val; 
+    if (hasLocalVariable(varDeclName)) {
+        error(std::format(VAR_ALREADY_EXISTS, varDeclName), varDecl.children[1]);
+        return;
+    }
+
     ValueType varType = valueTypeFromTok(*varDecl.children[0].token);
     if (varDecl.children.size() == 2) {
         if (isPrimitive(varType)) {
-            // Get default value
+            size_t varTypeSize = getValueTypeSize(varType);
+            std::vector<Byte> bytes;
+            bytes.resize(varTypeSize, 0);
+            emit(bytes.data(), bytes.size());
         } else {
             // do whatever
         }
@@ -299,7 +324,7 @@ void Compiler::compileVariableDeclaration(const ScriptNode &varDecl, bool global
         emit(currFunction_->numLocals);
 
         currFunction_->numLocals++;
-        localVariables_.push_back(LocalVar(varDecl.children[1].token->val, varType));
+        localVariables_.push_back(LocalVar(varDeclName, varType));
     }
 }
 
@@ -435,33 +460,39 @@ void Compiler::compileFunctionCall(const ScriptNode &funCall, bool shouldReturnV
     std::string funName = funNameNode.token->val;
     if (isScriptFunction(funName)) {
         DWord idx = currScript_->getFunctionIdx(funName);
-        const Function *fun = currScript_->getFunction(idx);
+        const IFunction *fun = currScript_->getFunction(idx);
 
-        if (shouldReturnVal && fun->returnType == ValueType::VOID) {
+        if (shouldReturnVal && fun->returnTy == ValueType::VOID) {
             error(std::format(FUNCTION_HAS_VOID_RET_TY, funName), funNameNode);
             return;
         }
 
         ScriptNode argsNode = funCall.children[1];
-        if (argsNode.hasChildren()) {
-            size_t argsNum = argsNode.children.size();
-            if (argsNum != fun->numParams) {
-                error(std::format(EXPECTED_NUM_ARGS_INSTEAD_GOT, fun->numParams, fun->name, argsNum), funNameNode);
-                return;
-            }
-
-            for (int i = 0; i < argsNum; i++) {
-                expectedExpressionType_ = fun->paramTypes[i];
-                compileExpression(argsNode.children[i]);
-            }
-        }
+        compileArguments(argsNode, fun, funNameNode);
 
         emit(Instruction::CALLSCRFUN);
         emit(idx);
     }
+    // Try finding it in globally registered functions
     else {
-        error(std::format(CANT_FIND_FUNCTION_NAMED, funName), funNameNode);
-        return;
+        DWord idx = ctx_->getGlobalFunctionIdx(funName);
+        if (idx == NCSC_INVALID_IDX) {
+            error(std::format(CANT_FIND_FUNCTION_NAMED, funName), funNameNode);
+            return;
+        }
+
+        const IFunction *fun = ctx_->getGlobalFunction(idx);
+
+        if (shouldReturnVal && fun->returnTy == ValueType::VOID) {
+            error(std::format(FUNCTION_HAS_VOID_RET_TY, funName), funNameNode);
+            return;
+        }
+
+        ScriptNode argsNode = funCall.children[1];
+        compileArguments(argsNode, fun, funNameNode);
+
+        emit(Instruction::CLGLBLCPPFUN);
+        emit(idx);
     }
 }
 
@@ -469,7 +500,7 @@ void Compiler::compileReturn(const ScriptNode &ret) {
     assert(ret.type == ScriptNodeType::RETURN);
 
     ScriptNode expr = ret.children[0];
-    ValueType funRetTy = currFunction_->returnType;
+    ValueType funRetTy = currFunction_->returnTy;
     if (expr.children.empty()) {
         if (funRetTy != ValueType::VOID) {
             error(std::format(FUNCTION_SHOULD_RET_VAL, currFunction_->name), ret);
@@ -529,5 +560,23 @@ void Compiler::compileVariableAccess(const ScriptNode &varAccess) {
         emit(globalIdx);
     }
 }
+
+bool Compiler::compileArguments(const ScriptNode &argsNode, const IFunction *fun, const ScriptNode &errorNode) {
+    if (argsNode.hasChildren()) {
+        size_t argsNum = argsNode.children.size();
+        if (argsNum != fun->numParams) {
+            error(std::format(EXPECTED_NUM_ARGS_INSTEAD_GOT, fun->numParams, fun->name, argsNum), errorNode);
+            return false;
+        }
+
+        for (int i = 0; i < argsNum; i++) {
+            expectedExpressionType_ = fun->paramTypes[i];
+            compileExpression(argsNode.children[i]);
+        }
+    }
+
+    return true;
+}
+
 
 } // namespace NCSC

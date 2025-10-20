@@ -1,9 +1,11 @@
 #pragma once
-#include "function.hpp"
 #include "script.hpp"
 #include "ncsc.hpp"
 #include "error.hpp"
 #include "value.hpp"
+#include "script_context.hpp"
+#include "script_function.hpp"
+#include "instructions.hpp"
 
 #include <memory>
 #include <format>
@@ -13,7 +15,8 @@ namespace NCSC
 
 class NCSC_API Compiler {
 public:
-    Compiler() = default;
+    Compiler(std::shared_ptr<ScriptContext> ctx)
+        : ctx_(ctx) {};
 
     static std::string disassemble(const std::vector<Byte> &bc);
 
@@ -24,8 +27,9 @@ public:
     const std::vector<Error> &getErrors() { return compileErrors_; }
 
 private:
-    Script   *currScript_;
-    Function *currFunction_;
+    std::shared_ptr<ScriptContext> ctx_;
+    Script *currScript_;
+    ScriptFunction *currFunction_;
 
     std::vector<Byte> tempCompiledBytecode_;
 
@@ -44,7 +48,7 @@ private:
     // currFunction = function and at the end set it to nullptr to indicate that it has finished compilation
     void compileFunction(const ScriptNode &funcDecl);
 
-    bool isScriptFunction(const std::string &name) { return currScript_->getFunction(name) != nullptr; }
+    bool isScriptFunction(const std::string &name) const { return currScript_->getFunction(name) != nullptr; }
 
     // Computes required stack size for a node
     size_t computeMaxStackSize(const ScriptNode &node);
@@ -86,6 +90,8 @@ private:
         emit(bytes, bytesSize);
     }
 
+    bool hasLocalVariable(const std::string &name) const;
+
     void compileVariableDeclaration(const ScriptNode &varDecl, bool global);
     void compileConstantPush(const ScriptNode &constant);
     void compileOperator(const ScriptNode &op);
@@ -96,6 +102,7 @@ private:
     void compileFunctionCall(const ScriptNode &funCall, bool shouldReturnVal);
     void compileReturn(const ScriptNode &ret);
     void compileVariableAccess(const ScriptNode &varAccess);
+    bool compileArguments(const ScriptNode &argsNode, const IFunction *fun, const ScriptNode &errorNode);
 
     inline static constexpr std::string_view CANT_FIND_FUNCTION_NAMED      = "Compilation error C0: Can't find function named '{}'";
     inline static constexpr std::string_view CANT_FIND_VAR_NAMED           = "Compilation error C1: Can't find variable named '{}'";
@@ -108,6 +115,8 @@ private:
     inline static constexpr std::string_view CANT_PROMOTE_TY_TO            = "Compilation error C8: Unable to convert type {} to {}";
     inline static constexpr std::string_view NUMBER_IS_TOO_BIG_FOR_TY      = "Compilation error C9: Number '{}' is too big for an {}";
     inline static constexpr std::string_view NUMBER_IS_TOO_SMALL_FOR_TY    = "Compilation error C10: Number '{}' is too small for an {}";
+    inline static constexpr std::string_view VAR_ALREADY_EXISTS            = "Compilation error C11: Another variable with name '{}' already exists";
+    inline static constexpr std::string_view FUNC_ALREADY_EXISTS           = "Compilation error C11: Another function with name '{}' already exists";
 };
 
 } // namespace NCSC

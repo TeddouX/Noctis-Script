@@ -1,6 +1,7 @@
 #include <ncsc/vm.hpp>
+#include <ncsc/instructions.hpp>
 #include <sstream>
-#include <print>
+// #include <print>
 
 namespace NCSC
 {
@@ -119,12 +120,30 @@ void VM::executeNext() {
             DWord idx = readWord<DWord>(bytecode, ip + 1);
             ip += 1 + sizeof(DWord);
 
-            const Function *fun = script_->getFunction(idx);
+            const ScriptFunction *fun = script_->getFunction(idx);
             sp_ -= fun->numParams;
 
             prepareScriptFunction(fun);
 
             END_INSTR(0);
+        }
+
+        INSTR(CLGLBLCPPFUN): {
+            DWord idx = readWord<DWord>(bytecode, ip + 1);
+
+            const GlobalCPPFunctionRepr *fun = script_->ctx->getGlobalFunction(idx);
+
+            // Build vector of arguments from the top n values on the stack
+            auto spIt = stack_.begin() + sp_;
+            std::vector<Value> args(spIt - fun->numParams, spIt);
+            sp_ -= fun->numParams;
+
+            // Call function and push the result, if one exists
+            Value ret = script_->ctx->callGlobalFunction(idx, args);
+            if (fun->returnTy != ValueType::VOID)
+                push(ret);
+
+            END_INSTR(1 + sizeof(DWord));
         }
 
         INSTR(RET): {
@@ -149,8 +168,6 @@ void VM::executeNext() {
                 stack_.resize(lastFrame.stackSize);
                 sp_ = lastFrame.sp;
             }
-            else
-                stack_.clear();
 
             callStack_.pop_back();
 
@@ -162,7 +179,7 @@ void VM::executeNext() {
 #undef END_INSTR
 }
 
-void VM::prepareScriptFunction(const Function *fun) {
+void VM::prepareScriptFunction(const ScriptFunction *fun) {
     CallFrame frame {
         .bytecode = fun->bytecode.data(),
         .bytecodeSize = fun->bytecode.size(),
@@ -181,7 +198,7 @@ void VM::prepareScriptFunction(const Function *fun) {
     callStack_.push_back(frame);
 }
 
-void VM::prepareFunction(const Function *fun) {
+void VM::prepareFunction(const ScriptFunction *fun) {
     if (!fun)
         return;
 

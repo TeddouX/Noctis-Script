@@ -3,14 +3,14 @@
 namespace NCSC
 {
     
-const Function *Script::getFunction(const std::string &name) const {
+const ScriptFunction *Script::getFunction(const std::string &name) const {
     for (const auto &fun : functions_)
         if (fun.name == name)
             return &fun;
     return nullptr;
 }
 
-const Function *Script::getFunction(DWord idx) const {
+const ScriptFunction *Script::getFunction(DWord idx) const {
     if (idx > functions_.size())
         return nullptr;
     return &functions_[idx];

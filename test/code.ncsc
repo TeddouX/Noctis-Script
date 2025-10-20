@@ -1,16 +1,12 @@
 // Hello, World
+Int mul(Int a, Int b) {
+    return a * b;
+}
+
 fun main() {
-    Int a = 0;
-}
+    printHello();
 
-Float32 caca(Int32 a, Float32 b, UInt8 c) {
-    // Add them all together
-    Float32 res = a + b + c;
-    // Return the result
-    return res;
-}
-
-// Add two numbers
-Int32 add(Int32 a, Int32 b) {
-    return a + b;
+    Int res = add(1, 55);
+    Int res1 = add4(1, 55, 2, 2);
+    Int res2 = mul(23, 2);
 }

@@ -1,6 +1,6 @@
 #pragma once
 #include "ncsc.hpp"
-#include "value.hpp"
+#include "value_type.hpp"
 
 #include <string>
 #include <vector>
@@ -8,17 +8,11 @@
 namespace NCSC
 {
 
-struct NCSC_API Function {
+struct IFunction {
     std::string name;
-    std::vector<Byte> bytecode;
-    // std::vector<Value> constants;
-
     std::vector<ValueType> paramTypes;
-    ValueType returnType;
-
-    Word   numLocals = 0;
-    size_t numParams = 0;
-    size_t requiredStackSize = 0;
+    ValueType returnTy;
+    size_t numParams;
 };
 
 } // namespace NCSC

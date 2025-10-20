@@ -32,8 +32,8 @@ struct NCSC_API Value {
     static Value fromLiteral(const T &lit) {
         ValueType ty = valueTypeFromLiteral(lit);
         Value val{ .ty = ty };
-    
-        setValueProperty(lit, ty);
+        val.setProperty(lit, ty);
+        return val;
     }
 
     Value operator+(const Value &other);
