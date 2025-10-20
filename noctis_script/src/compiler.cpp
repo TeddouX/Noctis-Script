@@ -42,7 +42,14 @@ std::string Compiler::disassemble(const std::vector<Byte>& bc) {
             oss << val.operator std::string();
             
             i += size;
-        } else if (info.second > 0) {
+        }
+        else if (instr == Instruction::TYCAST) {
+            oss << " ";
+
+            auto vty = static_cast<ValueType>(getInstrOperand<DWord>(bc, i));
+            oss << valueTypeToString(vty); 
+        } 
+        else if (info.second > 0) {
             oss << " ";
             switch (info.second) {
                 case 2: oss << getInstrOperand<Word>(bc, i); break;
@@ -382,8 +389,8 @@ void Compiler::compileConstantPush(const ScriptNode &constant) {
     } else if (constTokTy == TokenType::TRUE_KWD || constTokTy == TokenType::FALSE_KWD) {
         if (expectedExpressionType_ != ValueType::BOOL) {
             error(std::format(CANT_PROMOTE_TY_TO, 
-                VTYPE_NAMES.at(expectedExpressionType_), 
-                VTYPE_NAMES.at(ValueType::BOOL)), constant);
+                valueTypeToString(expectedExpressionType_), 
+                valueTypeToString(ValueType::BOOL)), constant);
             return;
         }
         
@@ -499,8 +506,10 @@ void Compiler::compileVariableAccess(const ScriptNode &varAccess) {
 
     if (found) {
         ValueType varType = localVariables_[idx].type;
-        if (varType != expectedExpressionType_)
-            compileDifferentValueTypePush(varType, expectedExpressionType_, varAccess);
+        if (!canPromoteType(varType, expectedExpressionType_)) {
+            error(std::format(CANT_PROMOTE_TY_TO, valueTypeToString(varType), valueTypeToString(expectedExpressionType_)), varAccess);
+            return;
+        }
  
         emit(Instruction::LOADLOCAL);
         emit(idx);
@@ -511,25 +520,14 @@ void Compiler::compileVariableAccess(const ScriptNode &varAccess) {
             error(std::format(CANT_FIND_VAR_NAMED, varAccess.token->val), varAccess);
         
         ValueType varType = currScript_->getGlobalVar(globalIdx)->type; 
-        if (varType != expectedExpressionType_)
-            compileDifferentValueTypePush(varType, expectedExpressionType_, varAccess);
+        if (!canPromoteType(varType, expectedExpressionType_)) {
+            error(std::format(CANT_PROMOTE_TY_TO, valueTypeToString(varType), valueTypeToString(expectedExpressionType_)), varAccess);
+            return;
+        }
 
         emit(Instruction::LOADGLOBAL);
         emit(globalIdx);
     }
 }
-
-void Compiler::compileDifferentValueTypePush(ValueType from, ValueType to, const ScriptNode &node) {
-    assert(from != to);
-
-    if (!canPromoteType(from, to)) {
-        error(std::format(CANT_PROMOTE_TY_TO, VTYPE_NAMES.at(from), VTYPE_NAMES.at(to)), node);
-        return;
-    }
-
-    emit(Instruction::TYCAST);
-    emit(static_cast<DWord>(expectedExpressionType_));
-}
-
 
 } // namespace NCSC

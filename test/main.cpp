@@ -31,7 +31,7 @@ int main() {
     //     exit(EXIT_FAILURE);
     // }
 
-    // std::println("{}", fileContents);
+    std::println("{}", fileContents);
 
     NCSC::Compiler compiler;
     std::shared_ptr<NCSC::Script> script = compiler.compileScript(fileContents);
@@ -67,7 +67,10 @@ int main() {
         std::println("{}", vm.getStackStrRepr());
 
         float returned = 0;
-        vm.getFunctionReturn(returned);
+        if (!vm.getFunctionReturn(returned)) {
+            std::println("{}", vm.getLastError());
+            exit(EXIT_FAILURE);
+        }
         std::println("{} returned {}", fun->name, std::to_string(returned));
     }
 

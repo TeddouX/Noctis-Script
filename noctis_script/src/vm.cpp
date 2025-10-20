@@ -106,7 +106,7 @@ void VM::executeNext() {
             ValueType castTy = static_cast<ValueType>(readWord<DWord>(bytecode, ip + 1));
             if (!canPromoteType(val.ty, castTy)) {
                 // Might mess up the stack and cause weird errors
-                error(std::format(UNSAFE_CAST, VTYPE_NAMES.at(val.ty), VTYPE_NAMES.at(castTy)));
+                error(std::format(UNSAFE_CAST, valueTypeToString(val.ty), valueTypeToString(castTy)));
                 break;
             }
             val.ty = castTy;

@@ -45,31 +45,14 @@ inline ValueType valueTypeFromLiteral(const T&) {
     else                                             return ValueType::INVALID;
 }
 
-bool NCSC_API isInt(ValueType ty);
-bool NCSC_API isFloat(ValueType ty);
-bool NCSC_API isUnsigned(ValueType ty);
-bool NCSC_API isPrimitive(ValueType ty);
+bool      NCSC_API isInt(ValueType ty);
+bool      NCSC_API isFloat(ValueType ty);
+bool      NCSC_API isUnsigned(ValueType ty);
+bool      NCSC_API isPrimitive(ValueType ty);
 
-bool NCSC_API canPromoteType(ValueType from, ValueType to);
+bool      NCSC_API canPromoteType(ValueType from, ValueType to);
 ValueType NCSC_API promoteType(ValueType from, ValueType to);
 
-const std::unordered_map<ValueType, const char *> VTYPE_NAMES = {
-    { ValueType::VOID,    "Void" }, 
-
-    { ValueType::INT8,    "Int8" }, 
-    { ValueType::INT16,   "Int16" }, 
-    { ValueType::INT32,   "Int32" }, 
-    { ValueType::INT64,   "Int64" }, 
-
-    { ValueType::UINT8,   "UInt8" }, 
-    { ValueType::UINT16,  "UInt16" }, 
-    { ValueType::UINT32,  "UInt32" }, 
-    { ValueType::UINT64,  "UInt64" }, 
-
-    { ValueType::FLOAT32, "FLoat32" }, 
-    { ValueType::FLOAT64, "FLoat64" }, 
-
-    { ValueType::BOOL,    "Bool" }, 
-};
+std::string NCSC_API valueTypeToString(ValueType vtype);
 
 } // namespace NCSC

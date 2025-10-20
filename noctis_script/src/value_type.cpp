@@ -93,6 +93,31 @@ ValueType promoteType(ValueType from, ValueType to) {
     return higher;  
 }
 
+std::string valueTypeToString(ValueType vtype) {
+    switch (vtype) {
+        case ValueType::INVALID: return "invalid";
+        case ValueType::VOID:    return "Void"; 
+
+        case ValueType::INT8:    return "Int8"; 
+        case ValueType::INT16:   return "Int16"; 
+        case ValueType::INT32:   return "Int32"; 
+        case ValueType::INT64:   return "Int64"; 
+        
+        case ValueType::UINT8:   return "UInt8"; 
+        case ValueType::UINT16:  return "UInt16"; 
+        case ValueType::UINT32:  return "UInt32"; 
+        case ValueType::UINT64:  return "UInt64"; 
+        
+        case ValueType::FLOAT32: return "FLoat32"; 
+        case ValueType::FLOAT64: return "FLoat64"; 
+        
+        case ValueType::BOOL:    return "Bool";
+        default: break;
+    }
+
+    return "unknown";
+}
+
 
 int getRank(ValueType ty) {
     switch (ty) {

@@ -70,10 +70,10 @@ private:
             intermediate = std::strtoull(valStr.c_str(), nullptr, 0);
 
         if (intermediate < std::numeric_limits<T>::min()) {
-            error(std::format(NUMBER_IS_TOO_SMALL_FOR_TY, valStr, VTYPE_NAMES.at(vtype)), constant);
+            error(std::format(NUMBER_IS_TOO_SMALL_FOR_TY, valStr, valueTypeToString(vtype)), constant);
             return;
         } else if (intermediate > std::numeric_limits<T>::max()) {
-            error(std::format(NUMBER_IS_TOO_BIG_FOR_TY, valStr, VTYPE_NAMES.at(vtype)), constant);
+            error(std::format(NUMBER_IS_TOO_BIG_FOR_TY, valStr, valueTypeToString(vtype)), constant);
             return;
         }
 
@@ -96,7 +96,6 @@ private:
     void compileFunctionCall(const ScriptNode &funCall, bool shouldReturnVal);
     void compileReturn(const ScriptNode &ret);
     void compileVariableAccess(const ScriptNode &varAccess);
-    void compileDifferentValueTypePush(ValueType from, ValueType to, const ScriptNode &node);
 
     inline static constexpr std::string_view CANT_FIND_FUNCTION_NAMED      = "Compilation error C0: Can't find function named '{}'";
     inline static constexpr std::string_view CANT_FIND_VAR_NAMED           = "Compilation error C1: Can't find variable named '{}'";

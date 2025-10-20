@@ -116,7 +116,7 @@ private:
         ValueType paramType = currFun_->paramTypes[idx];
 
         if (!canPromoteType(givenTy, paramType)) {
-            error(std::format(ARG_DONT_MATCH_WITH_PARAM, idx, VTYPE_NAMES.at(paramType)));
+            error(std::format(ARG_DONT_MATCH_WITH_PARAM, idx, valueTypeToString(paramType)));
             return false;
         }
 
