@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-2-Clause
+// Copyright (c) 2025, TeddouX (https://github.com/TeddouX/)
 #include <gtest/gtest.h>
 #include <ncsc/lexer.hpp>
 #include <ncsc/parser.hpp>

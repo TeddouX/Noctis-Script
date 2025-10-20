@@ -1,3 +1,5 @@
+// The code below is not covered by the project's main license (BSD 2-Clause). 
+// It can be used freely without including the license.
 #include <ncsc/lexer.hpp>
 #include <ncsc/parser.hpp>
 #include <ncsc/compiler.hpp>

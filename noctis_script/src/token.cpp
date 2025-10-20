@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-2-Clause
+// Copyright (c) 2025, TeddouX (https://github.com/TeddouX/)
 #include <ncsc/token.hpp>
 
 namespace NCSC

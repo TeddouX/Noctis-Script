@@ -1,7 +1,8 @@
+// SPDX-License-Identifier: BSD-2-Clause
+// Copyright (c) 2025, TeddouX (https://github.com/TeddouX/)
 #include <ncsc/vm.hpp>
 #include <ncsc/instructions.hpp>
 #include <sstream>
-// #include <print>
 
 namespace NCSC
 {

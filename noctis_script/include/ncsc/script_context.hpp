@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-2-Clause
+// Copyright (c) 2025, TeddouX (https://github.com/TeddouX/)
 #pragma once
 #include <string>
 #include <vector>
@@ -43,7 +45,7 @@ private:
     std::vector<GlobalCPPFunctionRepr> globalCPPFunctions_;
 
     // Holy cpp gibberish
-    //
+    
     template <typename RetTy_, typename... FuncArgs_, size_t... I>
     Value registryFunImpl(RetTy_(*fun)(FuncArgs_...), const std::vector<Value> &args, std::index_sequence<I...>) {
         if constexpr (std::is_void_v<RetTy_>) {
