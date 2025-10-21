@@ -7,14 +7,15 @@
 
 #include "token.hpp"
 #include "ncsc.hpp"
+#include "script_source.hpp"
 
 namespace NCSC
 {
 
 class NCSC_API Lexer {
 public:
-    Lexer(const std::string &source)
-        : source_(source) {}
+    Lexer(std::shared_ptr<ScriptSource> source)
+        : source_(source->getString()) {}
 
     std::vector<Token> tokenizeAll();
     

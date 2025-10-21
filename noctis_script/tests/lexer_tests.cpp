@@ -5,14 +5,18 @@
 
 using namespace NCSC;
 
+auto getTokens(const std::string &src) {
+    return Lexer(ScriptSource::fromSource(src)).tokenizeAll();
+}
+
 TEST(LexerTests, EndOfFileIsAdded) {
-    auto tokens = Lexer("a; b; c + a").tokenizeAll();
+    auto tokens = getTokens("a; b; c + a");
 
     ASSERT_EQ(tokens.back().type, TokenType::END_OF_FILE);
 }
 
 TEST(LexerTests, WhitespacesAreCleared) {
-    auto tokens = Lexer("   a   \t\t     b\tc\n\nd \n e ").tokenizeAll();
+    auto tokens = getTokens("   a   \t\t     b\tc\n\nd \n e ");
 
     ASSERT_EQ(tokens.size(), 6);
     ASSERT_EQ(tokens[0].val, "a");
@@ -23,7 +27,7 @@ TEST(LexerTests, WhitespacesAreCleared) {
 }
 
 TEST(LexerTests, SingleCommentsAreIgnored) {
-    auto tokens = Lexer("// HELLLOLOOOOODSQDQKDLQkdlKQS //\nInt /// bro\n Int").tokenizeAll();
+    auto tokens = getTokens("// HELLLOLOOOOODSQDQKDLQkdlKQS //\nInt /// bro\n Int");
 
     ASSERT_EQ(tokens.size(), 3);
     ASSERT_EQ(tokens[0].type, TokenType::INT32_KWD);
@@ -31,7 +35,7 @@ TEST(LexerTests, SingleCommentsAreIgnored) {
 }
 
 TEST(LexerTests, IntLiteral) {
-    auto tokens = Lexer("123456789123456748923123").tokenizeAll();
+    auto tokens = getTokens("123456789123456748923123");
 
     ASSERT_EQ(tokens.size(), 2);
     Token intTok = tokens[0];
@@ -42,7 +46,7 @@ TEST(LexerTests, IntLiteral) {
 }
 
 TEST(LexerTests, FloatLiteral) {
-    auto tokens = Lexer("1548615641015348412.101231223132123").tokenizeAll();
+    auto tokens = getTokens("1548615641015348412.101231223132123");
 
     ASSERT_EQ(tokens.size(), 2);
     Token intTok = tokens[0];
@@ -53,7 +57,7 @@ TEST(LexerTests, FloatLiteral) {
 }
 
 TEST(LexerTests, KeywordWithMultipleDefinitions) {
-    auto tokens = Lexer("Int Int32").tokenizeAll();
+    auto tokens = getTokens("Int Int32");
 
     ASSERT_EQ(tokens.size(), 3);
     ASSERT_EQ(tokens[0].type, TokenType::INT32_KWD);
@@ -61,7 +65,7 @@ TEST(LexerTests, KeywordWithMultipleDefinitions) {
 }
 
 TEST(LexerTests, Identifier) {
-    auto tokens = Lexer("_a1123123azaaa").tokenizeAll();
+    auto tokens = getTokens("_a1123123azaaa");
 
     ASSERT_EQ(tokens.size(), 2);
     ASSERT_EQ(tokens[0].val, "_a1123123azaaa");
@@ -69,7 +73,7 @@ TEST(LexerTests, Identifier) {
 }
 
 TEST(LexerTests, AssignmentOperators) {
-    auto tokens = Lexer("= += -= *= /=").tokenizeAll();
+    auto tokens = getTokens("= += -= *= /=");
 
     ASSERT_EQ(tokens.size(), 6);
     ASSERT_EQ(tokens[0].type, TokenType::EQUAL);
@@ -80,7 +84,7 @@ TEST(LexerTests, AssignmentOperators) {
 }
 
 TEST(LexerTests, BinaryOperators) {
-    auto tokens = Lexer("+ - / *").tokenizeAll();
+    auto tokens = getTokens("+ - / *");
 
     ASSERT_EQ(tokens.size(), 5);
     ASSERT_EQ(tokens[0].type, TokenType::PLUS);

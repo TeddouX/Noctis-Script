@@ -7,8 +7,9 @@
 using namespace NCSC;
 
 auto parse(const std::string &code) {
-    auto tokens = Lexer(code).tokenizeAll();
-    return Parser(tokens).parseAll();
+    auto src = ScriptSource::fromSource(code); 
+    auto tokens = Lexer(src).tokenizeAll();
+    return Parser(tokens, src).parseAll();
 }
 
 TEST(ParserTests, ParsesVariableDeclaration) {

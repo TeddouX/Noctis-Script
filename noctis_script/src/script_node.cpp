@@ -52,7 +52,27 @@ std::string ScriptNode::getStrRepr() const {
     return oss.str();
 }
 
-void ScriptNode::addChild(const ScriptNode &child) { 
+void ScriptNode::updatePos() {
+    if (!token)
+        return;
+
+    line = token->line;
+    col = token->col;
+    colEnd = col + token->getLength();
+}
+
+void ScriptNode::addChild(const ScriptNode &child) {
+    // Update the node's position according to the added child
+    if (children.empty()) {
+        // First child added
+        line = child.line;
+        col = child.col;
+        colEnd = child.colEnd;
+    } else {
+        line = std::max(line, child.line);
+        colEnd = std::max(colEnd, child.colEnd);
+    }
+    
     children.push_back(child); 
     children.back().parent = this;
 }

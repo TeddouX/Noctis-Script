@@ -34,6 +34,7 @@ set(NCSC_SOURCES
     "src/parser.cpp"
     "src/script_context.cpp"
     "src/script_node.cpp"
+    "src/script_source.cpp"
     "src/script.cpp"
     "src/token.cpp"
     "src/value_type.cpp"

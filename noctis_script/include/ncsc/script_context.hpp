@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include <memory>
 
 #include "ncsc.hpp"
 #include "value.hpp"
@@ -19,7 +20,7 @@ struct GlobalCPPFunctionRepr : public IFunction {
 // Context bridges the script and CPP
 class NCSC_API ScriptContext {
 public:
-    ScriptContext() = default;
+    static std::shared_ptr<ScriptContext> create();
 
     template <typename RetTy_, typename... FuncArgs_>
     void registerGlobalFunction(const std::string &name, RetTy_(*fun)(FuncArgs_...)) {
@@ -43,6 +44,10 @@ public:
 
 private:
     std::vector<GlobalCPPFunctionRepr> globalCPPFunctions_;
+    
+    // Force the user to create a ptr to the class 
+    // instead of a regular instance
+    ScriptContext() = default;
 
     // Holy cpp gibberish
     

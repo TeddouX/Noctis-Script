@@ -35,12 +35,15 @@ struct NCSC_API ScriptNode {
     ScriptNode *parent = nullptr;
     std::vector<ScriptNode> children;
 
+    uint32_t line = 0, col = 0, colEnd = 0;
+
     ScriptNode(ScriptNodeType type)
         : type(type) {}
 
     // Recursively iterate through its children
     std::string getStrRepr() const;
 
+    void updatePos();
     bool hasChildren() const noexcept { return !children.empty(); }
     void addChild(const ScriptNode &child);
 };

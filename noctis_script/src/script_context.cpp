@@ -5,6 +5,10 @@
 namespace NCSC
 {
  
+std::shared_ptr<ScriptContext> ScriptContext::create() {
+    return std::shared_ptr<ScriptContext>(new ScriptContext());
+}
+
 const GlobalCPPFunctionRepr *ScriptContext::getGlobalFunction(DWord idx) const {
     if (idx > globalCPPFunctions_.size())
         return nullptr;

@@ -6,7 +6,7 @@ Int mul(Int a, Int b) {
 fun main() {
     printHello();
 
-    Int res = add(1, 55);
-    Int res1 = add4(1, 55, 2, 2);
-    Int res2 = mul(23, 2);
+    Int res = add(1);
+    Int res1 = add4(1, 12, 2);
+    Int res2 = mul(23, 1);
 }

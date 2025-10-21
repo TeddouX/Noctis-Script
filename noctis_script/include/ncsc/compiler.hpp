@@ -17,12 +17,12 @@ namespace NCSC
 
 class NCSC_API Compiler {
 public:
-    Compiler(std::shared_ptr<ScriptContext> ctx)
-        : ctx_(ctx) {};
+    Compiler(std::shared_ptr<ScriptContext> ctx, std::shared_ptr<ScriptSource> src = nullptr)
+        : ctx_(ctx), src_(src) {};
 
     static std::string disassemble(const std::vector<Byte> &bc);
 
-    std::unique_ptr<Script> compileScript(const std::string &code);
+    std::unique_ptr<Script> compileScript(std::shared_ptr<ScriptSource> source);
     std::unique_ptr<Script> compileScript(const ScriptNode &root);
 
     bool hasErrors() { return !compileErrors_.empty(); }
@@ -30,6 +30,7 @@ public:
 
 private:
     std::shared_ptr<ScriptContext> ctx_;
+    std::shared_ptr<ScriptSource> src_;
     Script *currScript_;
     ScriptFunction *currFunction_;
 
@@ -45,7 +46,7 @@ private:
 
     ValueType expectedExpressionType_;
 
-    void error(const std::string &mess, const ScriptNode &node);
+    void createCompileError(const ErrInfo &info, const ScriptNode &node);
 
     // currFunction = function and at the end set it to nullptr to indicate that it has finished compilation
     void compileFunction(const ScriptNode &funcDecl);
@@ -76,10 +77,10 @@ private:
             intermediate = std::strtoull(valStr.c_str(), nullptr, 0);
 
         if (intermediate < std::numeric_limits<T>::min()) {
-            error(std::format(NUMBER_IS_TOO_SMALL_FOR_TY, valStr, valueTypeToString(vtype)), constant);
+            createCompileError(NUMBER_IS_TOO_SMALL_FOR_TY.format(valStr, valueTypeToString(vtype)), constant);
             return;
         } else if (intermediate > std::numeric_limits<T>::max()) {
-            error(std::format(NUMBER_IS_TOO_BIG_FOR_TY, valStr, valueTypeToString(vtype)), constant);
+            createCompileError(NUMBER_IS_TOO_BIG_FOR_TY.format(valStr, valueTypeToString(vtype)), constant);
             return;
         }
 
@@ -104,21 +105,21 @@ private:
     void compileFunctionCall(const ScriptNode &funCall, bool shouldReturnVal);
     void compileReturn(const ScriptNode &ret);
     void compileVariableAccess(const ScriptNode &varAccess);
-    bool compileArguments(const ScriptNode &argsNode, const IFunction *fun, const ScriptNode &errorNode);
+    bool compileArguments(const ScriptNode &argsNode, const IFunction *fun);
 
-    inline static constexpr std::string_view CANT_FIND_FUNCTION_NAMED      = "Compilation error C0: Can't find function named '{}'";
-    inline static constexpr std::string_view CANT_FIND_VAR_NAMED           = "Compilation error C1: Can't find variable named '{}'";
-    inline static constexpr std::string_view FUNCTION_HAS_VOID_RET_TY      = "Compilation error C2: Function '{}' has a void return type, but it is still being used in an expression";
-    inline static constexpr std::string_view FUNCTION_SHOULD_RET_VAL       = "Compilation error C3: Function '{}' should return a value";
-    inline static constexpr std::string_view FUNCTION_SHOULDNT_RET_VAL     = "Compilation error C4: Function '{}' has a return type of void, so it shouldn't return anything";
-    inline static constexpr std::string_view EXPECTED_TYPE_INSTEAD_GOT     = "Compilation error C5: Expected type '{}', instead got '{}'";
-    inline static constexpr std::string_view EXPECTED_NUM_ARGS_INSTEAD_GOT = "Compilation error C6: Expected {} arguments for function {} instead got {}";
-    inline static constexpr std::string_view EXPECTED_NON_FLOATING_POINT   = "Compilation error C7: Unexpected floating point number '{}'";
-    inline static constexpr std::string_view CANT_PROMOTE_TY_TO            = "Compilation error C8: Unable to convert type {} to {}";
-    inline static constexpr std::string_view NUMBER_IS_TOO_BIG_FOR_TY      = "Compilation error C9: Number '{}' is too big for an {}";
-    inline static constexpr std::string_view NUMBER_IS_TOO_SMALL_FOR_TY    = "Compilation error C10: Number '{}' is too small for an {}";
-    inline static constexpr std::string_view VAR_ALREADY_EXISTS            = "Compilation error C11: Another variable with name '{}' already exists";
-    inline static constexpr std::string_view FUNC_ALREADY_EXISTS           = "Compilation error C11: Another function with name '{}' already exists";
+    inline static ErrInfo CANT_FIND_FUNCTION_NAMED      { "Compilation error", "C", 0,  "Can't find function named '{}'" };
+    inline static ErrInfo CANT_FIND_VAR_NAMED           { "Compilation error", "C", 1,  "Can't find variable named '{}'" };
+    inline static ErrInfo FUNCTION_HAS_VOID_RET_TY      { "Compilation error", "C", 2,  "Function '{}' has a void return type, but it is still being used in an expression" };
+    inline static ErrInfo FUNCTION_SHOULD_RET_VAL       { "Compilation error", "C", 3,  "Function '{}' should return a value" };
+    inline static ErrInfo FUNCTION_SHOULDNT_RET_VAL     { "Compilation error", "C", 4,  "Function '{}' has a return type of void, so it shouldn't return anything" };
+    inline static ErrInfo EXPECTED_TYPE_INSTEAD_GOT     { "Compilation error", "C", 5,  "Expected type '{}', instead got '{}'" };
+    inline static ErrInfo EXPECTED_NUM_ARGS_INSTEAD_GOT { "Compilation error", "C", 6,  "Expected {} arguments for function {} instead got {}" };
+    inline static ErrInfo EXPECTED_NON_FLOATING_POINT   { "Compilation error", "C", 7,  "Unexpected floating point number '{}'" };
+    inline static ErrInfo CANT_PROMOTE_TY_TO            { "Compilation error", "C", 8,  "Unable to convert type {} to {}" };
+    inline static ErrInfo NUMBER_IS_TOO_BIG_FOR_TY      { "Compilation error", "C", 9,  "Number '{}' is too big for an {}" };
+    inline static ErrInfo NUMBER_IS_TOO_SMALL_FOR_TY    { "Compilation error", "C", 10, "Number '{}' is too small for an {}" };
+    inline static ErrInfo VAR_ALREADY_EXISTS            { "Compilation error", "C", 11, "Another variable with name '{}' already exists" };
+    inline static ErrInfo FUNC_ALREADY_EXISTS           { "Compilation error", "C", 12, "Another function with name '{}' already exists" };
 };
 
 } // namespace NCSC

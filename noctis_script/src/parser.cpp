@@ -9,6 +9,12 @@
 namespace NCSC
 {
 
+Parser::Parser(const std::vector<Token> &tokens, std::shared_ptr<ScriptSource> src)
+    : tokens_(tokens), src_(src) 
+{
+    assert(src_ != nullptr);
+}
+
 ScriptNode Parser::parseAll() {
     ScriptNode root(ScriptNodeType::SCRIPT);
 
@@ -33,16 +39,19 @@ ScriptNode Parser::parseAll() {
         }
         else {
             consume();
-            createSyntaxError(std::format(UNEXPECTED_TOKEN, currTok.getStrRepr().c_str()), currTok);
+            createSyntaxError(UNEXPECTED_TOKEN.format(currTok.getStrRepr().c_str()), currTok);
         }
     }
 
     return root;
 }
 
-void Parser::createSyntaxError(const std::string &message, const Token &tok) {
+void Parser::createSyntaxError(const ErrInfo &info, const Token &tok) {
     hasSyntaxError_ = true;
-    syntaxErrors_.push_back(Error(message, tok));
+
+    Error err(info, src_);
+    err.setLocation(tok.line, tok.col, tok.col + tok.getLength());
+    syntaxErrors_.push_back(err);
 }
 
 Token &Parser::consume() {
@@ -161,6 +170,7 @@ ScriptNode Parser::parseToken(Token &tok) {
     ScriptNode node(ScriptNodeType::TOKEN);
 
     node.token = &tok;
+    node.updatePos();
     return node;
 }
 
@@ -181,7 +191,7 @@ ScriptNode Parser::parseVariableDeclaration() {
     // Variable declaration should end with a semicolon
     Token &t1 = consume();
     if (t1.type != TokenType::SEMICOLON)
-        createSyntaxError(std::string(EXPECTED_A_SEMICOLON), t1);
+        createSyntaxError(EXPECTED_A_SEMICOLON, t1);
     
     return node;
 }
@@ -191,11 +201,12 @@ ScriptNode Parser::parseType() {
 
     Token &t = consume();
     if (!isDataType(t.type)) {
-        createSyntaxError(std::string(EXPECTED_A_DATA_TYPE), t);
+        createSyntaxError(EXPECTED_A_DATA_TYPE, t);
         return node;
     }
 
     node.token = &t;
+    node.updatePos();
     return node;
 }
 
@@ -204,11 +215,12 @@ ScriptNode Parser::parseIdentifier() {
 
     Token &t = consume();
     if (t.type != TokenType::ID) {
-        createSyntaxError(std::string(EXPECTED_AN_IDENTIFIER), t);
+        createSyntaxError(EXPECTED_AN_IDENTIFIER, t);
         return node;
     }
 
     node.token = &t;
+    node.updatePos();
     return node;
 }
 
@@ -229,6 +241,7 @@ ScriptNode Parser::parseExpression() {
             
             ScriptNode binOp(ScriptNodeType::BINOP);
             binOp.token = &t1;
+            binOp.updatePos();
             node.addChild(binOp);
         }
         else
@@ -294,7 +307,7 @@ ScriptNode Parser::parseExpressionTerm() {
     } 
     else {
         consume();
-        createSyntaxError(std::string(EXPECTED_EXPRESSION_TERM), t);
+        createSyntaxError(EXPECTED_EXPRESSION_TERM, t);
     }
 
     return node;
@@ -305,11 +318,12 @@ ScriptNode Parser::parseConstant() {
 
     Token &t = consume();
     if (!isConstantValue(t.type)) {
-        createSyntaxError(std::string(EXPECTED_CONSTANT_VALUE), t);
+        createSyntaxError(EXPECTED_CONSTANT_VALUE, t);
         return node;
     }
 
     node.token = &t;
+    node.updatePos();
     return node;
 }
 
@@ -327,7 +341,7 @@ ScriptNode Parser::parseFunction() {
         node.addChild(parseToken(t));
     } 
     else {
-        createSyntaxError(std::string(EXPECTED_A_DATA_TYPE_OR_FUN), t);
+        createSyntaxError(EXPECTED_A_DATA_TYPE_OR_FUN, t);
         return node;
     }
 
@@ -335,7 +349,7 @@ ScriptNode Parser::parseFunction() {
 
     Token &t1 = consume();
     if (t1.type != TokenType::PARENTHESIS_OPEN) {
-        createSyntaxError(std::format(EXPECTED_TOKEN, "("), t1);
+        createSyntaxError(EXPECTED_TOKEN.format("("), t1);
         return node; 
     }
 
@@ -353,7 +367,7 @@ ScriptNode Parser::parseFunction() {
             else if (t3.type == TokenType::PARENTHESIS_CLOSE) 
                 break;
             else {
-                createSyntaxError(std::format(EXPECTED_TOKEN_OR_TOKEN, ",", ")"), t3);
+                createSyntaxError(EXPECTED_TOKEN_OR_TOKEN.format(',', ')'), t3);
                 break;
             }
         }
@@ -372,7 +386,7 @@ ScriptNode Parser::parseStatementBlock() {
 
     Token &t = consume();
     if (t.type != TokenType::CURLY_BRACE_OPEN) {
-        createSyntaxError(std::format(EXPECTED_TOKEN, '{'), t);
+        createSyntaxError(EXPECTED_TOKEN.format('{'), t);
         return node;
     }
 
@@ -385,13 +399,11 @@ ScriptNode Parser::parseStatementBlock() {
             return node;
         } 
         else if (t1.type == TokenType::END_OF_FILE) {
-            createSyntaxError(std::string(UNEXPECTED_EOF), t1);
+            createSyntaxError(UNEXPECTED_EOF, t1);
             return node;
         } 
-        else {
+        else
             node.addChild(parseStatement());
-            CHECK_SYNTAX_ERROR;
-        }
 
         // Try to recover from syntax errors
         if (hasSyntaxError_) {
@@ -419,7 +431,7 @@ ScriptNode Parser::parseStatementBlock() {
                     level--;
                 }
                 else if (t1.type == TokenType::END_OF_FILE) {
-                    createSyntaxError(std::string(UNEXPECTED_EOF), t1);
+                    createSyntaxError(UNEXPECTED_EOF, t1);
                     return node;
                 }
                 else
@@ -446,6 +458,7 @@ ScriptNode Parser::parseSimpleStatement() {
     else if (t.type == TokenType::RETURN_KWD) {
         ScriptNode returnNode(ScriptNodeType::RETURN);
         returnNode.token = &t;
+        returnNode.updatePos();
 
         consume();
 
@@ -455,13 +468,13 @@ ScriptNode Parser::parseSimpleStatement() {
     else if (t.type == TokenType::SEMICOLON)
         consume();
     else {
-        createSyntaxError(std::string(EXPECTED_STATEMENT), t);
+        createSyntaxError(EXPECTED_STATEMENT, t);
         return node;
     }
 
     Token &t1 = consume();
     if (t1.type != TokenType::SEMICOLON)
-        createSyntaxError(std::string(EXPECTED_A_SEMICOLON), t1);
+        createSyntaxError(EXPECTED_A_SEMICOLON, t1);
 
     return node;
 }
@@ -474,7 +487,7 @@ ScriptNode Parser::parseFunctionCall() {
     ScriptNode argListNode(ScriptNodeType::ARGUMENT_LIST);
     Token &t = consume();
     if (t.type != TokenType::PARENTHESIS_OPEN) {
-        createSyntaxError(std::format(EXPECTED_TOKEN, "("), t);
+        createSyntaxError(EXPECTED_TOKEN.format('('), t);
         return node;
     }
 
@@ -489,7 +502,7 @@ ScriptNode Parser::parseFunctionCall() {
             else if (t3.type == TokenType::PARENTHESIS_CLOSE) 
                 break;
             else {
-                createSyntaxError(std::format(EXPECTED_TOKEN_OR_TOKEN, ",", ")"), t3);
+                createSyntaxError(EXPECTED_TOKEN_OR_TOKEN.format(',', ')'), t3);
                 break;
             }
         }

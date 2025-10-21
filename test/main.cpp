@@ -48,16 +48,19 @@ int main() {
 
     std::println("{}", fileContents);
 
-    auto scriptCtx = std::make_shared<NCSC::ScriptContext>();
+    auto src = NCSC::ScriptSource::fromSource(fileContents);
+    src->filePath = std::filesystem::absolute("test/code.ncsc");
+
+    std::shared_ptr<NCSC::ScriptContext> scriptCtx = NCSC::ScriptContext::create();
     scriptCtx->registerGlobalFunction("printHello", printHello);
     scriptCtx->registerGlobalFunction("add", add);
     scriptCtx->registerGlobalFunction("add4", add4);
 
     NCSC::Compiler compiler(scriptCtx);
-    std::shared_ptr<NCSC::Script> script = compiler.compileScript(fileContents);
+    std::shared_ptr<NCSC::Script> script = compiler.compileScript(src);
     if (compiler.hasErrors()) {
         for (auto error : compiler.getErrors())
-            std::println("{}", error.getString());
+            std::println("{}", error.getErrorMessage());
 
         exit(EXIT_FAILURE);
     }
