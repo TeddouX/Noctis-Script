@@ -41,6 +41,8 @@ ScriptNode Parser::parseAll() {
             consume();
             createSyntaxError(UNEXPECTED_TOKEN.format(currTok.getStrRepr().c_str()), currTok);
         }
+        
+        hasSyntaxError_ = false;
     }
 
     return root;
