@@ -43,6 +43,9 @@ static size_t setValuePropFromBytes(const Byte *bytes, ValueType ty, Value &val,
         case ValueType::UINT8:                                              \
             val.ui8 = castTo<uint8_t>() op other.castTo<uint8_t>();         \
             break;                                                          \
+        case ValueType::BOOL:                                               \
+            val.b = castTo<uint8_t>() op other.castTo<uint8_t>();           \
+            break;                                                          \
         default:                                                            \
             val.ty = ValueType::INVALID;                                    \
             break;                                                          \
@@ -50,12 +53,76 @@ static size_t setValuePropFromBytes(const Byte *bytes, ValueType ty, Value &val,
     return val;                                                             \
 }                                                                           \
 
+#define VALUE_COMPARISON_OPERATOR(op) Value Value::operator op(const Value &other) {    \
+    ValueType resultType = promoteType(ty, other.ty);                                   \
+    Value val{ .ty = ValueType::BOOL };                                                 \
+    switch (resultType) {                                                               \
+        case ValueType::FLOAT64:                                                        \
+            val.b = castTo<float64_t>() op other.castTo<float64_t>();                   \
+            break;                                                                      \
+        case ValueType::FLOAT32:                                                        \
+            val.b = castTo<float32_t>() op other.castTo<float32_t>();                   \
+            break;                                                                      \
+        case ValueType::INT64:                                                          \
+            val.b = castTo<int64_t>() op other.castTo<int64_t>();                       \
+            break;                                                                      \
+        case ValueType::UINT64:                                                         \
+            val.b = castTo<uint64_t>() op other.castTo<uint64_t>();                     \
+            break;                                                                      \
+        case ValueType::INT32:                                                          \
+            val.b = castTo<int32_t>() op other.castTo<int32_t>();                       \
+            break;                                                                      \
+        case ValueType::UINT32:                                                         \
+            val.b = castTo<uint32_t>() op other.castTo<uint32_t>();                     \
+            break;                                                                      \
+        case ValueType::INT16:                                                          \
+            val.b = castTo<int16_t>() op other.castTo<int16_t>();                       \
+            break;                                                                      \
+        case ValueType::UINT16:                                                         \
+            val.b = castTo<uint16_t>() op other.castTo<uint16_t>();                     \
+            break;                                                                      \
+        case ValueType::INT8:                                                           \
+            val.b = castTo<int8_t>() op other.castTo<int8_t>();                         \
+            break;                                                                      \
+        case ValueType::UINT8:                                                          \
+            val.b = castTo<uint8_t>() op other.castTo<uint8_t>();                       \
+            break;                                                                      \
+        case ValueType::BOOL:                                                           \
+            val.b = castTo<bool>() op other.castTo<bool>();                             \
+            break;                                                                      \
+        default:                                                                        \
+            val.ty = ValueType::INVALID;                                                \
+            break;                                                                      \
+    }                                                                                   \
+    return val;                                                                         \
+}                                                                                       \
+
 VALUE_OPERATOR(+)
 VALUE_OPERATOR(-)
 VALUE_OPERATOR(*)
 
+VALUE_COMPARISON_OPERATOR(<)
+VALUE_COMPARISON_OPERATOR(<=)
+VALUE_COMPARISON_OPERATOR(==)
+
+Value Value::operator !() {
+    return Value{ .ty = ValueType::BOOL, .b = !b };
+}
+
+Value Value::operator >(const Value &other) {
+    return !(*this <= other);
+}
+
+Value Value::operator >=(const Value &other) {
+    return !(*this < other);
+}
+
+Value Value::operator !=(const Value &other) {
+    return !(*this == other);
+}
+
 // Division always returns a float64
-Value Value::operator/(const Value &other) {
+Value Value::operator /(const Value &other) {
     return Value{ .ty = ValueType::FLOAT64, .f64 = castTo<float64_t>() / other.castTo<float64_t>() };
 }
 
@@ -76,7 +143,7 @@ Value::operator std::string() {
         case ValueType::FLOAT32: return std::to_string(f32) + "f32";
         case ValueType::FLOAT64: return std::to_string(f64) + "f64";
 
-        case ValueType::BOOL:    return std::to_string(b) + "(bool)";
+        case ValueType::BOOL:    return std::to_string(b) + "b";
 
         default: return "empty";
     }

@@ -57,7 +57,9 @@ bool isPrimitive(ValueType ty) {
 }
 
 bool canPromoteType(ValueType from, ValueType to) {
-    return getRank(from) <= getRank(to);
+    int rankFrom = getRank(from);
+    int rankTo = getRank(from);
+    return rankFrom != 1 && rankTo != 1 && getRank(from) <= getRank(to);
 }
 
 ValueType promoteType(ValueType from, ValueType to) {

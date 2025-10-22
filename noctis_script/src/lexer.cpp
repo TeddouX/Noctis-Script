@@ -166,6 +166,10 @@ std::unique_ptr<Token> Lexer::getCurrent() {
         case '-': return matchOptional('=', TokenType::MINUS, TokenType::MINUS_EQUAL);
         case '/': return matchOptional('=', TokenType::SLASH, TokenType::SLASH_EQUAL);
         case '*': return matchOptional('=', TokenType::STAR,  TokenType::STAR_EQUAL);
+    
+        case '>': return matchOptional('=', TokenType::STRICTLY_BIGGER, TokenType::BIGGER_EQUAL);
+        case '<': return matchOptional('=', TokenType::STRICTLY_SMALLER, TokenType::SMALLER_EQUAL);
+        case '!': return matchOptional('=', TokenType::NOT, TokenType::NOT_EQUAL);
     }
 
     advance();

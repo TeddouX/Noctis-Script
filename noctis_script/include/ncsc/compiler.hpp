@@ -10,7 +10,6 @@
 #include "instructions.hpp"
 
 #include <memory>
-#include <format>
 
 namespace NCSC
 {
@@ -44,7 +43,7 @@ private:
     };
     std::vector<LocalVar> localVariables_;
 
-    ValueType expectedExpressionType_;
+    bool hasFunctionReturned_ = false;
 
     void createCompileError(const ErrInfo &info, const ScriptNode &node);
 
@@ -64,6 +63,11 @@ private:
 
     // Add an instruction to the bytecode of the current function
     void emit(Instruction instr);
+
+    // Patch bytecode
+    void patchBytecode(size_t location, Instruction instr, Byte *operand, size_t operandSize);
+
+    size_t getLastByteInsertedLoc() const { return tempCompiledBytecode_.size() - 1; }
 
     template <typename T>
     requires std::is_integral_v<T> 
@@ -95,17 +99,20 @@ private:
 
     bool hasLocalVariable(const std::string &name) const;
 
-    void compileVariableDeclaration(const ScriptNode &varDecl, bool global);
-    void compileConstantPush(const ScriptNode &constant);
+    ValueType compileVariableDeclaration(const ScriptNode &varDecl, bool global);
+    void compileConstantPush(const ScriptNode &constant, ValueType expectedType);
     void compileOperator(const ScriptNode &op);
-    void compileExpression(const ScriptNode &expr);
-    void recursivelyCompileExpression(const ScriptNode &exprChild);
-    void compileExpressionTerm(const ScriptNode &exprTerm);
+    void compileExpression(const ScriptNode &expr, ValueType expectedType);
+    void recursivelyCompileExpression(const ScriptNode &exprChild, ValueType expectedType);
+    void compileExpressionTerm(const ScriptNode &exprTerm, ValueType expectedType);
+    void compileStatementBlock(const ScriptNode &stmtBlock);
     void compileSimpleStatement(const ScriptNode &simpleStmt);
     void compileFunctionCall(const ScriptNode &funCall, bool shouldReturnVal);
     void compileReturn(const ScriptNode &ret);
-    void compileVariableAccess(const ScriptNode &varAccess);
+    void compileVariableAccess(const ScriptNode &varAccess, ValueType expectedType);
     bool compileArguments(const ScriptNode &argsNode, const IFunction *fun);
+    void compileIfStatement(const ScriptNode &ifStmt, int nestedCount = 1);
+    void compileJmpBcPatch(size_t patchLoc, Instruction jmpInstr, size_t jmpLoc);
 
     inline static ErrInfo CANT_FIND_FUNCTION_NAMED      { "Compilation error", "C", 0,  "Can't find function named '{}'" };
     inline static ErrInfo CANT_FIND_VAR_NAMED           { "Compilation error", "C", 1,  "Can't find variable named '{}'" };

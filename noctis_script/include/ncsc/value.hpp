@@ -38,10 +38,18 @@ struct NCSC_API Value {
         return val;
     }
 
-    Value operator+(const Value &other);
-    Value operator-(const Value &other);
-    Value operator*(const Value &other);
-    Value operator/(const Value &other);
+    Value operator +(const Value &other);
+    Value operator -(const Value &other);
+    Value operator *(const Value &other);
+    Value operator /(const Value &other);
+
+    Value operator !();
+    Value operator <(const Value &other);
+    Value operator <=(const Value &other);
+    Value operator >(const Value &other);
+    Value operator >=(const Value &other);
+    Value operator ==(const Value &other);
+    Value operator !=(const Value &other);
 
     operator std::string();
 

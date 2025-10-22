@@ -57,7 +57,7 @@ typedef uint32_t  DWord;
 typedef uint64_t  QWord;
 typedef uintptr_t PtrWord;
 
-#define NCSC_INVALID_IDX (DWord)(-1)
+constexpr DWord NCSC_INVALID_IDX = -1;
 
 typedef double float64_t;
 typedef float  float32_t;
@@ -74,9 +74,9 @@ inline T readWord(const Byte *bytes, size_t idx) {
 }
 
 template <typename T>
+requires std::is_trivially_copyable_v<T>
 inline void makeBytes(const T &val, Byte *bytes, size_t off = 0) {
-    for (int i = 0; i < sizeof(T); ++i)
-        bytes[off + i] = static_cast<Byte>((val >> (i * 8)) & 0xFF);
+    std::memcpy(bytes + off, &val, sizeof(T));
 }
 
 } // namespace NCSC

@@ -1,14 +1,27 @@
-Int thisIsAGlobalVar = ;
+// obj Vec2 {
+//     public Int x;
+//     public Int y;
+// }
+
+//Int thisIsAGlobalVar = 1 + 1 * 5;
 
 // Hello, World
-Int mul(Int a, Int b) {
-    return a * b;
-}
+//Int mul(Int a, Int b) {
+//    return a * b;
+//}
 
 fun main() {
-    printHello();
+    Int res  = add(1, 2);
+    //Int res1 = add4(1, 12, 2, 5);
+    //Int res2 = mul(23, 1);
+    //Int res3 = thisIsAGlobalVar * 2;
 
-    Int res = add(1);
-    Int res1 = add4(1, 12, 2);
-    Int res2 = mul(23, 1);
+    Bool b = res == 3;
+    if (b) {
+        printHello(1);
+    }
+
+    return;
 }
+
+

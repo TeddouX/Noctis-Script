@@ -34,6 +34,8 @@ private:
     Token &consume();
     Token &peek(int amount = 1);
 
+    int getOperatorPrecedence(const Token &tok);
+
     bool isDataType(TokenType type);
     bool isConstantValue(TokenType type);
     bool isOperator(TokenType type);
@@ -55,6 +57,7 @@ private:
     ScriptNode parseStatement();
     ScriptNode parseSimpleStatement();
     ScriptNode parseFunctionCall();
+    ScriptNode parseIfStatement();
 
     inline static ErrInfo EXPECTED_A_SEMICOLON        { "SyntaxError", "S", 0,  "Expected a semicolon (';')" };
     inline static ErrInfo EXPECTED_EXPRESSION_TERM    { "SyntaxError", "S", 1,  "Expected an expression term (function call, constant, variable...)" };

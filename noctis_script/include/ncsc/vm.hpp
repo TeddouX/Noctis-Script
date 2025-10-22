@@ -16,7 +16,7 @@ struct CallFrame {
     const Byte *bytecode;
     size_t bytecodeSize;
     size_t bp = 0;
-    size_t ip = 0;
+    QWord  ip = 0;
     size_t sp = 0;
     size_t stackSize = 0;
 };

@@ -75,6 +75,31 @@ Token &Parser::peek(int amount) {
     return tokens_[idx_ + amount];
 }
 
+int Parser::getOperatorPrecedence(const Token &tok) {
+    switch (tok.type) {
+        case TokenType::PLUS:
+        case TokenType::MINUS:
+            return 1;
+        case TokenType::STAR:
+        case TokenType::SLASH:
+            return 2;
+        // Relative comparisons
+        case TokenType::STRICTLY_SMALLER:
+        case TokenType::SMALLER_EQUAL:
+        case TokenType::STRICTLY_BIGGER:
+        case TokenType::BIGGER_EQUAL:
+            return 3;
+        // Equality comparisons
+        case TokenType::DOUBLE_EQUAL:
+        case TokenType::NOT_EQUAL:
+            return 4;
+    }
+
+    createSyntaxError(EXPECTED_AN_OPERATOR, tok);
+    return -1;
+}
+
+
 bool Parser::isDataType(TokenType type) {
     // TODO: Compare against a list of cached types
     switch (type) {
@@ -117,6 +142,12 @@ bool Parser::isOperator(TokenType type) {
         case TokenType::MINUS:
         case TokenType::STAR:
         case TokenType::SLASH:
+        case TokenType::BIGGER_EQUAL:
+        case TokenType::SMALLER_EQUAL:
+        case TokenType::DOUBLE_EQUAL:
+        case TokenType::NOT_EQUAL:
+        case TokenType::STRICTLY_BIGGER:
+        case TokenType::STRICTLY_SMALLER:
             return true;
             break;   
         default:
@@ -171,7 +202,7 @@ bool Parser::isFunctionCall() {
 ScriptNode Parser::parseToken(Token &tok) {
     ScriptNode node(ScriptNodeType::TOKEN);
 
-    node.token = &tok;
+    node.setToken(&tok);
     node.updatePos();
     return node;
 }
@@ -207,7 +238,7 @@ ScriptNode Parser::parseType() {
         return node;
     }
 
-    node.token = &t;
+    node.setToken(&t);
     node.updatePos();
     return node;
 }
@@ -221,7 +252,7 @@ ScriptNode Parser::parseIdentifier() {
         return node;
     }
 
-    node.token = &t;
+    node.setToken(&t);
     node.updatePos();
     return node;
 }
@@ -241,8 +272,8 @@ ScriptNode Parser::parseExpression() {
             consume();
             complexExpr = true;
             
-            ScriptNode binOp(ScriptNodeType::BINOP);
-            binOp.token = &t1;
+            ScriptNode binOp(ScriptNodeType::OP);
+            binOp.setToken(&t1);
             binOp.updatePos();
             node.addChild(binOp);
         }
@@ -260,32 +291,26 @@ ScriptNode Parser::parseExpression() {
         return node;
 
     // Assure operator precedence
-    while (node.children.size() > 1) {
+    while (node.getNumChildren() > 1) {
         int highestPre = 0;
         int highestPreIdx = 0;
-        for (int i = 1; i < node.children.size(); i += 2) {
-            TokenType ty = node.children[i].token->type;
-            if ((ty == TokenType::PLUS || ty == TokenType::MINUS) && highestPre == 0) {
-                highestPre = 1;
-                highestPreIdx = i;
-            }
-            else if (ty == TokenType::STAR || ty == TokenType::SLASH) { 
-                highestPre = 2;
-                highestPreIdx = i;
-                break;
-            }
+        for (int i = 1; i < node.getNumChildren(); i += 2) {
+            const Token *tok = node.getChild(i).getToken();
+            int opPre = getOperatorPrecedence(*tok); CHECK_SYNTAX_ERROR;
+            highestPreIdx = (opPre > highestPre) ? i : highestPreIdx;
+            highestPre = std::max(highestPre, opPre);
         }
 
-        ScriptNode opNode = node.children[highestPreIdx];
-        opNode.addChild(node.children[highestPreIdx - 1]);
-        opNode.addChild(node.children[highestPreIdx + 1]);
+        ScriptNode opNode = node.children_[highestPreIdx];
+        opNode.addChild(node.children_[highestPreIdx - 1]);
+        opNode.addChild(node.children_[highestPreIdx + 1]);
 
-        node.children.erase(
-            std::next(node.children.begin(), highestPreIdx - 1), 
-            std::next(node.children.begin(), highestPreIdx + 2));
+        node.children_.erase(
+            std::next(node.children_.begin(), highestPreIdx - 1), 
+            std::next(node.children_.begin(), highestPreIdx + 2));
 
-        node.children.insert(
-            std::next(node.children.begin(), highestPreIdx - 1), 
+        node.children_.insert(
+            std::next(node.children_.begin(), highestPreIdx - 1), 
             opNode);
     }
 
@@ -324,7 +349,7 @@ ScriptNode Parser::parseConstant() {
         return node;
     }
 
-    node.token = &t;
+    node.setToken(&t);
     node.updatePos();
     return node;
 }
@@ -448,7 +473,11 @@ ScriptNode Parser::parseStatementBlock() {
 }
 
 ScriptNode Parser::parseStatement() {
-    return parseSimpleStatement();
+    Token &t = peek(0);
+    if (t.type == TokenType::IF_KWD)
+        return parseIfStatement();
+    else
+        return parseSimpleStatement();
 }
 
 ScriptNode Parser::parseSimpleStatement() {
@@ -459,12 +488,14 @@ ScriptNode Parser::parseSimpleStatement() {
         node.addChild(parseFunctionCall());
     else if (t.type == TokenType::RETURN_KWD) {
         ScriptNode returnNode(ScriptNodeType::RETURN);
-        returnNode.token = &t;
-        returnNode.updatePos();
+        returnNode.setPos(t);
 
         consume();
 
-        returnNode.addChild(parseExpression());
+        Token &t1 = peek(0);
+        if (t1.type != TokenType::SEMICOLON)
+            returnNode.addChild(parseExpression());
+
         node.addChild(returnNode); CHECK_SYNTAX_ERROR;
     }
     else if (t.type == TokenType::SEMICOLON)
@@ -512,6 +543,52 @@ ScriptNode Parser::parseFunctionCall() {
         consume();
 
     node.addChild(argListNode); CHECK_SYNTAX_ERROR;
+
+    return node;
+}
+
+ScriptNode Parser::parseIfStatement() {
+    ScriptNode node(ScriptNodeType::IF_STATEMENT);
+
+    Token t = consume();
+    node.setPos(t);
+
+    if (t.type != TokenType::IF_KWD) {
+        createSyntaxError(EXPECTED_TOKEN.format("if"), t);
+        return node;
+    }
+
+    t = consume();
+    if (t.type != TokenType::PARENTHESIS_OPEN) {
+        createSyntaxError(EXPECTED_TOKEN.format('('), t);
+        return node;
+    }
+
+    node.addChild(parseExpression());     CHECK_SYNTAX_ERROR;
+
+    t = consume();
+    if (t.type != TokenType::PARENTHESIS_CLOSE) {
+        createSyntaxError(EXPECTED_TOKEN.format(')'), t);
+        return node;
+    }
+
+    node.addChild(parseStatementBlock()); CHECK_SYNTAX_ERROR;
+
+    t = peek(0);
+    if (t.type == TokenType::ELSE_KWD) {
+        Token &t2 = consume();
+
+        ScriptNode elseBrNode(ScriptNodeType::ELSE_BRANCH);
+        elseBrNode.setPos(t2);
+
+        t = peek(0);
+        if (t.type == TokenType::IF_KWD)
+            elseBrNode.addChild(parseIfStatement());
+        else
+            elseBrNode.addChild(parseStatementBlock());
+    
+        node.addChild(elseBrNode);        CHECK_SYNTAX_ERROR;
+    }
 
     return node;
 }

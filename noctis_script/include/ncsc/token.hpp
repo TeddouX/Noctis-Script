@@ -28,7 +28,15 @@ enum class TokenType : uint8_t {
     STAR_EQUAL,  // *=
     SLASH_EQUAL, // /=
 
-    DOUBLE_EQUAL, // ==
+    NOT, // !
+
+    STRICTLY_SMALLER, // <
+    STRICTLY_BIGGER,  // >
+
+    DOUBLE_EQUAL,  // ==
+    NOT_EQUAL,     // !=
+    BIGGER_EQUAL,  // >=
+    SMALLER_EQUAL, // <=
 
     SEMICOLON, // ;
     POINT,     // .
@@ -52,11 +60,13 @@ enum class TokenType : uint8_t {
     FLOAT64_KWD, // Float64 | Double
     BOOL_KWD,    // Bool | Byte
     
-    FUN_KWD,     // fun
-    RETURN_KWD,  // return
+    FUN_KWD,    // fun
+    RETURN_KWD, // return
+    IF_KWD,     // if
+    ELSE_KWD,   // else
 
-    TRUE_KWD,    // true
-    FALSE_KWD,   // false
+    TRUE_KWD,  // true
+    FALSE_KWD, // false
 
     // Special tokens
     END_OF_FILE,
@@ -81,6 +91,16 @@ const std::unordered_map<std::string, TokenType> tokensStringToTok = {
     { "-",       TokenType::MINUS },
     { "*",       TokenType::STAR },
     { "/",       TokenType::SLASH },
+
+    { "!", TokenType::NOT, },
+
+    { "<", TokenType::STRICTLY_SMALLER, },
+    { ">", TokenType::STRICTLY_BIGGER, },
+
+    { "==", TokenType::DOUBLE_EQUAL, },
+    { "!=", TokenType::NOT_EQUAL, },
+    { ">=", TokenType::BIGGER_EQUAL, },
+    { "<=", TokenType::SMALLER_EQUAL, },
 
     { "=",       TokenType::EQUAL },
     { "+=",      TokenType::PLUS_EQUAL },
@@ -130,6 +150,8 @@ const std::unordered_map<std::string, TokenType> tokensStringToTok = {
     
     { "fun",     TokenType::FUN_KWD },
     { "return",  TokenType::RETURN_KWD },
+    { "if",      TokenType::IF_KWD },
+    { "else",    TokenType::ELSE_KWD },
 };
 
 } // namespace NCSC

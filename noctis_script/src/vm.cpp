@@ -28,7 +28,7 @@ void VM::executeNext() {
     CallFrame &currFrame = callStack_.back();
 
     const Byte *bytecode = currFrame.bytecode;
-    size_t &ip = currFrame.ip;
+    QWord &ip = currFrame.ip;
     size_t &bp = currFrame.bp;
 
     if (ip > currFrame.bytecodeSize) {
@@ -38,6 +38,11 @@ void VM::executeNext() {
 
 #define INSTR(x) case (NCSC::Byte)NCSC::Instruction::x
 #define END_INSTR(numBytes) ip += numBytes; break
+#define OP_INSTR(op) \
+    Value b = pop(); \
+    Value a = pop(); \
+    push(a op b);    \
+    END_INSTR(1)     \
 
     switch (bytecode[ip]) {
         INSTR(NOOP):
@@ -70,37 +75,37 @@ void VM::executeNext() {
             END_INSTR(operandSize + 1);
         }
 
-        INSTR(ADD): {
-            Value b = pop();
-            Value a = pop();
+        INSTR(ADD): { OP_INSTR(+); }
+        INSTR(SUB): { OP_INSTR(-); }
+        INSTR(MUL): { OP_INSTR(*); }
+        INSTR(DIV): { OP_INSTR(/); }
 
-            push(a + b);
-
-            END_INSTR(1);
+        INSTR(CMPST): { OP_INSTR(<);  }
+        INSTR(CMPSE): { OP_INSTR(<=); }
+        INSTR(CMPGT): { OP_INSTR(>);  }
+        INSTR(CMPGE): { OP_INSTR(>=); }
+        INSTR(CMPEQ): { 
+            Value b = pop(); 
+            Value a = pop(); 
+            push(a == b); 
+            ip += 1; 
+            break; 
         }
-        INSTR(SUB): {
-            Value b = pop();
-            Value a = pop();
+        INSTR(CMPNE): { OP_INSTR(!=); }
 
-            push(a - b);
-
-            END_INSTR(1);
+        INSTR(JMPFALSE): {
+            Value v = pop();
+            if (v.b == false) {
+                ip = readWord<QWord>(bytecode, ip + 1);
+                
+                END_INSTR(0);
+            } else
+                END_INSTR(1 + sizeof(QWord));
         }
-        INSTR(MUL): {
-            Value b = pop();
-            Value a = pop();
 
-            push(a * b);
-
-            END_INSTR(1);
-        }
-        INSTR(DIV): {
-            Value b = pop();
-            Value a = pop();
-
-            push(a / b);
-
-            END_INSTR(1);
+        INSTR(JMP): {
+            ip = readWord<QWord>(bytecode, ip + 1);
+            END_INSTR(0);
         }
 
         INSTR(TYCAST): {
@@ -178,6 +183,7 @@ void VM::executeNext() {
 
 #undef INSTR
 #undef END_INSTR
+#undef OP_INSTR
 }
 
 void VM::prepareScriptFunction(const ScriptFunction *fun) {

@@ -9,8 +9,8 @@
 #include <fstream>
 #include <chrono>
 
-void printHello() {
-    std::println("Hello from CPP!");
+void printHello(int i) {
+    std::println("Hello from CPP! {}", i);
 }
 
 int add(int a, int b) {
@@ -25,39 +25,40 @@ int main() {
     std::ifstream ifs;
 
     std::stringstream buf;
-    ifs.open("test/code.ncsc");
+    std::filesystem::path filePath = std::filesystem::absolute("test/code.ncsc");
+    ifs.open(filePath);
     buf << ifs.rdbuf();
 
     std::string fileContents = buf.str();
 
-    // auto tokens = NCSC::Lexer(fileContents).tokenizeAll();
-    // for (auto token : tokens) {
-    //     std::println("{} Position: {}:{}", token.getStrRepr(), token.line, token.col);
-    // }
-    // std::println();
-
-    // NCSC::Parser parser(tokens);
-    // auto rootNode = parser.parseAll();
-    // std::println("{}", rootNode.getStrRepr());
-    // if (parser.hasErrors()) {
-    //     for (auto error : parser.getErrors()) 
-    //         std::println("{}", error.getString());
-
-    //     exit(EXIT_FAILURE);
-    // }
-
     std::println("{}", fileContents);
 
     auto src = NCSC::ScriptSource::fromSource(fileContents);
-    src->filePath = std::filesystem::absolute("test/code.ncsc");
+    src->filePath = filePath;
+
+    auto tokens = NCSC::Lexer(src).tokenizeAll();
+    for (auto token : tokens) {
+        std::println("{} Position: {}:{}", token.getStrRepr(), token.line, token.col);
+    }
+    std::println();
+
+    NCSC::Parser parser(tokens, src);
+    auto rootNode = parser.parseAll();
+    std::println("{}", rootNode.getStrRepr());
+    if (parser.hasErrors()) {
+        for (auto error : parser.getErrors()) 
+            std::println("{}", error.getErrorMessage());
+
+        exit(EXIT_FAILURE);
+    }
 
     std::shared_ptr<NCSC::ScriptContext> scriptCtx = NCSC::ScriptContext::create();
     scriptCtx->registerGlobalFunction("printHello", printHello);
     scriptCtx->registerGlobalFunction("add", add);
     scriptCtx->registerGlobalFunction("add4", add4);
 
-    NCSC::Compiler compiler(scriptCtx);
-    std::shared_ptr<NCSC::Script> script = compiler.compileScript(src);
+    NCSC::Compiler compiler(scriptCtx, src);
+    std::shared_ptr<NCSC::Script> script = compiler.compileScript(rootNode);
     if (compiler.hasErrors()) {
         for (auto error : compiler.getErrors())
             std::println("{}", error.getErrorMessage());
