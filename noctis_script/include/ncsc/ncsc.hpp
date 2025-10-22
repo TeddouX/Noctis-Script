@@ -47,6 +47,7 @@
 
 // Faster but may cause problems if unaligned
 #define NCSC_USE_UNSAFE_WORD_READING false
+#define NCSC_ALWAYS_OPTIMIZE         true
 
 namespace NCSC 
 {
@@ -75,7 +76,8 @@ inline T readWord(const Byte *bytes, size_t idx) {
 
 template <typename T>
 requires std::is_trivially_copyable_v<T>
-inline void makeBytes(const T &val, Byte *bytes, size_t off = 0) {
+inline void makeBytes(const T &val, Byte *bytes, size_t bufSize, size_t off = 0) {
+    assert(sizeof(T) + off <= bufSize);
     std::memcpy(bytes + off, &val, sizeof(T));
 }
 

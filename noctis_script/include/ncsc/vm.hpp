@@ -66,7 +66,7 @@ public:
         ValueType givenTy = valueTypeFromLiteral(T{});
         Value top = pop();
 
-        if (!canPromoteType(top.ty, givenTy)) {
+        if (!canPromoteType(top.type(), givenTy)) {
             error(std::format(PASSED_TY_DONT_MATCH_W_PASSED_TY, currFun_->name));
             return false;
         }
@@ -87,6 +87,8 @@ private:
     // next free spot on the stack
     size_t sp_ = 0;
     std::vector<CallFrame> callStack_;
+
+    Value *objReg_ = nullptr;
 
     // Computed when the vm instance is created
     std::vector<Value> globalVariables_;
@@ -122,7 +124,8 @@ private:
             return false;
         }
 
-        Value val{ .ty = givenTy };
+        Value val;
+        val.setType(givenTy);
         val.setProperty(arg, givenTy);
 
         stack_[idx] = val;

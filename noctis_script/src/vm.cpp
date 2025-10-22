@@ -36,7 +36,7 @@ void VM::executeNext() {
         return;
     }
 
-#define INSTR(x) case (NCSC::Byte)NCSC::Instruction::x
+#define INSTR(x) case NCSC::Instruction::x
 #define END_INSTR(numBytes) ip += numBytes; break
 #define OP_INSTR(op) \
     Value b = pop(); \
@@ -44,39 +44,59 @@ void VM::executeNext() {
     push(a op b);    \
     END_INSTR(1)     \
 
-    switch (bytecode[ip]) {
+    Instruction instr = static_cast<Instruction>(bytecode[ip]);
+    switch (instr) {
         INSTR(NOOP):
             END_INSTR(1);
         
-        INSTR(STORELOCAL): {
-            Word idx = readWord<Word>(bytecode, ip + 1);
-            stack_[bp + idx] = pop();
-            END_INSTR(sizeof(Word) + 1);
-        }
-        INSTR(LOADLOCAL): {
-            Word idx = readWord<Word>(bytecode, ip + 1);
-            push(stack_[bp + idx]);
-            END_INSTR(sizeof(Word) + 1);
-        }
-        INSTR(STOREGLOBAL): {
-            DWord idx = readWord<DWord>(bytecode, ip + 1);
-            globalVariables_[idx] = pop();
-            END_INSTR(sizeof(DWord) + 1);
-        }
-        INSTR(LOADGLOBAL): {
-            DWord idx = readWord<DWord>(bytecode, ip + 1);
-            push(globalVariables_[idx]);
-            END_INSTR(sizeof(DWord) + 1);
-        }
-
         INSTR(PUSH): {
             size_t operandSize = 0;
             push(Value::fromBytes(bytecode, ip + 1, operandSize));
             END_INSTR(operandSize + 1);
         }
+        INSTR(POP): {
+            pop();
+            END_INSTR(1);
+        }
+
+        INSTR(STORELOCAL): {
+            DWord idx = readWord<DWord>(bytecode, ip + 1);
+            stack_[bp + idx] = pop();
+            objReg_ = nullptr;
+            
+            END_INSTR(sizeof(DWord) + 1);
+        }
+        INSTR(LOADLOCAL): {
+            DWord idx = readWord<DWord>(bytecode, ip + 1);
+            Value &v = stack_[bp + idx]; 
+            push(v);
+            objReg_ = &v;
+
+            END_INSTR(sizeof(DWord) + 1);
+        }
+        INSTR(STOREGLOBAL): {
+            DWord idx = readWord<DWord>(bytecode, ip + 1);
+            globalVariables_[idx] = pop();
+            objReg_ = nullptr;
+            
+            END_INSTR(sizeof(DWord) + 1);
+        }
+        INSTR(LOADGLOBAL): {
+            DWord idx = readWord<DWord>(bytecode, ip + 1);
+            Value &v = globalVariables_[idx]; 
+            push(v);
+            objReg_ = &v;
+
+            END_INSTR(sizeof(DWord) + 1);
+        }
 
         INSTR(ADD): { OP_INSTR(+); }
-        INSTR(SUB): { OP_INSTR(-); }
+        INSTR(SUB): { 
+            Value b = pop(); 
+            Value a = pop(); 
+            push(a - b); 
+            ip += 1; 
+            break; }
         INSTR(MUL): { OP_INSTR(*); }
         INSTR(DIV): { OP_INSTR(/); }
 
@@ -84,39 +104,42 @@ void VM::executeNext() {
         INSTR(CMPSE): { OP_INSTR(<=); }
         INSTR(CMPGT): { OP_INSTR(>);  }
         INSTR(CMPGE): { OP_INSTR(>=); }
-        INSTR(CMPEQ): { 
-            Value b = pop(); 
-            Value a = pop(); 
-            push(a == b); 
-            ip += 1; 
-            break; 
-        }
+        INSTR(CMPEQ): { OP_INSTR(==); }
         INSTR(CMPNE): { OP_INSTR(!=); }
-
+        
+        INSTR(JMP): {
+            ip = readWord<QWord>(bytecode, ip + 1);
+            END_INSTR(0);
+        }
         INSTR(JMPFALSE): {
             Value v = pop();
-            if (v.b == false) {
+            if (v.get<bool>() == false) {
                 ip = readWord<QWord>(bytecode, ip + 1);
                 
                 END_INSTR(0);
             } else
                 END_INSTR(1 + sizeof(QWord));
         }
-
-        INSTR(JMP): {
-            ip = readWord<QWord>(bytecode, ip + 1);
-            END_INSTR(0);
+        
+        INSTR(SETOBJ): {
+            Value val = pop();
+            *objReg_ = val;
+            END_INSTR(1);
+        }
+        INSTR(LOADOBJ): {
+            push(*objReg_);
+            END_INSTR(1);
         }
 
         INSTR(TYCAST): {
             Value val = pop();
             ValueType castTy = static_cast<ValueType>(readWord<DWord>(bytecode, ip + 1));
-            if (!canPromoteType(val.ty, castTy)) {
+            if (!canPromoteType(val.type(), castTy)) {
                 // Might mess up the stack and cause weird errors
-                error(std::format(UNSAFE_CAST, valueTypeToString(val.ty), valueTypeToString(castTy)));
+                error(std::format(UNSAFE_CAST, valueTypeToString(val.type()), valueTypeToString(castTy)));
                 break;
             }
-            val.ty = castTy;
+            val.setType(castTy);
             push(val);
 
             END_INSTR(1 + sizeof(DWord));
@@ -180,6 +203,11 @@ void VM::executeNext() {
             END_INSTR(1);
         }
     }
+
+    // std::println("Stack: {}", getStackStrRepr());
+    // std::println("Globals: {}", getStackString(globalVariables_));
+    // std::println("Instr: {} SP: {}", INSTR_INFO.at(instr).first, sp_);
+    // std::println();
 
 #undef INSTR
 #undef END_INSTR
@@ -298,7 +326,7 @@ Value VM::pop() {
 }
 
 void VM::push(const Value &val) {
-    if (sp_ > stack_.size()) {
+    if (sp_ >= stack_.size()) {
         error(std::string(STACK_OVERFLOW));
         return;
     }

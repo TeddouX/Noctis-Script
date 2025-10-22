@@ -9,13 +9,13 @@ namespace NCSC
 enum class Instruction : Byte {
     NOOP,         // NOOP ; Does nothing, used when compilation fails on an ast node
 
-    STORELOCAL,   // STORELOCAL 1 ; a ; Pops first value on the stack and stores it into local 1
-    LOADLOCAL,    // LOADLOCAL 1 ; a ; Loads variable a onto the stack
-
-    STOREGLOBAL,  // STORELOCAL 1 ; Pops first value on the stack and stores it into global 1 
-    LOADGLOBAL,   // LOADLOCAL 1 ; a ; Loads a global variable a onto the stack
-
     PUSH,         // PUSH ; [DWord for value type][depends on the value type]
+    POP,          // PUSH ; [DWord for value type][depends on the value type]
+
+    LOADLOCAL,    // LOADLOCAL 1 ; Loads a local variable a onto the stack and stores a ptr to it in the obj register
+    STORELOCAL,   // STORELOCAL 1 ; Pops last value on the stack it and stores it into local 1
+    LOADGLOBAL,   // LOADLOCAL 1 ; Loads a global variable a onto the stack and stores a ptr to it in the obj register
+    STOREGLOBAL,  // STOREGLOBAL 1 ; Pops last value on the stack it and stores it into global 1
 
     ADD,          // ADD ; pop first two values on the stack, adds them and pushes the result on the stack
     SUB,          // SUB ; pop first two values on the stack, substracts them and pushes the result on the stack
@@ -32,6 +32,9 @@ enum class Instruction : Byte {
     JMP,          // JMP 123 ; set the PC to the operand
     JMPFALSE,     // JMPFALSE 123 ; if the last value on the stack is false or equals to zero, set the PC to the operand
 
+    SETOBJ,       // SETOBJ ; pops last value on the stack and sets it to the object stored in the object register  
+    LOADOBJ,      // LOADOBJ ; pushes the object stored in the object register  
+
     TYCAST,       // TYCAST b ; pops the last value on the stack and changes it type to b 
 
     RET,          // RET ; returns to the previous callframe on the callstack, pops temporary value and pushes it to caller
@@ -44,14 +47,15 @@ enum class Instruction : Byte {
 // Instruction -> (name & operand size)
 const std::unordered_map<Instruction, std::pair<const char *, size_t>> INSTR_INFO = {
     { Instruction::PUSH,          {"PUSH",         sizeof(DWord)} },
+    { Instruction::POP,           {"POP",          0} },
     
+    { Instruction::LOADLOCAL,     {"LOADLOCAL",    sizeof(DWord)} },
+    { Instruction::STORELOCAL,    {"STORELOCAL",   sizeof(DWord)} },
     { Instruction::LOADGLOBAL,    {"LOADGLOBAL",   sizeof(DWord)} },
     { Instruction::STOREGLOBAL,   {"STOREGLOBAL",  sizeof(DWord)} },
+
     { Instruction::CALLSCRFUN,    {"CALLSCRFUN",   sizeof(DWord)} },
     { Instruction::CLGLBLCPPFUN,  {"CLGLBLCPPFUN", sizeof(DWord)} },
-    
-    { Instruction::STORELOCAL,    {"STORELOCAL",   sizeof(Word)} },
-    { Instruction::LOADLOCAL,     {"LOADLOCAL",    sizeof(Word)} },
     
     { Instruction::ADD,           {"ADD",          0} },
     { Instruction::SUB,           {"SUB",          0} },
@@ -67,6 +71,9 @@ const std::unordered_map<Instruction, std::pair<const char *, size_t>> INSTR_INF
 
     { Instruction::JMP,           {"JMP",          sizeof(QWord)} },
     { Instruction::JMPFALSE,      {"JMPFALSE",     sizeof(QWord)} },
+    
+    { Instruction::SETOBJ,        {"SETOBJ",       0} },
+    { Instruction::LOADOBJ,       {"LOADOBJ",      0} },
 
     { Instruction::TYCAST,        {"TYCAST",       sizeof(DWord)} },
     
@@ -77,4 +84,3 @@ const std::unordered_map<Instruction, std::pair<const char *, size_t>> INSTR_INF
 };
 
 } // namespace NCSC
-  

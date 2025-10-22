@@ -156,6 +156,21 @@ bool Parser::isOperator(TokenType type) {
     }
 }
 
+bool Parser::isAssignOp(TokenType type) {
+    switch (type) {
+        case TokenType::PLUS_EQUAL:
+        case TokenType::MINUS_EQUAL:
+        case TokenType::STAR_EQUAL:
+        case TokenType::SLASH_EQUAL:
+        case TokenType::EQUAL:
+            return true;
+            break;   
+        default:
+            return false;
+            break;
+    }
+}
+
 bool Parser::isVariableDeclaration() {
     Token t = peek(0);
     if (!isDataType(t.type))
@@ -210,16 +225,11 @@ ScriptNode Parser::parseToken(Token &tok) {
 ScriptNode Parser::parseVariableDeclaration() {
     ScriptNode node(ScriptNodeType::VARIABLE_DECLARATION);
 
-    node.addChild(parseType());       CHECK_SYNTAX_ERROR;
-    node.addChild(parseIdentifier()); CHECK_SYNTAX_ERROR;
+    node.addChild(parseType());            CHECK_SYNTAX_ERROR;
 
     Token &t = peek(0);
-    if (t.type == TokenType::EQUAL) {
-        consume();
-        node.addChild(parseExpression()); 
-        // There should be an expression after an equal
-        CHECK_SYNTAX_ERROR;
-    }
+    if (t.type != TokenType::SEMICOLON)
+        node.addChild(parseAssignment(false)); CHECK_SYNTAX_ERROR;
 
     // Variable declaration should end with a semicolon
     Token &t1 = consume();
@@ -476,6 +486,8 @@ ScriptNode Parser::parseStatement() {
     Token &t = peek(0);
     if (t.type == TokenType::IF_KWD)
         return parseIfStatement();
+    else if (t.type == TokenType::RETURN_KWD)
+        return parseReturnStatement();
     else
         return parseSimpleStatement();
 }
@@ -483,31 +495,19 @@ ScriptNode Parser::parseStatement() {
 ScriptNode Parser::parseSimpleStatement() {
     ScriptNode node(ScriptNodeType::SIMPLE_STATEMENT);
 
-    Token &t = peek(0);
-    if (isFunctionCall())
-        node.addChild(parseFunctionCall());
-    else if (t.type == TokenType::RETURN_KWD) {
-        ScriptNode returnNode(ScriptNodeType::RETURN);
-        returnNode.setPos(t);
-
+    Token t = peek(0);
+    // Just a semicolon is alright
+    if (t.type == TokenType::SEMICOLON) {
+        node.setPos(t);
         consume();
-
-        Token &t1 = peek(0);
-        if (t1.type != TokenType::SEMICOLON)
-            returnNode.addChild(parseExpression());
-
-        node.addChild(returnNode); CHECK_SYNTAX_ERROR;
-    }
-    else if (t.type == TokenType::SEMICOLON)
-        consume();
-    else {
-        createSyntaxError(EXPECTED_STATEMENT, t);
         return node;
     }
 
-    Token &t1 = consume();
-    if (t1.type != TokenType::SEMICOLON)
-        createSyntaxError(EXPECTED_A_SEMICOLON, t1);
+    node.addChild(parseAssignment(true));     CHECK_SYNTAX_ERROR;
+
+    t = consume();
+    if (t.type != TokenType::SEMICOLON)
+        createSyntaxError(EXPECTED_A_SEMICOLON, t);
 
     return node;
 }
@@ -523,6 +523,7 @@ ScriptNode Parser::parseFunctionCall() {
         createSyntaxError(EXPECTED_TOKEN.format('('), t);
         return node;
     }
+    argListNode.setPos(t);
 
     Token &t1 = peek(0); 
     if (t1.type != TokenType::PARENTHESIS_CLOSE) {
@@ -592,5 +593,66 @@ ScriptNode Parser::parseIfStatement() {
 
     return node;
 }
+
+ScriptNode Parser::parseAssignment(bool allowCompoundOps) {
+    ScriptNode node(ScriptNodeType::ASSIGNMENT);
+
+    node.addChild(parseExpressionTerm());                     CHECK_SYNTAX_ERROR;
+
+    Token &t = peek(0);
+    if (t.type == TokenType::SEMICOLON) {
+        return node;
+    }
+
+    node.addChild(parseAssignmentOperator(allowCompoundOps)); CHECK_SYNTAX_ERROR;
+    node.addChild(parseExpression());                         CHECK_SYNTAX_ERROR;
+
+    return node;
+}
+
+ScriptNode Parser::parseReturnStatement() {
+    ScriptNode node(ScriptNodeType::RETURN_STMT);
+    
+    Token t = consume();
+    node.setPos(t);
+    if (t.type != TokenType::RETURN_KWD) {
+        createSyntaxError(EXPECTED_TOKEN.format("return"), t);
+        return node;
+    } 
+
+    t = peek(0);
+    if (t.type == TokenType::SEMICOLON) {
+        consume();
+    } else {
+        node.addChild(parseExpression());
+
+        t = consume();
+        if (t.type != TokenType::SEMICOLON) {
+            createSyntaxError(EXPECTED_A_SEMICOLON, t);
+            return node;
+        }
+    }
+
+    return node;
+}
+
+ScriptNode Parser::parseAssignmentOperator(bool allowCompoundOps) {
+    ScriptNode node(ScriptNodeType::OP);
+    
+    Token &t = consume();
+    if (!allowCompoundOps && t.type != TokenType::EQUAL) {
+        createSyntaxError(EXPECTED_TOKEN.format('='), t);
+        return node;
+    } else if (!isAssignOp(t.type)) {
+        createSyntaxError(EXPECTED_ASSIGN_OP, t);
+        return node;
+    }
+
+    node.setToken(&t);
+    node.updatePos();
+
+    return node;
+}
+
 
 } // namespace NCSC

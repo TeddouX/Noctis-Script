@@ -19,7 +19,7 @@ enum class ScriptNodeType : uint8_t {
     EXPRESSION_TERM,
     FUNCTION_CALL,
     SIMPLE_STATEMENT,
-    RETURN,
+    RETURN_STMT,
     OP,
     CONSTANT,
     ARGUMENT_LIST,
@@ -29,6 +29,7 @@ enum class ScriptNodeType : uint8_t {
     IF_STATEMENT,
     ELSE_BRANCH,
     CONDITION,
+    ASSIGNMENT,
 };
 
 struct NCSC_API ScriptNode {

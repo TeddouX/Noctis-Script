@@ -39,6 +39,7 @@ private:
     bool isDataType(TokenType type);
     bool isConstantValue(TokenType type);
     bool isOperator(TokenType type);
+    bool isAssignOp(TokenType type);
 
     bool isVariableDeclaration();
     bool isFunction();
@@ -58,6 +59,9 @@ private:
     ScriptNode parseSimpleStatement();
     ScriptNode parseFunctionCall();
     ScriptNode parseIfStatement();
+    ScriptNode parseAssignment(bool allowCompoundOps);
+    ScriptNode parseReturnStatement();
+    ScriptNode parseAssignmentOperator(bool allowCompoundOps);
 
     inline static ErrInfo EXPECTED_A_SEMICOLON        { "SyntaxError", "S", 0,  "Expected a semicolon (';')" };
     inline static ErrInfo EXPECTED_EXPRESSION_TERM    { "SyntaxError", "S", 1,  "Expected an expression term (function call, constant, variable...)" };
@@ -71,6 +75,7 @@ private:
     inline static ErrInfo EXPECTED_STATEMENT          { "SyntaxError", "S", 9,  "Expected a statement" };
     inline static ErrInfo UNEXPECTED_TOKEN            { "SyntaxError", "S", 10, "Unexpected token '{}'" };
     inline static ErrInfo UNEXPECTED_EOF              { "SyntaxError", "S", 11, "Unexpected end of file" };
+    inline static ErrInfo EXPECTED_ASSIGN_OP          { "SyntaxError", "S", 12, "Expected an assignement operator ('=', '+=', '-=', ...)" };
 };
 
 } // namespace NCSC

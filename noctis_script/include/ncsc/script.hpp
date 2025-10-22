@@ -33,8 +33,8 @@ public:
     DWord getFunctionIdx(const std::string &name) const;
     const std::vector<ScriptFunction> &getAllFunctions() const { return functions_; }
     
-    void addGlovalVar(const GlobalVar &var) { globalVars_.push_back(var); }
-    const GlobalVar *getGlobalVar(DWord idx) const;
+    void addGlovalVar(const GlobalVar& var) { globalVars_.push_back(var); numGlobalVariables++; }
+    GlobalVar *getGlobalVar(DWord idx);
     DWord getGlobalVarIdx(const std::string &name) const;
     const std::vector<GlobalVar> &getAllGlobalVars() const { return globalVars_; }
 

@@ -52,8 +52,9 @@ private:
 
     bool isScriptFunction(const std::string &name) const { return currScript_->getFunction(name) != nullptr; }
 
-    // Computes required stack size for a node
-    size_t computeMaxStackSize(const ScriptNode &node);
+    // Compute required stack size for a node, may be too big after optimizing
+    // TODO: calculate max stack size from the bytecode
+    size_t computeRequiredStackSize(const ScriptNode &node);
 
     // Add a byte to the bytecode of the current function
     void emit(Byte bytecode);
@@ -92,27 +93,32 @@ private:
         
         constexpr size_t bytesSize = getValueSize(T{}); 
         Byte bytes[bytesSize];
-        makeValueBytes(val, vtype, bytes, 0);
+        makeValueBytes(val, vtype, bytes, sizeof(bytes), 0);
         emit(Instruction::PUSH);
         emit(bytes, bytesSize);
     }
 
     bool hasLocalVariable(const std::string &name) const;
+    const LocalVar *getLocalVariable(const std::string &name) const;
+    bool hasGlobalVariable(const std::string &name) const;
 
-    ValueType compileVariableDeclaration(const ScriptNode &varDecl, bool global);
+    void compileVariableDeclaration(const ScriptNode &varDecl, bool global);
     void compileConstantPush(const ScriptNode &constant, ValueType expectedType);
     void compileOperator(const ScriptNode &op);
-    void compileExpression(const ScriptNode &expr, ValueType expectedType);
+    void compileExpression(const ScriptNode &expr, ValueType expectedType = ValueType::INVALID);
     void recursivelyCompileExpression(const ScriptNode &exprChild, ValueType expectedType);
-    void compileExpressionTerm(const ScriptNode &exprTerm, ValueType expectedType);
+    // shouldBeModifiable: true if it should be, false if you don't care
+    void compileExpressionTerm(const ScriptNode &exprTerm, ValueType expectedType = ValueType::INVALID, bool shouldBeModifiable = false);
     void compileStatementBlock(const ScriptNode &stmtBlock);
-    void compileSimpleStatement(const ScriptNode &simpleStmt);
     void compileFunctionCall(const ScriptNode &funCall, bool shouldReturnVal);
     void compileReturn(const ScriptNode &ret);
-    void compileVariableAccess(const ScriptNode &varAccess, ValueType expectedType);
+    void compileVariableAccess(const ScriptNode &varAccess, ValueType expectedType = ValueType::INVALID);
     bool compileArguments(const ScriptNode &argsNode, const IFunction *fun);
     void compileIfStatement(const ScriptNode &ifStmt, int nestedCount = 1);
     void compileJmpBcPatch(size_t patchLoc, Instruction jmpInstr, size_t jmpLoc);
+    void compileAssignment(const ScriptNode &assignment, ValueType expectedType = ValueType::INVALID);
+
+    ValueType getExpressionTermType(const ScriptNode &exprTerm);
 
     inline static ErrInfo CANT_FIND_FUNCTION_NAMED      { "Compilation error", "C", 0,  "Can't find function named '{}'" };
     inline static ErrInfo CANT_FIND_VAR_NAMED           { "Compilation error", "C", 1,  "Can't find variable named '{}'" };
@@ -127,6 +133,8 @@ private:
     inline static ErrInfo NUMBER_IS_TOO_SMALL_FOR_TY    { "Compilation error", "C", 10, "Number '{}' is too small for an {}" };
     inline static ErrInfo VAR_ALREADY_EXISTS            { "Compilation error", "C", 11, "Another variable with name '{}' already exists" };
     inline static ErrInfo FUNC_ALREADY_EXISTS           { "Compilation error", "C", 12, "Another function with name '{}' already exists" };
+    inline static ErrInfo TERM_SHOULD_BE_MODIFIABLE     { "Compilation error", "C", 13, "Expected a modifiable term" };
+    inline static ErrInfo EXPECTED_AN_ID                { "Compilation error", "C", 14, "Expected an identifier" };
 };
 
 } // namespace NCSC

@@ -28,7 +28,7 @@ DWord Script::getFunctionIdx(const std::string &name) const {
     return -1;
 }
 
-const GlobalVar *Script::getGlobalVar(DWord idx) const {
+GlobalVar *Script::getGlobalVar(DWord idx) {
     if (idx > globalVars_.size())
         return nullptr;
     return &globalVars_[idx];

@@ -24,9 +24,10 @@ static std::string getNodeTypeStrRepr(ScriptNodeType type) {
         case ScriptNodeType::TOKEN:                 return "<TOKEN>";
         case ScriptNodeType::ARGUMENT_LIST:         return "<ARGUMENT_LIST>";
         case ScriptNodeType::FUNCTION_CALL:         return "<FUNCTION_CALL>";
-        case ScriptNodeType::RETURN:                return "<RETURN>";
+        case ScriptNodeType::RETURN_STMT:           return "<RETURN_STMT>";
         case ScriptNodeType::IF_STATEMENT:          return "<IF_STATEMENT>";
         case ScriptNodeType::ELSE_BRANCH:           return "<ELSE_BRANCH>";
+        case ScriptNodeType::ASSIGNMENT:            return "<ASSIGNMENT>";
         default:                                    return "<please add the missing node(s)>";
     }
 }

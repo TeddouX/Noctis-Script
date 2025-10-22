@@ -36,29 +36,29 @@ int main() {
     auto src = NCSC::ScriptSource::fromSource(fileContents);
     src->filePath = filePath;
 
-    auto tokens = NCSC::Lexer(src).tokenizeAll();
-    for (auto token : tokens) {
-        std::println("{} Position: {}:{}", token.getStrRepr(), token.line, token.col);
-    }
-    std::println();
+    // auto tokens = NCSC::Lexer(src).tokenizeAll();
+    // for (auto token : tokens) {
+    //     std::println("{} Position: {}:{}", token.getStrRepr(), token.line, token.col);
+    // }
+    // std::println();
 
-    NCSC::Parser parser(tokens, src);
-    auto rootNode = parser.parseAll();
-    std::println("{}", rootNode.getStrRepr());
-    if (parser.hasErrors()) {
-        for (auto error : parser.getErrors()) 
-            std::println("{}", error.getErrorMessage());
+    // NCSC::Parser parser(tokens, src);
+    // auto rootNode = parser.parseAll();
+    // std::println("{}", rootNode.getStrRepr());
+    // if (parser.hasErrors()) {
+    //     for (auto error : parser.getErrors()) 
+    //         std::println("{}", error.getErrorMessage());
 
-        exit(EXIT_FAILURE);
-    }
+    //     exit(EXIT_FAILURE);
+    // }
 
     std::shared_ptr<NCSC::ScriptContext> scriptCtx = NCSC::ScriptContext::create();
     scriptCtx->registerGlobalFunction("printHello", printHello);
     scriptCtx->registerGlobalFunction("add", add);
     scriptCtx->registerGlobalFunction("add4", add4);
 
-    NCSC::Compiler compiler(scriptCtx, src);
-    std::shared_ptr<NCSC::Script> script = compiler.compileScript(rootNode);
+    NCSC::Compiler compiler(scriptCtx);
+    std::shared_ptr<NCSC::Script> script = compiler.compileScript(src);
     if (compiler.hasErrors()) {
         for (auto error : compiler.getErrors())
             std::println("{}", error.getErrorMessage());
@@ -75,7 +75,10 @@ int main() {
     const NCSC::ScriptFunction *fun = script->getFunction("main");
     if (fun) {
         NCSC::VM vm(script);
-        vm.computeGlobals();
+        if (!vm.computeGlobals()) {
+            std::println("{}", vm.getLastError());
+            exit(EXIT_FAILURE);
+        }
         vm.prepareFunction(fun);
         
         bool success = vm.execute();
