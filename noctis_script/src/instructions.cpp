@@ -9,8 +9,9 @@ size_t getInstructionSize(const std::vector<Byte> &bytes, size_t off) {
     size_t size = sizeof(Instruction);
 
     if (instr == Instruction::PUSH) {
-        size_t size = 0;
-        Value::fromBytes(bytes, off, size);
+        size_t valSize = 0;
+        Value::fromBytes(bytes, size, valSize);
+        size += valSize;
     } else {
         auto it = INSTR_INFO.find(instr);
         if (it == INSTR_INFO.end()) 

@@ -99,9 +99,7 @@ int Parser::getOperatorPrecedence(const Token &tok) {
     return -1;
 }
 
-
 bool Parser::isDataType(TokenType type) {
-    // TODO: Compare against a list of cached types
     switch (type) {
         case TokenType::INT8_KWD:
         case TokenType::INT16_KWD:

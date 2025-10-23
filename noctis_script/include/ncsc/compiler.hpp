@@ -55,11 +55,10 @@ private:
 
     bool isScriptFunction(const std::string &name) const { return currScript_->getFunction(name) != nullptr; }
 
-    // Compute required stack size for a node, may be too big after optimizing
-    // TODO: calculate max stack size from the bytecode
-    size_t computeRequiredStackSize(const ScriptNode &node);
+    // Computes the required stack size for tempCompiledBytecode_
+    size_t computeRequiredStackSize();
     // Computes maximum number of local variables of the scope
-    size_t  computeMaxLocals(const Scope *scope);
+    size_t computeMaxLocals(const Scope *scope);
 
     // Resolves jumps for tempCompiledBytecode_
     void resolveJumps();

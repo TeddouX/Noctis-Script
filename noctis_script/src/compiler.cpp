@@ -107,6 +107,7 @@ std::unique_ptr<Script> Compiler::compileScript(const ScriptNode &root) {
 
             GlobalVar *gv = currScript_->getGlobalVar(currScript_->numGlobalVariables - 1); 
             gv->bytecode = tempCompiledBytecode_;
+            gv->requiredStackSize = computeRequiredStackSize();
 
             tempCompiledBytecode_.clear();
             scopes_.clear();
@@ -209,7 +210,6 @@ void Compiler::compileFunction(const ScriptNode &funcDecl) {
         currFunction_->returnTy = ValueType::VOID;
     
     currFunction_->name = funcDeclName;
-    currFunction_->requiredStackSize = computeRequiredStackSize(funcDecl);
 
     ScriptNode paramsNode = funcDecl.getChild(2);
     currFunction_->numParams = paramsNode.getNumChildren() / 2;
@@ -245,6 +245,7 @@ void Compiler::compileFunction(const ScriptNode &funcDecl) {
 
         resolveJumps();
 
+        currFunction_->requiredStackSize = computeRequiredStackSize();
         currFunction_->bytecode = tempCompiledBytecode_;
         tempCompiledBytecode_.clear();
     }
@@ -254,83 +255,62 @@ void Compiler::compileFunction(const ScriptNode &funcDecl) {
     currFunction_ = nullptr;
 }
 
-size_t Compiler::computeRequiredStackSize(const ScriptNode &node) {
-    switch (node.getType()) {
-        case ScriptNodeType::FUNCTION: {
-            const ScriptNode &stmtBlock = node.getLastChild();
+size_t Compiler::computeRequiredStackSize() {
+    size_t maxSize = 0;
+    size_t currSize = 0;
+    for (size_t i = 0; i < tempCompiledBytecode_.size();) {
+        Instruction instr = static_cast<Instruction>(tempCompiledBytecode_[i]);
 
-            assert(stmtBlock.getType() == ScriptNodeType::STATEMENT_BLOCK);
-
-            size_t requiredStackSize = 0;
-            for (const auto &stmt : stmtBlock.getAllChildren()) {
-                requiredStackSize = std::max(requiredStackSize, computeRequiredStackSize(stmt));
-            }
-
-            return requiredStackSize;
-        }
-
-        case ScriptNodeType::VARIABLE_DECLARATION: {
-            return computeRequiredStackSize(node.getChild(1));
-        }
-
-        case ScriptNodeType::ASSIGNMENT: {
-            if (node.getNumChildren() == 3) {
-                // Simple assignment doesn't need extra stack space
-                int add = node.getChild(1).getToken()->type == TokenType::EQUAL ? 1 : 2;
-                return computeRequiredStackSize(node.getChild(2)) + add;
-            } else
-                return computeRequiredStackSize(node.getChild(0));
-        }
-
-        case ScriptNodeType::ELSE_BRANCH:
-        case ScriptNodeType::EXPRESSION:
-        case ScriptNodeType::EXPRESSION_TERM: {
-            return computeRequiredStackSize(node.getChild(0));
-        }
-    
-        case ScriptNodeType::OP: {
-            size_t lhs = computeRequiredStackSize(node.getChild(0));
-            size_t rhs = computeRequiredStackSize(node.getChild(1));
-
-            // Result occupies one slot
-            return std::max(lhs, rhs + 1);
-        }
-
-        case ScriptNodeType::SIMPLE_STATEMENT:
-        case ScriptNodeType::RETURN_STMT: {
-            if (node.hasChildren())
-                return computeRequiredStackSize(node.getChild(0));
-            return 0;
-        }
-
-        case ScriptNodeType::IF_STATEMENT: {
-            size_t condSize = computeRequiredStackSize(node.getChild(0));
-            size_t stmtSize = computeRequiredStackSize(node.getChild(1));
-            size_t elseBrSize = 0;
-
-            if (node.getNumChildren() > 2)
-                elseBrSize = computeRequiredStackSize(node.getChild(2));
-
-            return std::max({ condSize, stmtSize, elseBrSize });
-        }
-        
-        case ScriptNodeType::FUNCTION_CALL: {
-            size_t requiredStackSize = 0;
-            for (const auto &expr : node.getChild(1).getAllChildren()) {
-                requiredStackSize += computeRequiredStackSize(expr);
-            }
-            return requiredStackSize;
-        }
+        switch (instr) {
+            case Instruction::LOADLOCAL: 
+            case Instruction::LOADGLOBAL: 
+            case Instruction::LOADOBJ: 
+            case Instruction::PUSH: 
+                maxSize = std::max(maxSize, ++currSize);
+                break;
             
+            case Instruction::ADD:
+            case Instruction::SUB:
+            case Instruction::MUL:
+            case Instruction::DIV:
+            case Instruction::CMPST:
+            case Instruction::CMPSE:
+            case Instruction::CMPGT:
+            case Instruction::CMPGE:
+            case Instruction::CMPEQ:
+            case Instruction::CMPNE:
+                currSize -= 2;
+                break;
+                
+            case Instruction::STORELOCAL:
+            case Instruction::STOREGLOBAL:
+            case Instruction::SETOBJ:
+                currSize--;
+                break;
 
-        case ScriptNodeType::CONSTANT:
-        // Variable access
-        case ScriptNodeType::IDENTIFIER:
-            return 1;
-    
-        default:
-            return 0;
+            case Instruction::CALLSCRFUN: {
+                size_t idx = readWord<DWord>(tempCompiledBytecode_, i + 1);
+                const ScriptFunction *scrFun = currScript_->getFunction(idx);
+                currSize -= scrFun->numParams;
+
+                break;
+            }
+
+            case Instruction::CLGLBLCPPFUN: {
+                size_t idx = readWord<DWord>(tempCompiledBytecode_, i + 1);
+                const auto *fun = ctx_->getGlobalFunction(idx);
+                currSize -= fun->numParams;
+
+                break;
+            }
+
+            default: break;
+        }
+
+        i += getInstructionSize(tempCompiledBytecode_, i);
     }
+
+    return maxSize;
 }
 
 size_t Compiler::computeMaxLocals(const Scope *scope) {
@@ -397,7 +377,7 @@ void Compiler::compileVariableDeclaration(const ScriptNode &varDecl, bool global
         GlobalVar gv{
             .name = varName,
             .bytecode = {},
-            .requiredStackSize = computeRequiredStackSize(varDecl),
+            .requiredStackSize = 0,
             .type = varType,
         };
 
@@ -410,8 +390,6 @@ void Compiler::compileVariableDeclaration(const ScriptNode &varDecl, bool global
     compileAssignment(assignmentNode, varType);
     
     if (global) {
-        auto *gv = currScript_->getGlobalVar(currScript_->numGlobalVariables - 1);
-        
         // So the VM is able to stop
         emit(Instruction::RETVOID);
     }
