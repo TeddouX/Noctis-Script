@@ -25,7 +25,7 @@ std::vector<Byte> Optimizer::optimizeAll() {
                 if (instr == Instruction::PUSH) {
                     i++;
                     size_t size = 0;
-                    Value::fromBytes(res.data(), i, size);
+                    Value::fromBytes(res.data(), res.size(), i, size);
                     i += size;
                 } else {
                     auto it = INSTR_INFO.find(instr);
@@ -74,7 +74,7 @@ bool Optimizer::constantFolding(std::vector<Byte> &bc, size_t &idx) {
     TRY_READ_INSTR(first, Instruction::PUSH);
 
     size_t readSize = 0;
-    Value b = Value::fromBytes(bc.data(), end, readSize);
+    Value b = Value::fromBytes(bc.data(), bc.size(), end, readSize);
     if (!isPrimitive(b.type()))
         return false;
     end += readSize;
@@ -82,7 +82,7 @@ bool Optimizer::constantFolding(std::vector<Byte> &bc, size_t &idx) {
     TRY_READ_INSTR(second, Instruction::PUSH);
 
     readSize = 0;
-    Value a = Value::fromBytes(bc.data(), end, readSize);
+    Value a = Value::fromBytes(bc.data(), bc.size(), end, readSize);
     if (!isPrimitive(a.type()))
         return false;
     end += readSize;
@@ -132,7 +132,7 @@ bool Optimizer::collapseLoadPopSetObjToStoreLocal(std::vector<Byte> &bc, size_t 
         return false;
 
     end += sizeof(Instruction);
-    DWord idxOperand = readWord<DWord>(bc.data(), end);
+    DWord idxOperand = readWord<DWord>(bc.data(), bc.size(), end);
     end += sizeof(DWord);
 
     TRY_READ_INSTR(b, Instruction::POP);

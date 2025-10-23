@@ -6,7 +6,7 @@
 namespace NCSC
 {
 
-static size_t setValuePropFromBytes(const Byte *bytes, ValueType ty, Value &val, size_t readOff);
+static size_t setValuePropFromBytes(const Byte *bytes, size_t bufSize, ValueType ty, Value &val, size_t readOff);
 
 // Utility macro
 #define VALUE_OPERATOR(op) Value Value::operator op(const Value &other) {                       \
@@ -157,14 +157,14 @@ Value::operator std::string() {
     }
 }
 
-Value Value::fromBytes(const Byte *bytes, size_t readOff, size_t &readSize) {
+Value Value::fromBytes(const Byte *bytes, size_t bufSize, size_t readOff, size_t &readSize) {
     readSize = sizeof(ValueType);
     
-    auto ty = static_cast<ValueType>(readWord<DWord>(bytes, readOff));
+    auto ty = static_cast<ValueType>(readWord<DWord>(bytes, bufSize, readOff));
     
     Value val;
     val.setType(ty);
-    readSize += setValuePropFromBytes(bytes, ty, val, readOff + readSize);
+    readSize += setValuePropFromBytes(bytes, bufSize, ty, val, readOff + readSize);
     
     return val;
 }
@@ -181,43 +181,43 @@ void Value::getBytes(Byte *bytes, size_t bufSize, size_t off) {
     }, values_);
 }
 
-size_t setValuePropFromBytes(const Byte *bytes, ValueType ty, Value &val, size_t readOff) {
+size_t setValuePropFromBytes(const Byte *bytes, size_t bufSize, ValueType ty, Value &val, size_t readOff) {
     switch (ty) {
         case ValueType::BOOL: 
-            val.set<bool>(static_cast<bool>(readWord<int8_t>(bytes, readOff)));        
+            val.set<bool>(static_cast<bool>(readWord<int8_t>(bytes, bufSize, readOff)));        
             return sizeof(bool);
 
         case ValueType::INT8:   
-            val.set<int8_t>(readWord<int8_t>(bytes, readOff));    
+            val.set<int8_t>(readWord<int8_t>(bytes, bufSize, readOff));    
             return sizeof(int8_t);
         case ValueType::INT16:   
-            val.set<int16_t>(readWord<int16_t>(bytes, readOff));    
+            val.set<int16_t>(readWord<int16_t>(bytes, bufSize, readOff));    
             return sizeof(int16_t);
         case ValueType::INT32:   
-            val.set<int32_t>(readWord<int32_t>(bytes, readOff));    
+            val.set<int32_t>(readWord<int32_t>(bytes, bufSize, readOff));    
             return sizeof(int32_t);
         case ValueType::INT64:   
-            val.set<int64_t>(readWord<int64_t>(bytes, readOff));    
+            val.set<int64_t>(readWord<int64_t>(bytes, bufSize, readOff));    
             return sizeof(int64_t);
 
         case ValueType::UINT8:   
-            val.set<uint8_t>(readWord<uint8_t>(bytes, readOff));    
+            val.set<uint8_t>(readWord<uint8_t>(bytes, bufSize, readOff));    
             return sizeof(uint8_t);
         case ValueType::UINT16:   
-            val.set<uint16_t>(readWord<uint16_t>(bytes, readOff));    
+            val.set<uint16_t>(readWord<uint16_t>(bytes, bufSize, readOff));    
             return sizeof(uint16_t);
         case ValueType::UINT32:   
-            val.set<uint32_t>(readWord<uint32_t>(bytes, readOff));    
+            val.set<uint32_t>(readWord<uint32_t>(bytes, bufSize, readOff));    
             return sizeof(uint32_t);
         case ValueType::UINT64:   
-            val.set<uint64_t>(readWord<uint64_t>(bytes, readOff));    
+            val.set<uint64_t>(readWord<uint64_t>(bytes, bufSize, readOff));    
             return sizeof(uint64_t);
 
         case ValueType::FLOAT32:
-            val.set<float32_t>(std::bit_cast<float32_t>(readWord<DWord>(bytes, readOff)));
+            val.set<float32_t>(std::bit_cast<float32_t>(readWord<DWord>(bytes, bufSize, readOff)));
             return sizeof(float32_t);
         case ValueType::FLOAT64:
-            val.set<float64_t>(std::bit_cast<float64_t>(readWord<QWord>(bytes, readOff)));
+            val.set<float64_t>(std::bit_cast<float64_t>(readWord<QWord>(bytes, bufSize, readOff)));
             return sizeof(float64_t);
 
         default:

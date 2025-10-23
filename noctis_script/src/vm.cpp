@@ -28,10 +28,11 @@ void VM::executeNext() {
     CallFrame &currFrame = callStack_.back();
 
     const Byte *bytecode = currFrame.bytecode;
+    size_t bytecodeSize = currFrame.bytecodeSize;
     QWord &ip = currFrame.ip;
     size_t &bp = currFrame.bp;
 
-    if (ip > currFrame.bytecodeSize) {
+    if (ip > bytecodeSize) {
         error("Bytecode ended without return");
         return;
     }
@@ -51,7 +52,7 @@ void VM::executeNext() {
         
         INSTR(PUSH): {
             size_t operandSize = 0;
-            push(Value::fromBytes(bytecode, ip + 1, operandSize));
+            push(Value::fromBytes(bytecode, bytecodeSize, ip + 1, operandSize));
             END_INSTR(operandSize + 1);
         }
         INSTR(POP): {
@@ -60,14 +61,14 @@ void VM::executeNext() {
         }
 
         INSTR(STORELOCAL): {
-            DWord idx = readWord<DWord>(bytecode, ip + 1);
+            DWord idx = readWord<DWord>(bytecode, bytecodeSize, ip + 1);
             stack_[bp + idx] = pop();
             objReg_ = nullptr;
-            
+
             END_INSTR(sizeof(DWord) + 1);
         }
         INSTR(LOADLOCAL): {
-            DWord idx = readWord<DWord>(bytecode, ip + 1);
+            DWord idx = readWord<DWord>(bytecode, bytecodeSize, ip + 1);
             Value &v = stack_[bp + idx]; 
             push(v);
             objReg_ = &v;
@@ -75,14 +76,14 @@ void VM::executeNext() {
             END_INSTR(sizeof(DWord) + 1);
         }
         INSTR(STOREGLOBAL): {
-            DWord idx = readWord<DWord>(bytecode, ip + 1);
+            DWord idx = readWord<DWord>(bytecode, bytecodeSize, ip + 1);
             globalVariables_[idx] = pop();
             objReg_ = nullptr;
             
             END_INSTR(sizeof(DWord) + 1);
         }
         INSTR(LOADGLOBAL): {
-            DWord idx = readWord<DWord>(bytecode, ip + 1);
+            DWord idx = readWord<DWord>(bytecode, bytecodeSize, ip + 1);
             Value &v = globalVariables_[idx]; 
             push(v);
             objReg_ = &v;
@@ -108,13 +109,13 @@ void VM::executeNext() {
         INSTR(CMPNE): { OP_INSTR(!=); }
         
         INSTR(JMP): {
-            ip = readWord<QWord>(bytecode, ip + 1);
+            ip = readWord<QWord>(bytecode, bytecodeSize, ip + 1);
             END_INSTR(0);
         }
         INSTR(JMPFALSE): {
             Value v = pop();
             if (v.get<bool>() == false) {
-                ip = readWord<QWord>(bytecode, ip + 1);
+                ip = readWord<QWord>(bytecode, bytecodeSize, ip + 1);
                 
                 END_INSTR(0);
             } else
@@ -133,7 +134,7 @@ void VM::executeNext() {
 
         INSTR(TYCAST): {
             Value val = pop();
-            ValueType castTy = static_cast<ValueType>(readWord<DWord>(bytecode, ip + 1));
+            ValueType castTy = static_cast<ValueType>(readWord<DWord>(bytecode, bytecodeSize, ip + 1));
             if (!canPromoteType(val.type(), castTy)) {
                 // Might mess up the stack and cause weird errors
                 error(std::format(UNSAFE_CAST, valueTypeToString(val.type()), valueTypeToString(castTy)));
@@ -146,7 +147,7 @@ void VM::executeNext() {
         }
 
         INSTR(CALLSCRFUN): {
-            DWord idx = readWord<DWord>(bytecode, ip + 1);
+            DWord idx = readWord<DWord>(bytecode, bytecodeSize, ip + 1);
             ip += 1 + sizeof(DWord);
 
             const ScriptFunction *fun = script_->getFunction(idx);
@@ -158,7 +159,7 @@ void VM::executeNext() {
         }
 
         INSTR(CLGLBLCPPFUN): {
-            DWord idx = readWord<DWord>(bytecode, ip + 1);
+            DWord idx = readWord<DWord>(bytecode, bytecodeSize, ip + 1);
 
             const GlobalCPPFunctionRepr *fun = script_->ctx->getGlobalFunction(idx);
 

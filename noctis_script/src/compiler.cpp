@@ -14,7 +14,7 @@ namespace NCSC
 
 template <typename T>
 static constexpr T getInstrOperand(const std::vector<Byte>& bc, size_t& i) {
-    T val = readWord<T>(bc.data(), i);
+    T val = readWord<T>(bc.data(), bc.size(), i);
     i += sizeof(T);
     return val;
 }
@@ -40,7 +40,7 @@ std::string Compiler::disassemble(const std::vector<Byte>& bc) {
             oss << " ";
 
             size_t size = 0;
-            Value val = Value::fromBytes(bc.data(), i, size);
+            Value val = Value::fromBytes(bc.data(), bc.size(), i, size);
             
             oss << val.operator std::string();
             

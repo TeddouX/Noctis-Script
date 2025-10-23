@@ -26,6 +26,7 @@
 ** OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
+#undef NDEBUG // Make assertions work in release builds
 #include <assert.h>
 #include <stdint.h>
 #include <unordered_map>
@@ -64,7 +65,8 @@ typedef double float64_t;
 typedef float  float32_t;
 
 template <typename T>
-inline T readWord(const Byte *bytes, size_t idx) {
+inline T readWord(const Byte *bytes, size_t bufSize, size_t idx) {
+    assert(idx + sizeof(T) <= bufSize);
 #if NCSC_USE_UNSAFE_WORD_READING
     return *reinterpret_cast<const T*>(bytes + idx);
 #else

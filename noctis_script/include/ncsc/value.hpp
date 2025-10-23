@@ -13,7 +13,7 @@ namespace NCSC
 class NCSC_API Value {
 public:
     // Reads the value at the end of the bytes array, 
-    static Value fromBytes(const Byte *bytes, size_t readOff, size_t &readSize);
+    static Value fromBytes(const Byte *bytes, size_t bufSize, size_t readOff, size_t &readSize);
 
     template <typename T>
     static Value fromLiteral(const T &lit) {
