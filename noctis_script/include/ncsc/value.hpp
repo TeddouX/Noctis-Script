@@ -13,7 +13,7 @@ namespace NCSC
 class NCSC_API Value {
 public:
     // Reads the value at the end of the bytes array, 
-    static Value fromBytes(const Byte *bytes, size_t bufSize, size_t readOff, size_t &readSize);
+    static Value fromBytes(const std::vector<Byte> &bytes, size_t readOff, size_t &readSize);
 
     template <typename T>
     static Value fromLiteral(const T &lit) {
@@ -67,8 +67,8 @@ public:
         }, values_);
     }
 
-    size_t getSize();
-    void getBytes(Byte *bytes, size_t bufSize, size_t off);
+    size_t getSize() const;
+    void getBytes(std::vector<Byte> &bytes, size_t off) const;
 
     ValueType type() const { return ty_; }
     void setType(ValueType ty) { ty_ = ty; }
@@ -91,12 +91,12 @@ private:
 };
 
 template <typename T>
-inline void makeValueBytes(const T &val, ValueType ty, Byte *bytes, size_t bufSize, size_t off = 0) {
+inline void makeValueBytes(const T &val, ValueType ty, std::vector<Byte> &bytes, size_t off = 0) {
     // VM will reverse this order when pushind to the stack
     // ValueType bytes first
-    makeBytes(static_cast<DWord>(ty), bytes, bufSize, off);
+    makeBytes(static_cast<DWord>(ty), bytes, off);
     // val bytes last
-    makeBytes(val, bytes, bufSize, off + sizeof(ValueType));
+    makeBytes(val, bytes, off + sizeof(ValueType));
 }
 
 template <typename T>

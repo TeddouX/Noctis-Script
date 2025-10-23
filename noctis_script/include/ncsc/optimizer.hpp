@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-2-Clause
+// Copyright (c) 2025, TeddouX (https://github.com/TeddouX/)
 #pragma once
 #include "ncsc.hpp"
 #include "instructions.hpp"
@@ -23,10 +25,10 @@ private:
     const std::vector<Byte> &bc_;
 
     static bool constantFolding(std::vector<Byte> &bc, size_t &idx);
-    static bool collapseLoadPopSetObjToStoreLocal(std::vector<Byte> &bc, size_t &idx);
+    static bool collapseLoadPopSetObjToStore(std::vector<Byte> &bc, size_t &idx);
 
     static inline const std::array<OptimizationRule, 2> rules_ = {
-        OptimizationRule{ constantFolding }, OptimizationRule{ collapseLoadPopSetObjToStoreLocal }
+        OptimizationRule{ constantFolding }, OptimizationRule{ collapseLoadPopSetObjToStore }
     };
 };
 

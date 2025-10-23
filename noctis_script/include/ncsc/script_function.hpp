@@ -15,7 +15,7 @@ struct ScriptFunction : public IFunction {
     std::vector<Byte> bytecode;
     // std::vector<Value> constants;
 
-    Word   numLocals = 0;
+    DWord  numLocals = 0;
     size_t requiredStackSize = 0;
 };
 

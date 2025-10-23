@@ -29,8 +29,9 @@
 #undef NDEBUG // Make assertions work in release builds
 #include <assert.h>
 #include <stdint.h>
-#include <unordered_map>
-#include <string>
+#include <cstring>
+#include <type_traits>
+#include <vector>
 
 #if defined(_WIN32) || defined(_WIN64)
     // Disable warning from using STD library 
@@ -48,6 +49,7 @@
 
 // Faster but may cause problems if unaligned
 #define NCSC_USE_UNSAFE_WORD_READING false
+// I recommend always setting this to true
 #define NCSC_ALWAYS_OPTIMIZE         true
 
 namespace NCSC 
@@ -65,22 +67,22 @@ typedef double float64_t;
 typedef float  float32_t;
 
 template <typename T>
-inline T readWord(const Byte *bytes, size_t bufSize, size_t idx) {
-    assert(idx + sizeof(T) <= bufSize);
+inline T readWord(const std::vector<Byte> &bytes, size_t idx) {
+    assert(idx + sizeof(T) <= bytes.size());
 #if NCSC_USE_UNSAFE_WORD_READING
     return *reinterpret_cast<const T*>(bytes + idx);
 #else
     T val{};
-    std::memcpy(&val, bytes + idx, sizeof(T));
+    std::memcpy(&val, bytes.data() + idx, sizeof(T));
     return val;
 #endif
 }
 
 template <typename T>
 requires std::is_trivially_copyable_v<T>
-inline void makeBytes(const T &val, Byte *bytes, size_t bufSize, size_t off = 0) {
-    assert(sizeof(T) + off <= bufSize);
-    std::memcpy(bytes + off, &val, sizeof(T));
+inline void makeBytes(const T &val, std::vector<Byte> &bytes, size_t off = 0) {
+    assert(sizeof(T) + off <= bytes.size());
+    std::memcpy(bytes.data() + off, &val, sizeof(T));
 }
 
 } // namespace NCSC

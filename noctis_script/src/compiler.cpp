@@ -8,13 +8,14 @@
 #include <sstream>
 #include <format>
 #include <iomanip>
+// #include <print>
 
 namespace NCSC
 {
 
 template <typename T>
 static constexpr T getInstrOperand(const std::vector<Byte>& bc, size_t& i) {
-    T val = readWord<T>(bc.data(), bc.size(), i);
+    T val = readWord<T>(bc, i);
     i += sizeof(T);
     return val;
 }
@@ -40,19 +41,12 @@ std::string Compiler::disassemble(const std::vector<Byte>& bc) {
             oss << " ";
 
             size_t size = 0;
-            Value val = Value::fromBytes(bc.data(), bc.size(), i, size);
+            Value val = Value::fromBytes(bc, i, size);
             
             oss << val.operator std::string();
             
             i += size;
-        }
-        else if (instr == Instruction::TYCAST) {
-            oss << " ";
-
-            auto vty = static_cast<ValueType>(getInstrOperand<DWord>(bc, i));
-            oss << valueTypeToString(vty); 
-        } 
-        else if (info.second > 0) {
+        } else if (info.second > 0) {
             oss << " ";
             switch (info.second) {
                 case 2: oss << getInstrOperand<Word>(bc, i); break;
@@ -92,24 +86,52 @@ std::unique_ptr<Script> Compiler::compileScript(const ScriptNode &root) {
     currScript_ = script.get();
 
     for (const auto &node : root.getAllChildren()) {
-        if (node.getType() == ScriptNodeType::FUNCTION)
+        if (node.getType() == ScriptNodeType::FUNCTION) {
+            enterNewScope();
             compileFunction(node);
+            exitScope();
+
+            scopes_.clear();
+        }
         else if (node.getType() == ScriptNodeType::VARIABLE_DECLARATION) {
+            enterNewScope();
             compileVariableDeclaration(node, true);
+            exitScope();
 
 #if NCSC_ALWAYS_OPTIMIZE
             Optimizer optimizer(tempCompiledBytecode_);
             tempCompiledBytecode_ = optimizer.optimizeAll();
 #endif
 
+            resolveJumps();
+
             GlobalVar *gv = currScript_->getGlobalVar(currScript_->numGlobalVariables - 1); 
             gv->bytecode = tempCompiledBytecode_;
+
             tempCompiledBytecode_.clear();
+            scopes_.clear();
         }
     }
 
     currScript_ = nullptr;
     return script;
+}
+
+void Compiler::enterNewScope() {
+    scopes_.push_back(Scope{});
+    currScope_ = &scopes_.back();
+    if (scopes_.size() > 1)
+        currScope_->parent = &scopes_[scopes_.size() - 2];
+    nextScopeIdx_++;
+}
+
+void Compiler::exitScope() {
+    nextScopeIdx_--;
+    if (nextScopeIdx_ == 0)
+        currScope_ = nullptr;
+    else {
+        currScope_ = &scopes_[nextScopeIdx_ - 1];
+    }
 }
 
 void Compiler::createCompileError(const ErrInfo &info, const ScriptNode &node) {
@@ -126,56 +148,46 @@ void Compiler::emit(Instruction instr) {
     emit(static_cast<Byte>(instr));
 }
 
-void Compiler::emit(Byte *bytecode, size_t size) {
-    for (size_t i = 0; i < size; i++) 
+void Compiler::emit(const std::vector<Byte> &bytecode) {
+    for (size_t i = 0; i < bytecode.size(); i++) 
         emit(bytecode[i]);
 }
 
 void Compiler::emit(Word dw) {
-    Byte bytes[] {
+    std::vector<Byte> bytes {
         static_cast<Byte>(dw & 0xFF),
         static_cast<Byte>((dw >> 8) & 0xFF),
     };
-    emit(bytes, sizeof(bytes));
+    emit(bytes);
 }
 
 void Compiler::emit(DWord dw) {
-    Byte bytes[] {
+    std::vector<Byte> bytes {
         static_cast<Byte>(dw & 0xFF),
         static_cast<Byte>((dw >> 8) & 0xFF),
         static_cast<Byte>((dw >> 16) & 0xFF),
         static_cast<Byte>((dw >> 24) & 0xFF),
     };
-    emit(bytes, sizeof(bytes));
+    emit(bytes);
 }
 
-void Compiler::patchBytecode(size_t location, Instruction instr, Byte *operand, size_t operandSize) {
+void Compiler::emit(QWord qw) {
+    std::vector<Byte> bytes;
+    bytes.resize(sizeof(QWord));
+    makeBytes(qw, bytes, 0);
+    emit(bytes);
+}
+
+void Compiler::patchBytecode(size_t location, Instruction instr, const std::vector<Byte> &operandBytes) {
     std::vector<Byte> tempBytes;
-    tempBytes.reserve(1 + operandSize);
+    tempBytes.reserve(1 + operandBytes.size());
     tempBytes.push_back(static_cast<Byte>(instr));
-    tempBytes.insert(tempBytes.end(), operand, operand + operandSize);
+    tempBytes.insert(tempBytes.end(), operandBytes.begin(), operandBytes.end());
 
     tempCompiledBytecode_.insert(
         tempCompiledBytecode_.begin() + location, 
         tempBytes.begin(), 
         tempBytes.end());
-}
-
-
-bool Compiler::hasLocalVariable(const std::string &name) const {
-    return getLocalVariable(name) != nullptr;
-}
-
-const Compiler::LocalVar *Compiler::getLocalVariable(const std::string &name) const {
-    for (const auto &localVar : localVariables_) {
-        if (localVar.name == name)
-            return &localVar;
-    }
-    return nullptr;
-}
-
-bool Compiler::hasGlobalVariable(const std::string &name) const {
-    return currScript_->getGlobalVarIdx(name) != NCSC_INVALID_IDX;
 }
 
 void Compiler::compileFunction(const ScriptNode &funcDecl) {
@@ -206,26 +218,22 @@ void Compiler::compileFunction(const ScriptNode &funcDecl) {
         ValueType ty = valueTypeFromTok(*paramsNode.getChild(i).getToken());
         
         // Arguments are treated as local variables
-        localVariables_.push_back(LocalVar(paramsNode.getChild(++i).getToken()->val, ty));
+        currScope_->addLocalVar(paramsNode.getChild(++i).getToken()->val, ty);
         currFunction_->paramTypes.push_back(ty);   
     }
 
     const ScriptNode& statementBlock = funcDecl.getLastChild();
     compileStatementBlock(statementBlock);
 
+    currFunction_->numLocals += computeMaxLocals(&scopes_.back());
+
     if (!hasErrors()) {
         // For void functions, add a return at the end if none currently exists
-        if (currFunction_->returnTy == ValueType::VOID
-         && (tempCompiledBytecode_.empty()
-         || tempCompiledBytecode_.back() != static_cast<Byte>(Instruction::RETVOID))) 
-        {
+        if (currFunction_->returnTy == ValueType::VOID && !currScope_->hasReturned) {
             emit(Instruction::RETVOID);
         }
         // For non void functions, error if there is no return at the end
-        else if (currFunction_->returnTy != ValueType::VOID
-              && (tempCompiledBytecode_.empty()
-              || tempCompiledBytecode_.back() != static_cast<Byte>(Instruction::RET)))
-        {
+        else if (currFunction_->returnTy != ValueType::VOID && !currScope_->hasReturned) {
             createCompileError(FUNCTION_SHOULD_RET_VAL.format(currFunction_->name), statementBlock.getLastChild());
             return;
         }
@@ -234,17 +242,16 @@ void Compiler::compileFunction(const ScriptNode &funcDecl) {
         Optimizer optimizer(tempCompiledBytecode_);
         tempCompiledBytecode_ = optimizer.optimizeAll();
 #endif
+
+        resolveJumps();
+
         currFunction_->bytecode = tempCompiledBytecode_;
         tempCompiledBytecode_.clear();
     }
 
-    // Reset the flag
-    hasFunctionReturned_ = false;
-
     currScript_->addFunction(*fun);
 
     currFunction_ = nullptr;
-    localVariables_.clear();
 }
 
 size_t Compiler::computeRequiredStackSize(const ScriptNode &node) {
@@ -326,6 +333,54 @@ size_t Compiler::computeRequiredStackSize(const ScriptNode &node) {
     }
 }
 
+size_t Compiler::computeMaxLocals(const Scope *scope) {
+    if (scope == nullptr)
+        return 0;
+    return std::max(scope->localVariables.size(), computeMaxLocals(scope->parent));
+}
+
+void Compiler::resolveJumps() {
+    std::unordered_map<QWord, size_t> jmpLocations;
+
+    for (QWord i = 0; i < tempCompiledBytecode_.size();) {
+        Instruction instr = static_cast<Instruction>(tempCompiledBytecode_[i]);
+        
+        switch (instr) {
+            case Instruction::JMP:
+            case Instruction::JMPFALSE: {
+                QWord jmpLabelNum = readWord<QWord>(tempCompiledBytecode_, i + sizeof(Instruction));
+                jmpLocations.emplace(jmpLabelNum, i);
+
+                i += sizeof(QWord) + sizeof(Instruction);
+                break;
+            }
+
+            case Instruction::LABEL: {
+                QWord labelNum = readWord<QWord>(tempCompiledBytecode_, i + sizeof(Instruction));
+                size_t jmpIdx = jmpLocations.at(labelNum);
+                Instruction jmpTy = static_cast<Instruction>(readWord<Byte>(tempCompiledBytecode_, jmpIdx));
+                size_t operandIdx = jmpIdx + sizeof(Instruction);
+
+                std::vector<Byte> operandBytes(sizeof(QWord), 0);
+                makeBytes(i, operandBytes, 0);
+
+                // Patch the jump to point to the current idx 
+                std::copy(operandBytes.begin(), operandBytes.end(), tempCompiledBytecode_.begin() + operandIdx);
+                // Remove the LABEL instruction
+                constexpr size_t instrSize = sizeof(Instruction) + sizeof(QWord);
+                tempCompiledBytecode_.erase(
+                    tempCompiledBytecode_.begin() + i, 
+                    tempCompiledBytecode_.begin() + i + instrSize);
+                break;
+            }
+
+            default:
+                i += getInstructionSize(tempCompiledBytecode_, i);
+                break;
+        }
+    }
+}
+
 void Compiler::compileVariableDeclaration(const ScriptNode &varDecl, bool global) {
     assert(varDecl.getType() == ScriptNodeType::VARIABLE_DECLARATION);
 
@@ -348,12 +403,8 @@ void Compiler::compileVariableDeclaration(const ScriptNode &varDecl, bool global
 
         currScript_->addGlovalVar(gv);
     } else {
-        localVariables_.push_back(LocalVar{ 
-            .name = varName, 
-            .type = varType 
-        });
-
-        currFunction_->numLocals++;
+        currScope_->addLocalVar(varName, varType);
+        // currFunction_->numLocals++;
     }
 
     compileAssignment(assignmentNode, varType);
@@ -439,19 +490,19 @@ void Compiler::compileConstantPush(const ScriptNode &constant, ValueType expecte
         switch(expectedType) {
             case ValueType::FLOAT32: {
                 float32_t val = std::stof(constTokVal);
-                Byte bytes[getValueSize(val)];
-                makeValueBytes(std::bit_cast<uint32_t>(val), ValueType::FLOAT32, bytes, sizeof(bytes), 0);
+                std::vector<Byte> bytes(getValueSize(val), 0);
+                makeValueBytes(std::bit_cast<uint32_t>(val), ValueType::FLOAT32, bytes, 0);
                 emit(Instruction::PUSH);
-                emit(bytes, sizeof(bytes));
+                emit(bytes);
                 break;
             }
             case ValueType::INVALID:
             case ValueType::FLOAT64: {
                 float64_t val = std::stod(constTokVal);
-                Byte bytes[getValueSize(val)];
-                makeValueBytes(std::bit_cast<uint64_t>(val), ValueType::FLOAT64, bytes, sizeof(bytes), 0);
+                std::vector<Byte> bytes(getValueSize(val), 0);
+                makeValueBytes(std::bit_cast<uint64_t>(val), ValueType::FLOAT64, bytes, 0);
                 emit(Instruction::PUSH);
-                emit(bytes, sizeof(bytes));
+                emit(bytes);
                 break;
             }
             default:
@@ -524,14 +575,11 @@ void Compiler::compileStatementBlock(const ScriptNode &stmtBlock) {
     assert(stmtBlock.getType() == ScriptNodeType::STATEMENT_BLOCK);
 
     for (const auto &stmt : stmtBlock.getAllChildren()) {
-        if (hasFunctionReturned_) break;
+        if (currScope_->hasReturned) break;
 
         switch (stmt.getType()) {
             case ScriptNodeType::IF_STATEMENT:
                 compileIfStatement(stmt);
-                // When exitting the if stmt block
-                // reset the returned flag
-                hasFunctionReturned_ = false;
                 break;
             case ScriptNodeType::VARIABLE_DECLARATION:
                 compileVariableDeclaration(stmt, false);
@@ -615,22 +663,17 @@ void Compiler::compileReturn(const ScriptNode &ret) {
         emit(Instruction::RETVOID);
     }
 
-    hasFunctionReturned_ = true;
+    currScope_->hasReturned = true;
 }
 
 void Compiler::compileVariableAccess(const ScriptNode &varAccess, ValueType expectedType) {
     assert(varAccess.getType() == ScriptNodeType::IDENTIFIER);
 
     std::string varAccessName = varAccess.getToken()->val;
-    if (hasLocalVariable(varAccessName)) {
-        DWord idx = 0;
-        for (int i = 0; i < localVariables_.size(); i++) {
-            if (localVariables_[i].name == varAccessName) {
-                idx = i;
-                break;
-            }
-        }
-        ValueType varType = localVariables_[idx].type;
+    Scope::Var *var = currScope_->getLocalVar(varAccessName); 
+    if (var) {
+        DWord idx = currScope_->getLocalVarIdx(varAccessName);
+        ValueType varType = var->type;
         // If expected type is INVALID, the expression this variable access' in can be of any type
         // so type checking is useless
         if (expectedType != ValueType::INVALID && !canPromoteType(varType, expectedType)) {
@@ -642,7 +685,7 @@ void Compiler::compileVariableAccess(const ScriptNode &varAccess, ValueType expe
         emit(idx);
     } else {
         // Search in globals
-        if (!hasGlobalVariable(varAccessName)) {
+        if (!currScript_->hasGlobalVar(varAccessName)) {
             createCompileError(CANT_FIND_VAR_NAMED.format(varAccess.getToken()->val), varAccess);
             return;
         }
@@ -684,36 +727,42 @@ void Compiler::compileIfStatement(const ScriptNode &ifStmt, int nestedCount) {
 
     // No expected type
     compileExpression(ifStmt.getChild(0), ValueType::BOOL);
-    size_t jmpFalseInstrLoc = getLastByteInsertedLoc() + 1;
+    emit(Instruction::JMPFALSE);
+    emit(++tmpLabelNum_);
 
+    enterNewScope();
     compileStatementBlock(ifStmt.getChild(1));
+    exitScope();
 
     size_t jmpFalseOperand = getLastByteInsertedLoc() + instrSize + 1;
     // Jump over all the if's block's jumps
     if (hasElse) jmpFalseOperand += instrSize * nestedCount;
     
-    compileJmpBcPatch(jmpFalseInstrLoc, Instruction::JMPFALSE, jmpFalseOperand);
+    emit(Instruction::LABEL);
+    emit(tmpLabelNum_);
     
     if (hasElse) {
-        size_t jmpInstrLoc = getLastByteInsertedLoc() + 1;
+        emit(Instruction::JMP);
+        emit(++tmpLabelNum_);
         
         const ScriptNode &elseBrChild = ifStmt.getChild(2).getChild(0);
         if (elseBrChild.getType() == ScriptNodeType::IF_STATEMENT) {
             compileIfStatement(elseBrChild, nestedCount + 1);
         } else if (elseBrChild.getType() == ScriptNodeType::STATEMENT_BLOCK) {
+            enterNewScope();
             compileStatementBlock(elseBrChild);
+            exitScope();
         }
 
-    //  size_t jmpOperand = getLastByteInsertedLoc() + instrSize + 1 + instrSize * (nestedCount - 1);
-        size_t jmpOperand = getLastByteInsertedLoc() + instrSize * nestedCount + 1;
-        compileJmpBcPatch(jmpInstrLoc, Instruction::JMP, jmpOperand);
+        emit(Instruction::LABEL);
+        emit(tmpLabelNum_);
     }
 }
 
 void Compiler::compileJmpBcPatch(size_t patchLoc, Instruction jmpInstr, size_t jmpLoc) {
-    Byte operandBytes[sizeof(QWord)]{0};
-    makeBytes(static_cast<QWord>(jmpLoc), operandBytes, sizeof(operandBytes), 0);
-    patchBytecode(patchLoc, jmpInstr, operandBytes, sizeof(operandBytes));
+    std::vector<Byte> operandBytes(sizeof(QWord), 0);
+    makeBytes(static_cast<QWord>(jmpLoc), operandBytes, 0);
+    patchBytecode(patchLoc, jmpInstr, operandBytes);
 }
 
 void Compiler::compileAssignment(const ScriptNode &assignment, ValueType expectedType) {
@@ -731,7 +780,7 @@ void Compiler::compileAssignment(const ScriptNode &assignment, ValueType expecte
     // If its an =, the variable doesn't need to be on the stack for the expression
     if (opTokTy != TokenType::EQUAL)
         compileExpressionTerm(exprTerm, expectedType, true);
-        
+    
     compileExpression(assignment.getChild(2), getExpressionTermType(exprTerm));
 
     // Compile it a second time to set its value
@@ -757,9 +806,10 @@ ValueType Compiler::getExpressionTermType(const ScriptNode &exprTerm) {
     const ScriptNode &firstChild = exprTerm.getChild(0);
     if (firstChild.getType() == ScriptNodeType::IDENTIFIER) {
         std::string name = firstChild.getToken()->val;
-        if (hasLocalVariable(name)) {
-            return getLocalVariable(name)->type;
-        } else if (hasGlobalVariable(name)) {
+        Scope::Var *localVar = currScope_->getLocalVar(name); 
+        if (localVar) {
+            return localVar->type;
+        } else if (currScript_->hasGlobalVar(name)) {
             return currScript_->getGlobalVar(currScript_->getGlobalVarIdx(name))->type;
         }
     } 
@@ -769,6 +819,5 @@ ValueType Compiler::getExpressionTermType(const ScriptNode &exprTerm) {
 
     return ValueType{};
 }
-
 
 } // namespace NCSC

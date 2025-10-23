@@ -1,7 +1,13 @@
 Int global = 10;
 
 fun main() {
-    Int i = 1 + 2 * 3;
+    Int a = 1 + 2 * 3;
+
+    if (a == 7) {
+        Int b = 3; 
+    }
+
+    Int c = global;
 
     return;
 }

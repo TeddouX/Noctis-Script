@@ -1,17 +1,22 @@
+// SPDX-License-Identifier: BSD-2-Clause
+// Copyright (c) 2025, TeddouX (https://github.com/TeddouX/)
 #include <ncsc/optimizer.hpp>
 #include <ncsc/value.hpp>
+#include <print>
 
 namespace NCSC
 {
-    
+
 std::vector<Byte> Optimizer::optimizeAll() {
     auto res = bc_;
-
     bool changed = true;
+
     while (changed) {
         changed = false;
-
+        
         for (size_t i = 0; i < res.size();) {
+            size_t oldInstrIdx = i;
+            
             for (auto &optimizationRule : rules_) {
                 if (optimizationRule.rule(res, i)) {
                     changed = true;
@@ -20,22 +25,10 @@ std::vector<Byte> Optimizer::optimizeAll() {
                 }
             }
 
-            if (!changed) {
-                Instruction instr = static_cast<Instruction>(res[i]);
-                if (instr == Instruction::PUSH) {
-                    i++;
-                    size_t size = 0;
-                    Value::fromBytes(res.data(), res.size(), i, size);
-                    i += size;
-                } else {
-                    auto it = INSTR_INFO.find(instr);
-                    if (it == INSTR_INFO.end()) break;
-
-                    const auto& info = it->second;
-                    // Advance by the size of the operand
-                    i += sizeof(Instruction) + info.second;
-                }
-            }
+            if (changed)
+                break;
+            else
+                i += getInstructionSize(res, i);
         }
     }
 
@@ -74,7 +67,7 @@ bool Optimizer::constantFolding(std::vector<Byte> &bc, size_t &idx) {
     TRY_READ_INSTR(first, Instruction::PUSH);
 
     size_t readSize = 0;
-    Value b = Value::fromBytes(bc.data(), bc.size(), end, readSize);
+    Value b = Value::fromBytes(bc, end, readSize);
     if (!isPrimitive(b.type()))
         return false;
     end += readSize;
@@ -82,7 +75,7 @@ bool Optimizer::constantFolding(std::vector<Byte> &bc, size_t &idx) {
     TRY_READ_INSTR(second, Instruction::PUSH);
 
     readSize = 0;
-    Value a = Value::fromBytes(bc.data(), bc.size(), end, readSize);
+    Value a = Value::fromBytes(bc, end, readSize);
     if (!isPrimitive(a.type()))
         return false;
     end += readSize;
@@ -108,7 +101,7 @@ bool Optimizer::constantFolding(std::vector<Byte> &bc, size_t &idx) {
     std::vector<Byte> bytes;
     bytes.resize(sizeof(Instruction) + res.getSize());
     bytes[0] = static_cast<Byte>(Instruction::PUSH);
-    res.getBytes(bytes.data(), bytes.size(), sizeof(Instruction));
+    res.getBytes(bytes, sizeof(Instruction));
 
     bc.insert(bc.begin() + end, bytes.begin(), bytes.end());
     bc.erase(bc.begin() + begin, bc.begin() + end);
@@ -118,7 +111,7 @@ bool Optimizer::constantFolding(std::vector<Byte> &bc, size_t &idx) {
     return true;
 }
 
-bool Optimizer::collapseLoadPopSetObjToStoreLocal(std::vector<Byte> &bc, size_t &idx) {
+bool Optimizer::collapseLoadPopSetObjToStore(std::vector<Byte> &bc, size_t &idx) {
     size_t begin = idx;
     size_t end = begin;
 
@@ -132,7 +125,7 @@ bool Optimizer::collapseLoadPopSetObjToStoreLocal(std::vector<Byte> &bc, size_t 
         return false;
 
     end += sizeof(Instruction);
-    DWord idxOperand = readWord<DWord>(bc.data(), bc.size(), end);
+    DWord idxOperand = readWord<DWord>(bc, end);
     end += sizeof(DWord);
 
     TRY_READ_INSTR(b, Instruction::POP);
@@ -141,7 +134,7 @@ bool Optimizer::collapseLoadPopSetObjToStoreLocal(std::vector<Byte> &bc, size_t 
     std::vector<Byte> bytes;
     bytes.resize(sizeof(Instruction) + sizeof(DWord));
     bytes[0] = static_cast<Byte>(global ? Instruction::STOREGLOBAL : Instruction::STORELOCAL);
-    makeBytes(idxOperand, bytes.data(), bytes.size(), sizeof(Instruction));
+    makeBytes(idxOperand, bytes, sizeof(Instruction));
 
     bc.insert(bc.begin() + end, bytes.begin(), bytes.end());
     bc.erase(bc.begin() + begin, bc.begin() + end);

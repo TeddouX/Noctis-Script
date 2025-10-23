@@ -8,8 +8,10 @@
 #include "script_context.hpp"
 #include "script_function.hpp"
 #include "instructions.hpp"
+#include "scope.hpp"
 
 #include <memory>
+#include <deque >
 
 namespace NCSC
 {
@@ -37,13 +39,14 @@ private:
 
     std::vector<Error> compileErrors_;
 
-    struct LocalVar {
-        std::string name;
-        ValueType type;
-    };
-    std::vector<LocalVar> localVariables_;
+    std::deque<Scope> scopes_;
+    size_t nextScopeIdx_ = 0;
+    Scope *currScope_ = nullptr;
 
-    bool hasFunctionReturned_ = false;
+    QWord tmpLabelNum_ = 0;
+
+    void enterNewScope();
+    void exitScope();
 
     void createCompileError(const ErrInfo &info, const ScriptNode &node);
 
@@ -55,18 +58,24 @@ private:
     // Compute required stack size for a node, may be too big after optimizing
     // TODO: calculate max stack size from the bytecode
     size_t computeRequiredStackSize(const ScriptNode &node);
+    // Computes maximum number of local variables of the scope
+    size_t  computeMaxLocals(const Scope *scope);
+
+    // Resolves jumps for tempCompiledBytecode_
+    void resolveJumps();
 
     // Add a byte to the bytecode of the current function
     void emit(Byte bytecode);
-    void emit(Byte *bytecode, size_t size);
+    void emit(const std::vector<Byte> &bytecode);
     void emit(Word w);
     void emit(DWord dw);
+    void emit(QWord qw);
 
     // Add an instruction to the bytecode of the current function
     void emit(Instruction instr);
 
     // Patch bytecode
-    void patchBytecode(size_t location, Instruction instr, Byte *operand, size_t operandSize);
+    void patchBytecode(size_t location, Instruction instr, const std::vector<Byte> &operandBytes);
 
     size_t getLastByteInsertedLoc() const { return tempCompiledBytecode_.size() - 1; }
 
@@ -92,15 +101,11 @@ private:
         T val = static_cast<T>(intermediate);
         
         constexpr size_t bytesSize = getValueSize(T{}); 
-        Byte bytes[bytesSize];
-        makeValueBytes(val, vtype, bytes, sizeof(bytes), 0);
+        std::vector<Byte> bytes(bytesSize, 0);
+        makeValueBytes(val, vtype, bytes, 0);
         emit(Instruction::PUSH);
-        emit(bytes, bytesSize);
+        emit(bytes);
     }
-
-    bool hasLocalVariable(const std::string &name) const;
-    const LocalVar *getLocalVariable(const std::string &name) const;
-    bool hasGlobalVariable(const std::string &name) const;
 
     void compileVariableDeclaration(const ScriptNode &varDecl, bool global);
     void compileConstantPush(const ScriptNode &constant, ValueType expectedType);

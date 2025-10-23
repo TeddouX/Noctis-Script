@@ -3,6 +3,8 @@
 #pragma once
 #include "ncsc.hpp"
 
+#include <unordered_map>
+
 namespace NCSC
 {
     
@@ -42,6 +44,8 @@ enum class Instruction : Byte {
 
     CALLSCRFUN,   // CALLSCRFUN 0 ; calls script function at index 0
     CLGLBLCPPFUN, // CLGLBLCPPFUN 0 ; calls a global function registered in the ScriptContext at index 0
+
+    LABEL,        // Temporary instruction to indicate the location of a jump
 };
 
 // Instruction -> (name & operand size)
@@ -80,7 +84,11 @@ const std::unordered_map<Instruction, std::pair<const char *, size_t>> INSTR_INF
     { Instruction::RET,           {"RET",          0} },
     { Instruction::RETVOID,       {"RETVOID",      0} },
 
+    { Instruction::LABEL,         {"LABEL",        sizeof(QWord)} },
+
     { Instruction::NOOP,          {"NOOP",         0} },
 };
+
+size_t NCSC_API getInstructionSize(const std::vector<Byte> &bytes, size_t off);
 
 } // namespace NCSC
