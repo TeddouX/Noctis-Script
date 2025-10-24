@@ -706,7 +706,7 @@ void Compiler::compileIfStatement(const ScriptNode &ifStmt, int nestedCount) {
     // No expected type
     compileExpression(ifStmt.getChild(0), ValueType::BOOL);
     
-    QWord ifLabelNum = ++tmpLabelNum_; 
+    QWord ifLabelNum = tmpLabelNum_++; 
     emit(Instruction::JMPFALSE);
     emit(ifLabelNum);
 
@@ -716,9 +716,10 @@ void Compiler::compileIfStatement(const ScriptNode &ifStmt, int nestedCount) {
 
     if (hasElse) {
         emit(Instruction::JMP);
-        emit(++tmpLabelNum_);
+        QWord elseLabelNum = tmpLabelNum_++; 
+        emit(elseLabelNum);
 
-        // Make the if's JMPFALSE jump over the else's JUMP
+        // Make the if's JMPFALSE jumps over the else's JUMP
         emit(Instruction::LABEL);
         emit(ifLabelNum);
         
@@ -732,10 +733,10 @@ void Compiler::compileIfStatement(const ScriptNode &ifStmt, int nestedCount) {
         }
 
         emit(Instruction::LABEL);
-        emit(tmpLabelNum_);
+        emit(elseLabelNum);
     } else {
         emit(Instruction::LABEL);
-        emit(tmpLabelNum_);
+        emit(ifLabelNum);
     }
 }
 
