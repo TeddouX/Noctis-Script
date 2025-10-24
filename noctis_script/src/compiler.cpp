@@ -8,7 +8,7 @@
 #include <sstream>
 #include <format>
 #include <iomanip>
-// #include <print>
+#include <print>
 
 namespace NCSC
 {
@@ -243,6 +243,7 @@ void Compiler::compileFunction(const ScriptNode &funcDecl) {
         tempCompiledBytecode_ = optimizer.optimizeAll();
 #endif
 
+            std::println("{}", disassemble(tempCompiledBytecode_));
         resolveJumps();
 
         currFunction_->requiredStackSize = computeRequiredStackSize();
@@ -289,7 +290,7 @@ size_t Compiler::computeRequiredStackSize() {
                 break;
 
             case Instruction::CALLSCRFUN: {
-                size_t idx = readWord<DWord>(tempCompiledBytecode_, i + 1);
+                DWord idx = readWord<DWord>(tempCompiledBytecode_, i + 1);
                 const ScriptFunction *scrFun = currScript_->getFunction(idx);
                 currSize -= scrFun->numParams;
 
@@ -297,7 +298,7 @@ size_t Compiler::computeRequiredStackSize() {
             }
 
             case Instruction::CLGLBLCPPFUN: {
-                size_t idx = readWord<DWord>(tempCompiledBytecode_, i + 1);
+                DWord idx = readWord<DWord>(tempCompiledBytecode_, i + 1);
                 const auto *fun = ctx_->getGlobalFunction(idx);
                 currSize -= fun->numParams;
 
@@ -700,28 +701,26 @@ bool Compiler::compileArguments(const ScriptNode &argsNode, const IFunction *fun
 void Compiler::compileIfStatement(const ScriptNode &ifStmt, int nestedCount) {
     assert(ifStmt.getType() == ScriptNodeType::IF_STATEMENT);
 
-    constexpr size_t instrSize = sizeof(Instruction) + sizeof(QWord);
     bool hasElse = ifStmt.getNumChildren() > 2;
 
     // No expected type
     compileExpression(ifStmt.getChild(0), ValueType::BOOL);
+    
+    QWord ifLabelNum = ++tmpLabelNum_; 
     emit(Instruction::JMPFALSE);
-    emit(++tmpLabelNum_);
+    emit(ifLabelNum);
 
     enterNewScope();
     compileStatementBlock(ifStmt.getChild(1));
     exitScope();
 
-    size_t jmpFalseOperand = getLastByteInsertedLoc() + instrSize + 1;
-    // Jump over all the if's block's jumps
-    if (hasElse) jmpFalseOperand += instrSize * nestedCount;
-    
-    emit(Instruction::LABEL);
-    emit(tmpLabelNum_);
-    
     if (hasElse) {
         emit(Instruction::JMP);
         emit(++tmpLabelNum_);
+
+        // Make the if's JMPFALSE jump over the else's JUMP
+        emit(Instruction::LABEL);
+        emit(ifLabelNum);
         
         const ScriptNode &elseBrChild = ifStmt.getChild(2).getChild(0);
         if (elseBrChild.getType() == ScriptNodeType::IF_STATEMENT) {
@@ -732,6 +731,9 @@ void Compiler::compileIfStatement(const ScriptNode &ifStmt, int nestedCount) {
             exitScope();
         }
 
+        emit(Instruction::LABEL);
+        emit(tmpLabelNum_);
+    } else {
         emit(Instruction::LABEL);
         emit(tmpLabelNum_);
     }

@@ -91,12 +91,7 @@ void VM::executeNext() {
         }
 
         INSTR(ADD): { OP_INSTR(+); }
-        INSTR(SUB): { 
-            Value b = pop(); 
-            Value a = pop(); 
-            push(a - b); 
-            ip += 1; 
-            break; }
+        INSTR(SUB): { OP_INSTR(-); }
         INSTR(MUL): { OP_INSTR(*); }
         INSTR(DIV): { OP_INSTR(/); }
 
