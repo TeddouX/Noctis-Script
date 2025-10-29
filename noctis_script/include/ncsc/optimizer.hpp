@@ -25,10 +25,9 @@ private:
     const std::vector<Byte> &bc_;
 
     static bool constantFolding(std::vector<Byte> &bc, size_t &idx);
-    static bool collapseLoadPopSetObjToStore(std::vector<Byte> &bc, size_t &idx);
 
-    static inline const std::array<OptimizationRule, 2> rules_ = {
-        OptimizationRule{ constantFolding }, OptimizationRule{ collapseLoadPopSetObjToStore }
+    static inline const std::array<OptimizationRule, 1> rules_ = {
+        OptimizationRule{ constantFolding }
     };
 };
 

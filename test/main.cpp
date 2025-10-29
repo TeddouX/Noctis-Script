@@ -36,21 +36,16 @@ int main() {
     auto src = NCSC::ScriptSource::fromSource(fileContents);
     src->filePath = filePath;
 
-    // auto tokens = NCSC::Lexer(src).tokenizeAll();
-    // for (auto token : tokens) {
-    //     std::println("{} Position: {}:{}", token.getStrRepr(), token.line, token.col);
-    // }
-    // std::println();
+    auto tokens = NCSC::Lexer(src).tokenizeAll();
+    NCSC::Parser parser(tokens, src);
+    auto rootNode = parser.parseAll();
+    std::println("{}", rootNode.getStrRepr());
+    if (parser.hasErrors()) {
+        for (auto error : parser.getErrors()) 
+            std::println("{}", error.getErrorMessage());
 
-    // NCSC::Parser parser(tokens, src);
-    // auto rootNode = parser.parseAll();
-    // std::println("{}", rootNode.getStrRepr());
-    // if (parser.hasErrors()) {
-    //     for (auto error : parser.getErrors()) 
-    //         std::println("{}", error.getErrorMessage());
-
-    //     exit(EXIT_FAILURE);
-    // }
+        exit(EXIT_FAILURE);
+    }
 
     std::shared_ptr<NCSC::ScriptContext> scriptCtx = NCSC::ScriptContext::create();
     scriptCtx->registerGlobalFunction("printHello", printHello);
@@ -79,13 +74,14 @@ int main() {
             std::println("{}", vm.getLastError());
             exit(EXIT_FAILURE);
         }
+
         vm.prepareFunction(fun);
-        
-        bool success = vm.execute();
-        if (!success) {
+
+        if (!vm.execute()) {
             std::println("{}", vm.getLastError());
             exit(EXIT_FAILURE);
         }
+        
         std::println("{}", vm.getStackStrRepr());
     }
 

@@ -24,7 +24,7 @@ public:
     static std::string disassemble(const std::vector<Byte> &bc);
 
     std::unique_ptr<Script> compileScript(std::shared_ptr<ScriptSource> source);
-    std::unique_ptr<Script> compileScript(const ScriptNode &root);
+    std::unique_ptr<Script> compileScript(const ASTNode &root);
 
     bool hasErrors() { return !compileErrors_.empty(); }
     const std::vector<Error> &getErrors() { return compileErrors_; }
@@ -34,6 +34,7 @@ private:
     std::shared_ptr<ScriptSource> src_;
     Script *currScript_;
     ScriptFunction *currFunction_;
+    ScriptObject *currObject_;
 
     std::vector<Byte> tempCompiledBytecode_;
 
@@ -48,10 +49,9 @@ private:
     void enterNewScope();
     void exitScope();
 
-    void createCompileError(const ErrInfo &info, const ScriptNode &node);
+    void finalizeBc();
 
-    // currFunction = function and at the end set it to nullptr to indicate that it has finished compilation
-    void compileFunction(const ScriptNode &funcDecl);
+    void createCompileError(const ErrInfo &info, const ASTNode &node);
 
     bool isScriptFunction(const std::string &name) const { return currScript_->getFunction(name) != nullptr; }
 
@@ -80,7 +80,7 @@ private:
 
     template <typename T>
     requires std::is_integral_v<T> 
-    void emitIntConstant(const std::string &valStr, const ScriptNode &constant, ValueType vtype) {
+    void emitIntConstant(const std::string &valStr, const ASTNode &constant, ValueType vtype) {
         using IntermediateTy_ = std::conditional_t<std::is_signed_v<T>, int64_t, uint64_t>;
         IntermediateTy_ intermediate{};
 
@@ -106,23 +106,30 @@ private:
         emit(bytes);
     }
 
-    void compileVariableDeclaration(const ScriptNode &varDecl, bool global);
-    void compileConstantPush(const ScriptNode &constant, ValueType expectedType);
-    void compileOperator(const ScriptNode &op);
-    void compileExpression(const ScriptNode &expr, ValueType expectedType = ValueType::INVALID);
-    void recursivelyCompileExpression(const ScriptNode &exprChild, ValueType expectedType);
+    void compileFunction(const ASTNode &funcDecl);
+    void compileObject(const ASTNode &obj);
+    void compileVariableDeclaration(const ASTNode &varDecl, bool global = false, bool member = false);
+    void compileConstantPush(const ASTNode &constant, ValueType expectedType);
+    void compileOperator(const ASTNode &op);
+    void compileExpression(const ASTNode &expr, ValueType expectedType = ValueType::INVALID);
+    void recursivelyCompileExpression(const ASTNode &exprChild, ValueType expectedType);
     // shouldBeModifiable: true if it should be, false if you don't care
-    void compileExpressionTerm(const ScriptNode &exprTerm, ValueType expectedType = ValueType::INVALID, bool shouldBeModifiable = false);
-    void compileStatementBlock(const ScriptNode &stmtBlock);
-    void compileFunctionCall(const ScriptNode &funCall, bool shouldReturnVal);
-    void compileReturn(const ScriptNode &ret);
-    void compileVariableAccess(const ScriptNode &varAccess, ValueType expectedType = ValueType::INVALID);
-    bool compileArguments(const ScriptNode &argsNode, const IFunction *fun);
-    void compileIfStatement(const ScriptNode &ifStmt, int nestedCount = 1);
+    void compileExpressionTerm(const ASTNode &exprTerm, ValueType expectedType = ValueType::INVALID);
+    void compileStatementBlock(const ASTNode &stmtBlock);
+    void compileFunctionCall(const ASTNode &funCall, bool shouldReturnVal);
+    void compileReturn(const ASTNode &ret);
+    void compileVariableAccess(const ASTNode &varAccess, ValueType expectedType = ValueType::INVALID);
+    bool compileArguments(const ASTNode &argsNode, const Function *fun);
+    void compileIfStatement(const ASTNode &ifStmt, int nestedCount = 1);
     void compileJmpBcPatch(size_t patchLoc, Instruction jmpInstr, size_t jmpLoc);
-    void compileAssignment(const ScriptNode &assignment, ValueType expectedType = ValueType::INVALID);
+    void compileAssignment(const ASTNode &assignment, ValueType expectedType = ValueType::INVALID);
+    void compileExpressionPreOp(const ASTNode &preOp, const ASTNode &operand, ValueType expectedTy);
+    void compileExpressionValue(const ASTNode &exprVal, ValueType expectedTy);
+    void compileExpressionPostOp(const ASTNode &postOp, const ASTNode &operand, ValueType expectedTy);
+    void compileIncrement(const ASTNode &inc, const ASTNode &operand, ValueType expectedTy);
+    void compileDecrement(const ASTNode &dec, const ASTNode &operand, ValueType expectedTy);
 
-    ValueType getExpressionTermType(const ScriptNode &exprTerm);
+    ValueType getExpressionTermType(const ASTNode &exprTerm);
 
     inline static ErrInfo CANT_FIND_FUNCTION_NAMED      { "Compilation error", "C", 0,  "Can't find function named '{}'" };
     inline static ErrInfo CANT_FIND_VAR_NAMED           { "Compilation error", "C", 1,  "Can't find variable named '{}'" };
@@ -139,6 +146,8 @@ private:
     inline static ErrInfo FUNC_ALREADY_EXISTS           { "Compilation error", "C", 12, "Another function with name '{}' already exists" };
     inline static ErrInfo TERM_SHOULD_BE_MODIFIABLE     { "Compilation error", "C", 13, "Expected a modifiable term" };
     inline static ErrInfo EXPECTED_AN_ID                { "Compilation error", "C", 14, "Expected an identifier" };
+    inline static ErrInfo EXPECTED_NUMERIC_TYPE         { "Compilation error", "C", 15, "Expected a numeric type, instead got {}" };
+    inline static ErrInfo EXPECTED_A_BOOLEAN            { "Compilation error", "C", 16, "Expected a boolean, instead got {}" };
 };
 
 } // namespace NCSC

@@ -9,7 +9,7 @@
 namespace NCSC
 {
     
-enum class ScriptNodeType : uint8_t {
+enum class ASTNodeType : uint8_t {
     TOKEN,
     SCRIPT,
     VARIABLE_DECLARATION,
@@ -20,7 +20,7 @@ enum class ScriptNodeType : uint8_t {
     FUNCTION_CALL,
     SIMPLE_STATEMENT,
     RETURN_STMT,
-    OP,
+    BINOP,
     CONSTANT,
     ARGUMENT_LIST,
     PARAMETER_LIST,
@@ -30,11 +30,16 @@ enum class ScriptNodeType : uint8_t {
     ELSE_BRANCH,
     CONDITION,
     ASSIGNMENT,
+    OBJECT,
+    CONSTRUCT_CALL,
+    EXPRESSION_VALUE,
+    EXPRESSION_PREOP,
+    EXPRESSION_POSTOP,
 };
 
-struct NCSC_API ScriptNode {
+struct NCSC_API ASTNode {
 public:
-    ScriptNode(ScriptNodeType type)
+    ASTNode(ASTNodeType type)
         : type_(type) {}
     
     uint32_t line = 0, col = 0, colEnd = 0;
@@ -46,23 +51,23 @@ public:
     void updatePos();
 
     bool hasChildren() const noexcept { return !children_.empty(); }
-    void addChild(const ScriptNode &child);
-    const ScriptNode &getChild(size_t idx) const { return children_[idx]; }
-    const ScriptNode &getLastChild() const { return children_.back(); }
-    const std::vector<ScriptNode> &getAllChildren() const { return children_; }
+    void addChild(const ASTNode &child);
+    const ASTNode &getChild(size_t idx) const { return children_[idx]; }
+    const ASTNode &getLastChild() const { return children_.back(); }
+    const std::vector<ASTNode> &getAllChildren() const { return children_; }
     size_t getNumChildren() const { return children_.size(); }
 
-    ScriptNodeType getType() const { return type_; }
+    ASTNodeType getType() const { return type_; }
     const Token *getToken() const { return token_; }
     void setToken(const Token *tok) { token_ = tok; }
 
     friend class Parser;
 
 private:
-    ScriptNodeType type_;
+    ASTNodeType type_;
     const Token *token_ = nullptr;
 
-    std::vector<ScriptNode> children_;
+    std::vector<ASTNode> children_;
 
 };
 

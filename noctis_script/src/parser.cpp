@@ -9,14 +9,23 @@
 namespace NCSC
 {
 
+static bool isDataType(TokenType type);
+static bool isConstantValue(TokenType type);
+static bool isOperator(TokenType type);
+static bool isAssignOp(TokenType type);
+static bool isAccessMod(TokenType type);
+static bool isExpressionPreOp(TokenType type);
+static bool isExpressionPostOp(TokenType type);
+
+
 Parser::Parser(const std::vector<Token> &tokens, std::shared_ptr<ScriptSource> src)
     : tokens_(tokens), src_(src) 
 {
     assert(src_ != nullptr);
 }
 
-ScriptNode Parser::parseAll() {
-    ScriptNode root(ScriptNodeType::SCRIPT);
+ASTNode Parser::parseAll() {
+    ASTNode root(ASTNodeType::SCRIPT);
 
     while (idx_ < tokens_.size()) {
         const Token &currTok = tokens_[idx_];
@@ -27,9 +36,15 @@ ScriptNode Parser::parseAll() {
                 root.addChild(parseVariableDeclaration());
             else if (isFunction())
                 root.addChild(parseFunction());
+            else {
+                consume();
+                createSyntaxError(EXPECTED_VARDECL_OR_FUNC_DEF, currTok);
+            }
         }
         else if (currTok.type == TokenType::FUN_KWD)
             root.addChild(parseFunction());
+        else if (currTok.type == TokenType::OBJ_KWD)
+            root.addChild(parseObject());
         else if (currTok.type == TokenType::END_OF_FILE) 
             break;
         // Extra semicolons can be ignored
@@ -99,87 +114,21 @@ int Parser::getOperatorPrecedence(const Token &tok) {
     return -1;
 }
 
-bool Parser::isDataType(TokenType type) {
-    switch (type) {
-        case TokenType::INT8_KWD:
-        case TokenType::INT16_KWD:
-        case TokenType::INT32_KWD:
-        case TokenType::INT64_KWD:
-        case TokenType::UINT8_KWD:
-        case TokenType::UINT16_KWD:
-        case TokenType::UINT32_KWD:
-        case TokenType::UINT64_KWD:
-        case TokenType::FLOAT32_KWD:
-        case TokenType::FLOAT64_KWD:
-        case TokenType::BOOL_KWD:
-            return true;
-            break;
-        default:
-            return false;
-            break;
-    }
-}
+bool Parser::isVariableDeclaration(bool isMember) {
+    size_t size = 0;
+    Token t = peek(size);
+    if (isMember && isAccessMod(t.type))
+        t = peek(++size);
 
-bool Parser::isConstantValue(TokenType type) {
-    switch (type) {
-        case TokenType::INT_CONSTANT:
-        case TokenType::FLOAT_CONSTANT:
-        case TokenType::TRUE_KWD:
-        case TokenType::FALSE_KWD:
-            return true;
-            break;   
-        default:
-            return false;
-            break;
-    }
-}
-
-bool Parser::isOperator(TokenType type) {
-    switch (type) {
-        case TokenType::PLUS:
-        case TokenType::MINUS:
-        case TokenType::STAR:
-        case TokenType::SLASH:
-        case TokenType::BIGGER_EQUAL:
-        case TokenType::SMALLER_EQUAL:
-        case TokenType::DOUBLE_EQUAL:
-        case TokenType::NOT_EQUAL:
-        case TokenType::STRICTLY_BIGGER:
-        case TokenType::STRICTLY_SMALLER:
-            return true;
-            break;   
-        default:
-            return false;
-            break;
-    }
-}
-
-bool Parser::isAssignOp(TokenType type) {
-    switch (type) {
-        case TokenType::PLUS_EQUAL:
-        case TokenType::MINUS_EQUAL:
-        case TokenType::STAR_EQUAL:
-        case TokenType::SLASH_EQUAL:
-        case TokenType::EQUAL:
-            return true;
-            break;   
-        default:
-            return false;
-            break;
-    }
-}
-
-bool Parser::isVariableDeclaration() {
-    Token t = peek(0);
     if (!isDataType(t.type))
         return false;
-
-    t = peek(1);
+    
+    t = peek(++size);
     // Variable declaration should have a name
     if (t.type != TokenType::ID)
         return false;
 
-    t = peek(2);
+    t = peek(++size);
     // Declaration can stop at a semicolon or it has an equal
     // int a;
     // int a = (...)
@@ -189,16 +138,20 @@ bool Parser::isVariableDeclaration() {
         return false;
 }
 
-bool Parser::isFunction() {
-    Token t = peek(0);
-    if (!isDataType(t.type))
+bool Parser::isFunction(bool isMethod) {
+    size_t size = 0;
+    Token t = peek(size);
+    if (isMethod && isAccessMod(t.type))
+        t = peek(++size);
+
+    if (!isDataType(t.type) && t.type != TokenType::FUN_KWD)
         return false;
 
-    t = peek(1);
+    t = peek(++size);
     if (t.type != TokenType::ID)
         return false;
 
-    t = peek(2);
+    t = peek(++size);
     // int a(...
     return t.type == TokenType::PARENTHESIS_OPEN;
 }
@@ -212,33 +165,39 @@ bool Parser::isFunctionCall() {
     return t.type == TokenType::PARENTHESIS_OPEN;
 }
 
-ScriptNode Parser::parseToken(Token &tok) {
-    ScriptNode node(ScriptNodeType::TOKEN);
+ASTNode Parser::parseToken(Token &tok) {
+    ASTNode node(ASTNodeType::TOKEN);
 
     node.setToken(&tok);
     node.updatePos();
     return node;
 }
 
-ScriptNode Parser::parseVariableDeclaration() {
-    ScriptNode node(ScriptNodeType::VARIABLE_DECLARATION);
-
-    node.addChild(parseType());            CHECK_SYNTAX_ERROR;
+ASTNode Parser::parseVariableDeclaration(bool isMember) {
+    ASTNode node(ASTNodeType::VARIABLE_DECLARATION);
 
     Token &t = peek(0);
-    if (t.type != TokenType::SEMICOLON)
+    if (isMember && isAccessMod(t.type)) {
+        Token &t1 = consume();
+        node.addChild(parseToken(t1));
+    }
+
+    node.addChild(parseType()); CHECK_SYNTAX_ERROR;
+
+    auto &t1 = peek(0);
+    if (t1.type != TokenType::SEMICOLON)
         node.addChild(parseAssignment(false)); CHECK_SYNTAX_ERROR;
 
     // Variable declaration should end with a semicolon
-    Token &t1 = consume();
-    if (t1.type != TokenType::SEMICOLON)
-        createSyntaxError(EXPECTED_A_SEMICOLON, t1);
+    auto &t2 = consume();
+    if (t2.type != TokenType::SEMICOLON)
+        createSyntaxError(EXPECTED_A_SEMICOLON, t2);
     
     return node;
 }
 
-ScriptNode Parser::parseType() {
-    ScriptNode node(ScriptNodeType::DATA_TYPE);
+ASTNode Parser::parseType() {
+    ASTNode node(ASTNodeType::DATA_TYPE);
 
     Token &t = consume();
     if (!isDataType(t.type)) {
@@ -251,8 +210,8 @@ ScriptNode Parser::parseType() {
     return node;
 }
 
-ScriptNode Parser::parseIdentifier() {
-    ScriptNode node(ScriptNodeType::IDENTIFIER);
+ASTNode Parser::parseIdentifier() {
+    ASTNode node(ASTNodeType::IDENTIFIER);
 
     Token &t = consume();
     if (t.type != TokenType::ID) {
@@ -265,8 +224,8 @@ ScriptNode Parser::parseIdentifier() {
     return node;
 }
 
-ScriptNode Parser::parseExpression() {
-    ScriptNode node(ScriptNodeType::EXPRESSION);
+ASTNode Parser::parseExpression() {
+    ASTNode node(ASTNodeType::EXPRESSION);
 
     node.addChild(parseExpressionTerm());
     // The first part of an expression should always be a term
@@ -280,7 +239,7 @@ ScriptNode Parser::parseExpression() {
             consume();
             complexExpr = true;
             
-            ScriptNode binOp(ScriptNodeType::OP);
+            ASTNode binOp(ASTNodeType::BINOP);
             binOp.setToken(&t1);
             binOp.updatePos();
             node.addChild(binOp);
@@ -309,7 +268,7 @@ ScriptNode Parser::parseExpression() {
             highestPre = std::max(highestPre, opPre);
         }
 
-        ScriptNode opNode = node.children_[highestPreIdx];
+        ASTNode opNode = node.children_[highestPreIdx];
         opNode.addChild(node.children_[highestPreIdx - 1]);
         opNode.addChild(node.children_[highestPreIdx + 1]);
 
@@ -325,31 +284,32 @@ ScriptNode Parser::parseExpression() {
     return node;
 }
 
-ScriptNode Parser::parseExpressionTerm() {
-    ScriptNode node(ScriptNodeType::EXPRESSION_TERM);
+ASTNode Parser::parseExpressionTerm() {
+    ASTNode node(ASTNodeType::EXPRESSION_TERM);
     
-    Token &t = peek(0);
-    if (isConstantValue(t.type)) {
-        node.addChild(parseConstant());         CHECK_SYNTAX_ERROR;
-    } 
-    else if (t.type == TokenType::ID) {
-        if (isFunctionCall()) {
-            node.addChild(parseFunctionCall()); CHECK_SYNTAX_ERROR;
-        } 
-        else {
-            node.addChild(parseIdentifier());   CHECK_SYNTAX_ERROR;
-        }
-    } 
-    else {
-        consume();
-        createSyntaxError(EXPECTED_EXPRESSION_TERM, t);
+    for (;;) {
+        Token &t = peek(0);
+        if (!isExpressionPreOp(t.type))
+            break;
+        
+        node.addChild(parseExpressionPreOp());
+    }
+
+    node.addChild(parseExpressionValue()); CHECK_SYNTAX_ERROR;
+
+    for (;;) {
+        Token &t = peek(0);
+        if (!isExpressionPostOp(t.type)) 
+            break;
+        
+        node.addChild(parseExpressionPostOp());
     }
 
     return node;
 }
 
-ScriptNode Parser::parseConstant() {
-    ScriptNode node(ScriptNodeType::CONSTANT);
+ASTNode Parser::parseConstant() {
+    ASTNode node(ASTNodeType::CONSTANT);
 
     Token &t = consume();
     if (!isConstantValue(t.type)) {
@@ -362,34 +322,37 @@ ScriptNode Parser::parseConstant() {
     return node;
 }
 
-ScriptNode Parser::parseFunction() {
-    ScriptNode node(ScriptNodeType::FUNCTION);
+ASTNode Parser::parseFunction(bool isMethod) {
+    ASTNode node(ASTNodeType::FUNCTION);
 
-    Token &t = peek(0);
-    if (isDataType(t.type)) {
-        node.addChild(parseType()); 
-        // Sanity check
-        CHECK_SYNTAX_ERROR;
+    Token t = peek(0);
+    if (isMethod && isAccessMod(t.type)) {
+        Token &t1 = consume();
+        node.addChild(parseToken(t1));
     }
-    else if (t.type == TokenType::FUN_KWD) {
+
+    Token &t1 = peek(0);
+    if (isDataType(t1.type)) 
+        node.addChild(parseType()); 
+    else if (t1.type == TokenType::FUN_KWD) {
         consume();
-        node.addChild(parseToken(t));
+        node.addChild(parseToken(t1));
     } 
     else {
-        createSyntaxError(EXPECTED_A_DATA_TYPE_OR_FUN, t);
+        createSyntaxError(EXPECTED_A_DATA_TYPE_OR_FUN, t1);
         return node;
     }
 
     node.addChild(parseIdentifier()); CHECK_SYNTAX_ERROR;
 
-    Token &t1 = consume();
-    if (t1.type != TokenType::PARENTHESIS_OPEN) {
-        createSyntaxError(EXPECTED_TOKEN.format("("), t1);
+    t = consume();
+    if (t.type != TokenType::PARENTHESIS_OPEN) {
+        createSyntaxError(EXPECTED_TOKEN.format("("), t);
         return node; 
     }
 
     Token &t2 = peek(0);
-    ScriptNode argListNode(ScriptNodeType::PARAMETER_LIST);
+    ASTNode argListNode(ASTNodeType::PARAMETER_LIST);
     // The function has arguments
     if (t2.type != TokenType::PARENTHESIS_CLOSE) {
         for (;;) {
@@ -416,8 +379,8 @@ ScriptNode Parser::parseFunction() {
     return node;
 }
 
-ScriptNode Parser::parseStatementBlock() {
-    ScriptNode node(ScriptNodeType::STATEMENT_BLOCK);
+ASTNode Parser::parseStatementBlock() {
+    ASTNode node(ASTNodeType::STATEMENT_BLOCK);
 
     Token &t = consume();
     if (t.type != TokenType::CURLY_BRACE_OPEN) {
@@ -480,7 +443,7 @@ ScriptNode Parser::parseStatementBlock() {
     return node;
 }
 
-ScriptNode Parser::parseStatement() {
+ASTNode Parser::parseStatement() {
     Token &t = peek(0);
     if (t.type == TokenType::IF_KWD)
         return parseIfStatement();
@@ -490,8 +453,8 @@ ScriptNode Parser::parseStatement() {
         return parseSimpleStatement();
 }
 
-ScriptNode Parser::parseSimpleStatement() {
-    ScriptNode node(ScriptNodeType::SIMPLE_STATEMENT);
+ASTNode Parser::parseSimpleStatement() {
+    ASTNode node(ASTNodeType::SIMPLE_STATEMENT);
 
     Token t = peek(0);
     // Just a semicolon is alright
@@ -510,44 +473,17 @@ ScriptNode Parser::parseSimpleStatement() {
     return node;
 }
 
-ScriptNode Parser::parseFunctionCall() {
-    ScriptNode node(ScriptNodeType::FUNCTION_CALL);
+ASTNode Parser::parseFunctionCall() {
+    ASTNode node(ASTNodeType::FUNCTION_CALL);
 
     node.addChild(parseIdentifier()); CHECK_SYNTAX_ERROR;
-
-    ScriptNode argListNode(ScriptNodeType::ARGUMENT_LIST);
-    Token &t = consume();
-    if (t.type != TokenType::PARENTHESIS_OPEN) {
-        createSyntaxError(EXPECTED_TOKEN.format('('), t);
-        return node;
-    }
-    argListNode.setPos(t);
-
-    Token &t1 = peek(0); 
-    if (t1.type != TokenType::PARENTHESIS_CLOSE) {
-        for (;;) {
-            argListNode.addChild(parseExpression()); CHECK_SYNTAX_ERROR;
-
-            Token &t3 = consume();
-            if (t3.type == TokenType::COMMA)
-                continue;
-            else if (t3.type == TokenType::PARENTHESIS_CLOSE) 
-                break;
-            else {
-                createSyntaxError(EXPECTED_TOKEN_OR_TOKEN.format(',', ')'), t3);
-                break;
-            }
-        }
-    } else
-        consume();
-
-    node.addChild(argListNode); CHECK_SYNTAX_ERROR;
+    node.addChild(parseArgList()); CHECK_SYNTAX_ERROR;
 
     return node;
 }
 
-ScriptNode Parser::parseIfStatement() {
-    ScriptNode node(ScriptNodeType::IF_STATEMENT);
+ASTNode Parser::parseIfStatement() {
+    ASTNode node(ASTNodeType::IF_STATEMENT);
 
     Token t = consume();
     node.setPos(t);
@@ -577,7 +513,7 @@ ScriptNode Parser::parseIfStatement() {
     if (t.type == TokenType::ELSE_KWD) {
         Token &t2 = consume();
 
-        ScriptNode elseBrNode(ScriptNodeType::ELSE_BRANCH);
+        ASTNode elseBrNode(ASTNodeType::ELSE_BRANCH);
         elseBrNode.setPos(t2);
 
         t = peek(0);
@@ -592,8 +528,8 @@ ScriptNode Parser::parseIfStatement() {
     return node;
 }
 
-ScriptNode Parser::parseAssignment(bool allowCompoundOps) {
-    ScriptNode node(ScriptNodeType::ASSIGNMENT);
+ASTNode Parser::parseAssignment(bool allowCompoundOps) {
+    ASTNode node(ASTNodeType::ASSIGNMENT);
 
     node.addChild(parseExpressionTerm());                     CHECK_SYNTAX_ERROR;
 
@@ -608,8 +544,8 @@ ScriptNode Parser::parseAssignment(bool allowCompoundOps) {
     return node;
 }
 
-ScriptNode Parser::parseReturnStatement() {
-    ScriptNode node(ScriptNodeType::RETURN_STMT);
+ASTNode Parser::parseReturnStatement() {
+    ASTNode node(ASTNodeType::RETURN_STMT);
     
     Token t = consume();
     node.setPos(t);
@@ -634,8 +570,8 @@ ScriptNode Parser::parseReturnStatement() {
     return node;
 }
 
-ScriptNode Parser::parseAssignmentOperator(bool allowCompoundOps) {
-    ScriptNode node(ScriptNodeType::OP);
+ASTNode Parser::parseAssignmentOperator(bool allowCompoundOps) {
+    ASTNode node(ASTNodeType::BINOP);
     
     Token &t = consume();
     if (!allowCompoundOps && t.type != TokenType::EQUAL) {
@@ -652,5 +588,237 @@ ScriptNode Parser::parseAssignmentOperator(bool allowCompoundOps) {
     return node;
 }
 
+ASTNode Parser::parseObject() {
+    ASTNode node(ASTNodeType::OBJECT);
+
+    Token t = consume();
+    if (t.type != TokenType::OBJ_KWD) {
+        createSyntaxError(EXPECTED_TOKEN.format("obj"), t);
+        return node;
+    }
+
+    node.addChild(parseIdentifier()); CHECK_SYNTAX_ERROR;
+
+    t = consume();
+    if (t.type != TokenType::CURLY_BRACE_OPEN) {
+        createSyntaxError(EXPECTED_TOKEN.format("obj"), t);
+        return node;
+    }
+
+    for (;;) {
+        Token t = peek(0);
+        if (t.type == TokenType::CURLY_BRACE_CLOSE) {
+            consume();
+            break;
+        } else if (isVariableDeclaration(true)) {
+            node.addChild(parseVariableDeclaration(true)); CHECK_SYNTAX_ERROR;   
+        } else if (isFunction(true)) {
+            node.addChild(parseFunction(true)); CHECK_SYNTAX_ERROR;
+        } else {
+            consume();
+            createSyntaxError(EXPECTED_VARDECL_OR_FUNC_DEF, t);
+            return node;
+        }
+    }
+
+    return node;
+}
+
+ASTNode Parser::parseConstructCall() {
+    ASTNode node(ASTNodeType::CONSTRUCT_CALL);
+
+    Token &t = consume();
+    if (t.type != TokenType::NEW_KWD) {
+        createSyntaxError(EXPECTED_TOKEN.format("new"), t);
+        return node;
+    }
+
+    node.addChild(parseIdentifier()); CHECK_SYNTAX_ERROR;
+    node.addChild(parseArgList()); CHECK_SYNTAX_ERROR;
+
+    return node;
+}
+
+ASTNode Parser::parseArgList() {
+    ASTNode node(ASTNodeType::ARGUMENT_LIST);
+    Token &t = consume();
+    if (t.type != TokenType::PARENTHESIS_OPEN) {
+        createSyntaxError(EXPECTED_TOKEN.format('('), t);
+        return node;
+    }
+    node.setPos(t);
+
+    Token &t1 = peek(0); 
+    if (t1.type != TokenType::PARENTHESIS_CLOSE) {
+        for (;;) {
+            node.addChild(parseExpression()); CHECK_SYNTAX_ERROR;
+
+            Token &t3 = consume();
+            if (t3.type == TokenType::COMMA)
+                continue;
+            else if (t3.type == TokenType::PARENTHESIS_CLOSE) 
+                break;
+            else {
+                createSyntaxError(EXPECTED_TOKEN_OR_TOKEN.format(',', ')'), t3);
+                break;
+            }
+        }
+    } else
+        consume();
+
+    return node;
+}
+
+ASTNode Parser::parseExpressionValue() {
+    ASTNode node(ASTNodeType::EXPRESSION_VALUE);
+
+    Token &t = peek(0);
+    if (isConstantValue(t.type)) {
+        node.addChild(parseConstant()); CHECK_SYNTAX_ERROR;
+    } 
+    else if (t.type == TokenType::ID) {
+        if (isFunctionCall()) {
+            node.addChild(parseFunctionCall()); CHECK_SYNTAX_ERROR;
+        } 
+        else {
+            node.addChild(parseIdentifier()); CHECK_SYNTAX_ERROR;
+        }
+    }
+    else if (t.type == TokenType::NEW_KWD) {
+        node.addChild(parseConstructCall()); CHECK_SYNTAX_ERROR;
+    }
+    else {
+        consume();
+        createSyntaxError(EXPECTED_EXPRESSION_VALUE, t);
+    }
+
+    return node;
+}
+
+ASTNode Parser::parseExpressionPreOp() {
+    ASTNode node(ASTNodeType::EXPRESSION_PREOP);
+
+    Token &t = consume();
+    node.setToken(&t);
+    node.updatePos();
+
+    return node;
+}
+
+ASTNode Parser::parseExpressionPostOp() {
+    ASTNode node(ASTNodeType::EXPRESSION_POSTOP);
+
+    Token &t = consume();
+    node.setPos(t);
+
+    if (t.type == TokenType::DOT) {
+        if (isFunctionCall()) {
+            node.addChild(parseFunctionCall()); CHECK_SYNTAX_ERROR;
+        } else {
+            node.addChild(parseIdentifier()); CHECK_SYNTAX_ERROR;
+        }
+    } else {
+        node.setToken(&t);
+    }
+
+    return node;
+}
+
+
+bool isDataType(TokenType type) {
+    switch (type) {
+        case TokenType::INT8_KWD:
+        case TokenType::INT16_KWD:
+        case TokenType::INT32_KWD:
+        case TokenType::INT64_KWD:
+        case TokenType::UINT8_KWD:
+        case TokenType::UINT16_KWD:
+        case TokenType::UINT32_KWD:
+        case TokenType::UINT64_KWD:
+        case TokenType::FLOAT32_KWD:
+        case TokenType::FLOAT64_KWD:
+        case TokenType::BOOL_KWD:
+        // Custom types (will get checked by the compiler)
+        case TokenType::ID:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool isConstantValue(TokenType type) {
+    switch (type) {
+        case TokenType::INT_CONSTANT:
+        case TokenType::FLOAT_CONSTANT:
+        case TokenType::TRUE_KWD:
+        case TokenType::FALSE_KWD:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool isOperator(TokenType type) {
+    switch (type) {
+        case TokenType::PLUS:
+        case TokenType::MINUS:
+        case TokenType::STAR:
+        case TokenType::SLASH:
+        case TokenType::BIGGER_EQUAL:
+        case TokenType::SMALLER_EQUAL:
+        case TokenType::DOUBLE_EQUAL:
+        case TokenType::NOT_EQUAL:
+        case TokenType::STRICTLY_BIGGER:
+        case TokenType::STRICTLY_SMALLER:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool isAssignOp(TokenType type) {
+    switch (type) {
+        case TokenType::PLUS_EQUAL:
+        case TokenType::MINUS_EQUAL:
+        case TokenType::STAR_EQUAL:
+        case TokenType::SLASH_EQUAL:
+        case TokenType::EQUAL:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool isAccessMod(TokenType type) {
+    switch (type) {
+        case TokenType::PUBLIC_KWD:
+        case TokenType::PRIVATE_KWD:
+            return true; 
+        default:
+            return false;
+    }
+}
+
+bool isExpressionPreOp(TokenType type) {
+    switch (type) {
+        case TokenType::PLUS_PLUS:
+        case TokenType::MINUS_MINUS:
+        case TokenType::NOT: 
+            return true;
+        default: 
+            return false;
+    }
+}
+
+bool isExpressionPostOp(TokenType type) {
+    switch (type) {
+        case TokenType::PLUS_PLUS:
+        case TokenType::MINUS_MINUS:
+        case TokenType::DOT: 
+            return true;
+        default: 
+            return false;
+    }
+}
 
 } // namespace NCSC

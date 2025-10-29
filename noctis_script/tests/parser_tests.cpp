@@ -16,7 +16,7 @@ TEST(ParserTests, ParsesVariableDeclaration) {
     auto rootNode = parse("Int a;");
 
     ASSERT_TRUE(rootNode.hasChildren());
-    ASSERT_EQ(rootNode.getChild(0).getType(), ScriptNodeType::VARIABLE_DECLARATION);
+    ASSERT_EQ(rootNode.getChild(0).getType(), ASTNodeType::VARIABLE_DECLARATION);
 }
 
 TEST(ParserTests, VariableDeclarationTypeIsParsed) {
@@ -24,7 +24,7 @@ TEST(ParserTests, VariableDeclarationTypeIsParsed) {
 
     ASSERT_TRUE(rootNode.hasChildren());
     ASSERT_TRUE(rootNode.getChild(0).hasChildren());
-    ASSERT_EQ(rootNode.getChild(0).getChild(0).getType(), ScriptNodeType::DATA_TYPE);
+    ASSERT_EQ(rootNode.getChild(0).getChild(0).getType(), ASTNodeType::DATA_TYPE);
 }
 
 TEST(ParserTests, VariableDeclarationIdentifierIsParsed) {
@@ -32,7 +32,7 @@ TEST(ParserTests, VariableDeclarationIdentifierIsParsed) {
 
     ASSERT_TRUE(rootNode.hasChildren());
     ASSERT_TRUE(rootNode.getChild(0).hasChildren());
-    ASSERT_EQ(rootNode.getChild(0).getChild(1).getType(), ScriptNodeType::IDENTIFIER);
+    ASSERT_EQ(rootNode.getChild(0).getChild(1).getType(), ASTNodeType::IDENTIFIER);
 }
 
 TEST(ParserTests, VariableDeclarationWithAssignmentIsParsed) {
@@ -41,7 +41,7 @@ TEST(ParserTests, VariableDeclarationWithAssignmentIsParsed) {
     ASSERT_TRUE(rootNode.hasChildren());
     ASSERT_TRUE(rootNode.getChild(0).hasChildren());
     ASSERT_EQ(rootNode.getChild(0).getNumChildren(), 3);
-    ASSERT_EQ(rootNode.getChild(0).getChild(2).getType(), ScriptNodeType::EXPRESSION);
+    ASSERT_EQ(rootNode.getChild(0).getChild(2).getType(), ASTNodeType::EXPRESSION);
 }
 
 TEST(ParserTests, CanParseTwoStatementsSeparatedBySemicolon) {
@@ -49,6 +49,6 @@ TEST(ParserTests, CanParseTwoStatementsSeparatedBySemicolon) {
 
     ASSERT_TRUE(rootNode.hasChildren());
     ASSERT_EQ(rootNode.getNumChildren(), 2);
-    ASSERT_EQ(rootNode.getChild(0).getType(), ScriptNodeType::VARIABLE_DECLARATION);
-    ASSERT_EQ(rootNode.getChild(1).getType(), ScriptNodeType::VARIABLE_DECLARATION);
+    ASSERT_EQ(rootNode.getChild(0).getType(), ASTNodeType::VARIABLE_DECLARATION);
+    ASSERT_EQ(rootNode.getChild(1).getType(), ASTNodeType::VARIABLE_DECLARATION);
 }

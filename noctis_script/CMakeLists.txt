@@ -20,10 +20,13 @@ set(NCSC_SOURCES
     "include/ncsc/script_context.hpp"
     "include/ncsc/script_function.hpp"
     "include/ncsc/script_node.hpp"
+    "include/ncsc/script_object.hpp"
+    "include/ncsc/script_source.hpp"
     "include/ncsc/script.hpp"
     "include/ncsc/token.hpp"
     "include/ncsc/value_type.hpp"
     "include/ncsc/value.hpp"
+    "include/ncsc/variable.hpp"
     "include/ncsc/vm.hpp"
 
     # -------------------

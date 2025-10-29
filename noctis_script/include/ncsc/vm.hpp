@@ -65,7 +65,7 @@ public:
         ValueType givenTy = valueTypeFromLiteral(T{});
         Value top = pop();
 
-        if (!canPromoteType(top.type(), givenTy)) {
+        if (!canPromoteType(top.ty, givenTy)) {
             error(std::format(PASSED_TY_DONT_MATCH_W_PASSED_TY, currFun_->name));
             return false;
         }
@@ -86,8 +86,6 @@ private:
     // next free spot on the stack
     size_t sp_ = 0;
     std::vector<CallFrame> callStack_;
-
-    Value *objReg_ = nullptr;
 
     // Computed when the vm instance is created
     std::vector<Value> globalVariables_;
@@ -123,8 +121,7 @@ private:
             return false;
         }
 
-        Value val;
-        val.setType(givenTy);
+        Value val{ .ty = givenTy };
         val.setProperty(arg, givenTy);
 
         stack_[idx] = val;
@@ -143,10 +140,13 @@ private:
     inline static constexpr std::string_view PASSED_TY_DONT_MATCH_W_PASSED_TY = "Preparation error P7: Passed type can't converted to {}'s return type";
 
     // Execution errors
-    inline static constexpr std::string_view UNSAFE_CAST                 = "Execution error E0: Unsafe cast {} to {}";
-    inline static constexpr std::string_view STACK_UNDERFLOW_EMPTY       = "Execution error E1: Stack underflow (empty stack)";
-    inline static constexpr std::string_view STACK_UNDERFLOW_STACK_FRAME = "Execution error E2: Stack underflow (below current frame)";
-    inline static constexpr std::string_view STACK_OVERFLOW              = "Execution error E3: Stack overflow";
+    inline static constexpr std::string_view UNSAFE_CAST                        = "Execution error E0: Unsafe cast {} to {}";
+    inline static constexpr std::string_view STACK_UNDERFLOW_EMPTY              = "Execution error E1: Stack underflow (empty stack)";
+    inline static constexpr std::string_view STACK_UNDERFLOW_STACK_FRAME        = "Execution error E2: Stack underflow (below current frame)";
+    inline static constexpr std::string_view STACK_OVERFLOW                     = "Execution error E3: Stack overflow";
+    inline static constexpr std::string_view TRIED_ACCESSING_VAL_OF_INVALID_REF = "Execution error E4: Tried accessing the value of an invalid reference";
+    inline static constexpr std::string_view INVALID_OR_CORRUPTED_BC            = "Execution error E5: Encounterd invalid or corrupted bytecode";
+    inline static constexpr std::string_view CANT_INC_OR_DEC_NON_NUM            = "Execution error E6: Can't increment or decrement non numeric type";
 };
  
 } // namespace NCSC

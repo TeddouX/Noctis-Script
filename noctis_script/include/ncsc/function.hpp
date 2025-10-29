@@ -10,7 +10,7 @@
 namespace NCSC
 {
 
-struct IFunction {
+struct Function {
     std::string name;
     std::vector<ValueType> paramTypes;
     ValueType returnTy;

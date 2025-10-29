@@ -13,7 +13,7 @@
 namespace NCSC
 {
 
-struct GlobalCPPFunctionRepr : public IFunction {
+struct GlobalCPPFunctionRepr : public Function {
     std::function<Value (const std::vector<Value>&)> registryFun;
 };
 

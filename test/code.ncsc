@@ -1,18 +1,31 @@
 // Int global = 10;
 
+//obj Vec2 {
+//    public Int x;
+//    public Int y;
+//
+//    private Float mag;
+//
+//    public fun _constructor(Int x, Int y) {
+//        //this.x = x;
+//        //this.y = y;
+//    }
+//}
+
 fun main() {
-    // Int a = 1 + 2 * 3;
-    Int b = 3;
+    Int i = 1;
+    Int a = i++;
+    //Vec2 b = new Vec2(1, 2);
 
-    if (b < 1) {
-        printHello(0);
-    } else if (b == 2) {
-        printHello(1);
-    } else {
-        printHello(2);
-    }
-
-    printHello(3);
+//    if (a < 1) {
+//        printHello(0);
+//    } else if (a == 2) {
+//        printHello(1);
+//    } else {
+//        printHello(2);
+//    }
+//
+//    printHello(3);
 
     // Int c = global;
 

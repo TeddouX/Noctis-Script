@@ -6,7 +6,7 @@ namespace NCSC
 {
     
 void Scope::addLocalVar(const std::string &name, ValueType ty) {
-    Var v{ .name = name, .type = ty };
+    Variable v{ .name = name, .type = ty };
     localVariables.push_back(v);
 }
 
@@ -14,7 +14,7 @@ bool Scope::hasLocalVar(const std::string &name) {
     return getLocalVar(name) != nullptr;
 }
 
-Scope::Var *Scope::getLocalVar(const std::string &name) {
+Variable *Scope::getLocalVar(const std::string &name) {
     for (auto &var : localVariables) {
         if (var.name == name)   
             return &var;
@@ -37,7 +37,7 @@ DWord Scope::getLocalVarIdx(const std::string &name) {
     return -1;
 }
 
-Scope::Var *Scope::getLocalVar(size_t idx) {
+Variable *Scope::getLocalVar(size_t idx) {
     if (idx >= localVariables.size())
         return nullptr;
     return &localVariables[idx];

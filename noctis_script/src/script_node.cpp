@@ -7,34 +7,39 @@
 namespace NCSC
 {
     
-static std::string getNodeTypeStrRepr(ScriptNodeType type) {
+static std::string getNodeTypeStrRepr(ASTNodeType type) {
     switch (type) {
-        case ScriptNodeType::SCRIPT:                return "<SCRIPT>";
-        case ScriptNodeType::VARIABLE_DECLARATION:  return "<VARIABLE_DECLARATION>";
-        case ScriptNodeType::DATA_TYPE:             return "<DATA_TYPE>";
-        case ScriptNodeType::IDENTIFIER:            return "<IDENTIFIER>";
-        case ScriptNodeType::EXPRESSION:            return "<EXPRESSION>";
-        case ScriptNodeType::EXPRESSION_TERM:       return "<EXPRESSION_TERM>";
-        case ScriptNodeType::OP:                    return "<OP>";
-        case ScriptNodeType::CONSTANT:              return "<CONSTANT>";
-        case ScriptNodeType::PARAMETER_LIST:        return "<PARAMETER_LIST>";
-        case ScriptNodeType::FUNCTION:              return "<FUNCTION>";
-        case ScriptNodeType::STATEMENT_BLOCK:       return "<STATEMENT_BLOCK>";
-        case ScriptNodeType::SIMPLE_STATEMENT:      return "<SIMPLE_STATEMENT>";
-        case ScriptNodeType::TOKEN:                 return "<TOKEN>";
-        case ScriptNodeType::ARGUMENT_LIST:         return "<ARGUMENT_LIST>";
-        case ScriptNodeType::FUNCTION_CALL:         return "<FUNCTION_CALL>";
-        case ScriptNodeType::RETURN_STMT:           return "<RETURN_STMT>";
-        case ScriptNodeType::IF_STATEMENT:          return "<IF_STATEMENT>";
-        case ScriptNodeType::ELSE_BRANCH:           return "<ELSE_BRANCH>";
-        case ScriptNodeType::ASSIGNMENT:            return "<ASSIGNMENT>";
-        default:                                    return "<please add the missing node(s)>";
+        case ASTNodeType::SCRIPT:                return "<SCRIPT>";
+        case ASTNodeType::VARIABLE_DECLARATION:  return "<VARIABLE_DECLARATION>";
+        case ASTNodeType::DATA_TYPE:             return "<DATA_TYPE>";
+        case ASTNodeType::IDENTIFIER:            return "<IDENTIFIER>";
+        case ASTNodeType::EXPRESSION:            return "<EXPRESSION>";
+        case ASTNodeType::EXPRESSION_TERM:       return "<EXPRESSION_TERM>";
+        case ASTNodeType::BINOP:                 return "<BINOP>";
+        case ASTNodeType::CONSTANT:              return "<CONSTANT>";
+        case ASTNodeType::PARAMETER_LIST:        return "<PARAMETER_LIST>";
+        case ASTNodeType::FUNCTION:              return "<FUNCTION>";
+        case ASTNodeType::STATEMENT_BLOCK:       return "<STATEMENT_BLOCK>";
+        case ASTNodeType::SIMPLE_STATEMENT:      return "<SIMPLE_STATEMENT>";
+        case ASTNodeType::TOKEN:                 return "<TOKEN>";
+        case ASTNodeType::ARGUMENT_LIST:         return "<ARGUMENT_LIST>";
+        case ASTNodeType::FUNCTION_CALL:         return "<FUNCTION_CALL>";
+        case ASTNodeType::RETURN_STMT:           return "<RETURN_STMT>";
+        case ASTNodeType::IF_STATEMENT:          return "<IF_STATEMENT>";
+        case ASTNodeType::ELSE_BRANCH:           return "<ELSE_BRANCH>";
+        case ASTNodeType::ASSIGNMENT:            return "<ASSIGNMENT>";
+        case ASTNodeType::OBJECT:                return "<OBJECT>";
+        case ASTNodeType::CONSTRUCT_CALL:        return "<CONSTRUCT_CALL>";
+        case ASTNodeType::EXPRESSION_VALUE:      return "<EXPRESSION_VALUE>";
+        case ASTNodeType::EXPRESSION_PREOP:      return "<EXPRESSION_PREOP>";
+        case ASTNodeType::EXPRESSION_POSTOP:     return "<EXPRESSION_POSTOP>";
+        default:                                 return "<please add the missing node(s)>";
     }
 }
 
-std::string ScriptNode::getStrRepr() const {
+std::string ASTNode::getStrRepr() const {
     std::ostringstream oss;
-    std::stack<std::pair<const ScriptNode &, int>> stack;
+    std::stack<std::pair<const ASTNode &, int>> stack;
     stack.push({*this, 0});
 
     while (!stack.empty()) {
@@ -55,13 +60,13 @@ std::string ScriptNode::getStrRepr() const {
     return oss.str();
 }
 
-void ScriptNode::setPos(const Token &tok) {
+void ASTNode::setPos(const Token &tok) {
     line = tok.line;
     col = tok.col;
     colEnd = col + tok.getLength();
 }
 
-void ScriptNode::updatePos() {
+void ASTNode::updatePos() {
     if (!token_)
         return;
 
@@ -70,7 +75,7 @@ void ScriptNode::updatePos() {
     colEnd = col + token_->getLength();
 }
 
-void ScriptNode::addChild(const ScriptNode &child) {
+void ASTNode::addChild(const ASTNode &child) {
     // Update the node's position according to the added child
     if (children_.empty()) {
         // First child added

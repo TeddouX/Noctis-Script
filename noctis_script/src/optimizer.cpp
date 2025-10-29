@@ -15,8 +15,6 @@ std::vector<Byte> Optimizer::optimizeAll() {
         changed = false;
         
         for (size_t i = 0; i < res.size();) {
-            size_t oldInstrIdx = i;
-            
             for (auto &optimizationRule : rules_) {
                 if (optimizationRule.rule(res, i)) {
                     changed = true;
@@ -67,16 +65,16 @@ bool Optimizer::constantFolding(std::vector<Byte> &bc, size_t &idx) {
     TRY_READ_INSTR(first, Instruction::PUSH);
 
     size_t readSize = 0;
-    Value b = Value::fromBytes(bc, end, readSize);
-    if (!isPrimitive(b.type()))
+    Value a = Value::fromBytes(bc, end, readSize);
+    if (!isPrimitive(a.ty))
         return false;
     end += readSize;
 
     TRY_READ_INSTR(second, Instruction::PUSH);
 
     readSize = 0;
-    Value a = Value::fromBytes(bc, end, readSize);
-    if (!isPrimitive(a.type()))
+    Value b = Value::fromBytes(bc, end, readSize);
+    if (!isPrimitive(b.ty))
         return false;
     end += readSize;
 
@@ -85,7 +83,7 @@ bool Optimizer::constantFolding(std::vector<Byte> &bc, size_t &idx) {
     Value res;
     switch (op) {
         // Regular binops
-        case Instruction::ADD:   res = a + b;  break;
+        case Instruction::ADD:   res = a +  b;  break;
         case Instruction::SUB:   res = a -  b; break;
         case Instruction::MUL:   res = a *  b; break;
         case Instruction::DIV:   res = a /  b; break;
@@ -102,39 +100,6 @@ bool Optimizer::constantFolding(std::vector<Byte> &bc, size_t &idx) {
     bytes.resize(sizeof(Instruction) + res.getSize());
     bytes[0] = static_cast<Byte>(Instruction::PUSH);
     res.getBytes(bytes, sizeof(Instruction));
-
-    bc.insert(bc.begin() + end, bytes.begin(), bytes.end());
-    bc.erase(bc.begin() + begin, bc.begin() + end);
-
-    idx += end - begin;
-
-    return true;
-}
-
-bool Optimizer::collapseLoadPopSetObjToStore(std::vector<Byte> &bc, size_t &idx) {
-    size_t begin = idx;
-    size_t end = begin;
-
-    bool global;
-    auto a = toInstruction(bc[idx]); 
-    if (a == Instruction::LOADGLOBAL)
-        global = true;
-    else if (a == Instruction::LOADLOCAL)
-        global = false;
-    else
-        return false;
-
-    end += sizeof(Instruction);
-    DWord idxOperand = readWord<DWord>(bc, end);
-    end += sizeof(DWord);
-
-    TRY_READ_INSTR(b, Instruction::POP);
-    TRY_READ_INSTR(c, Instruction::SETOBJ);
-
-    std::vector<Byte> bytes;
-    bytes.resize(sizeof(Instruction) + sizeof(DWord));
-    bytes[0] = static_cast<Byte>(global ? Instruction::STOREGLOBAL : Instruction::STORELOCAL);
-    makeBytes(idxOperand, bytes, sizeof(Instruction));
 
     bc.insert(bc.begin() + end, bytes.begin(), bytes.end());
     bc.erase(bc.begin() + begin, bc.begin() + end);

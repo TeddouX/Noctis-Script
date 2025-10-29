@@ -119,6 +119,10 @@ std::string valueTypeToString(ValueType vtype) {
         default: break;
     }
 
+    if ((DWord)vtype & (DWord)ValueType::OBJ_MASK) {
+        return "Object";
+    }
+
     return "unknown";
 }
 

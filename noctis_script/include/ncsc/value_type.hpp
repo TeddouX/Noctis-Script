@@ -7,7 +7,7 @@
 
 namespace NCSC
 {
-    
+
 enum class ValueType : DWord {
     INVALID,
 
@@ -27,6 +27,9 @@ enum class ValueType : DWord {
     FLOAT64,
 
     BOOL,
+
+    REF_MASK = 1 << 29,
+    OBJ_MASK = 1 << 30,
 };
 
 ValueType NCSC_API valueTypeFromTok(const Token &tok);
@@ -53,10 +56,25 @@ inline ValueType valueTypeFromLiteral(const T&) {
     return valueTypeFromCPPType<T>();
 }
 
-bool      NCSC_API isInt(ValueType ty);
-bool      NCSC_API isFloat(ValueType ty);
-bool      NCSC_API isUnsigned(ValueType ty);
-bool      NCSC_API isPrimitive(ValueType ty);
+bool NCSC_API isInt(ValueType ty);
+bool NCSC_API isFloat(ValueType ty);
+bool NCSC_API isUnsigned(ValueType ty);
+bool NCSC_API isPrimitive(ValueType ty);
+inline bool isNumeric(ValueType ty) {
+    return isInt(ty) || isFloat(ty);
+}
+
+inline bool hasMask(ValueType in, ValueType mask) {
+    return (DWord)in & (DWord)mask;
+}
+
+inline ValueType clearMask(ValueType in, ValueType mask) {
+    return static_cast<ValueType>((DWord)in & ~(DWord)mask);
+}
+
+inline ValueType setMask(ValueType in, ValueType mask) {
+    return static_cast<ValueType>((DWord)in | (DWord)mask);
+}
 
 inline constexpr size_t getValueTypeSize(ValueType ty) {
     switch (ty) {
@@ -81,7 +99,7 @@ inline constexpr size_t getValueTypeSize(ValueType ty) {
         case ValueType::FLOAT32: return sizeof(float32_t);
         case ValueType::FLOAT64: return sizeof(float64_t);
 
-        default: return 0;
+        default: return SIZE_MAX;
     }
 }
 

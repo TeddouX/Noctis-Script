@@ -117,7 +117,7 @@ std::unique_ptr<Token> Lexer::getCurrent() {
         advance(len);
 
         if (hasPoint && !hasDigits)
-            return createToken(TokenType::POINT);
+            return createToken(TokenType::DOT);
 
         if (hasPoint) {
             // .1 -> 0.1
@@ -162,8 +162,20 @@ std::unique_ptr<Token> Lexer::getCurrent() {
 
     switch (currChar) {
         case '=': return matchOptional('=', TokenType::EQUAL, TokenType::DOUBLE_EQUAL);
-        case '+': return matchOptional('=', TokenType::PLUS,  TokenType::PLUS_EQUAL);
-        case '-': return matchOptional('=', TokenType::MINUS, TokenType::MINUS_EQUAL);
+        case '+':
+            advance();
+            switch (source_[currIdx_]) {
+                case '=': advance(); return createToken(TokenType::PLUS_EQUAL);
+                case '+': advance(); return createToken(TokenType::PLUS_PLUS);
+                default:             return createToken(TokenType::PLUS);
+            }
+        case '-':
+            advance();
+            switch (source_[currIdx_]) {
+                case '=': advance(); return createToken(TokenType::MINUS_EQUAL);
+                case '-': advance(); return createToken(TokenType::MINUS_MINUS);
+                default:             return createToken(TokenType::MINUS);
+            }
         case '/': return matchOptional('=', TokenType::SLASH, TokenType::SLASH_EQUAL);
         case '*': return matchOptional('=', TokenType::STAR,  TokenType::STAR_EQUAL);
     
@@ -192,7 +204,7 @@ std::unique_ptr<Token> Lexer::createToken(TokenType type, const std::string &val
 std::unique_ptr<Token> Lexer::matchOptional(char next, TokenType single, TokenType combined) {
     // Consume the first char
     advance();
-    if (currIdx_ < source_.length() && source_.at(currIdx_) == next) {
+    if (source_.at(currIdx_) == next) {
         advance();
         return createToken(combined);
     }

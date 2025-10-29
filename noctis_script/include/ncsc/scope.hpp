@@ -3,6 +3,7 @@
 #pragma once
 #include "ncsc.hpp"
 #include "value_type.hpp"
+#include "variable.hpp"
 
 #include <string>
 #include <vector>
@@ -14,17 +15,13 @@ struct NCSC_API Scope {
     Scope *parent = nullptr;
     bool hasReturned = false;
 
-    struct Var {
-        std::string name;
-        ValueType type;
-    };
-    std::vector<Var> localVariables;
+    std::vector<Variable> localVariables;
 
     void addLocalVar(const std::string &name, ValueType ty);
     bool hasLocalVar(const std::string &name);
-    Var *getLocalVar(const std::string &name);
-    DWord getLocalVarIdx(const std::string &name);
-    Var *getLocalVar(size_t idx);
+    Variable *getLocalVar(const std::string &name);
+    DWord     getLocalVarIdx(const std::string &name);
+    Variable *getLocalVar(size_t idx);
 };
 
 } // namespace NCSC
