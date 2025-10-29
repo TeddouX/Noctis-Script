@@ -281,9 +281,9 @@ void VM::executeNext() {
     }
 
     std::println("Stack: {}", getStackStrRepr());
-    std::println("Globals: {}", getStackString(globalVariables_));
-    std::println("Instr: {} SP: {}", INSTR_INFO.at(instr).first, sp_);
-    std::println();
+    // std::println("Globals: {}", getStackString(globalVariables_));
+    // std::println("Instr: {} SP: {}", INSTR_INFO.at(instr).first, sp_);
+    // std::println();
 
 #undef INSTR
 #undef END_INSTR

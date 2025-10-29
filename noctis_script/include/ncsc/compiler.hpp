@@ -126,8 +126,6 @@ private:
     void compileExpressionPreOp(const ASTNode &preOp, const ASTNode &operand, ValueType expectedTy);
     void compileExpressionValue(const ASTNode &exprVal, ValueType expectedTy);
     void compileExpressionPostOp(const ASTNode &postOp, const ASTNode &operand, ValueType expectedTy);
-    void compileIncrement(const ASTNode &inc, const ASTNode &operand, ValueType expectedTy);
-    void compileDecrement(const ASTNode &dec, const ASTNode &operand, ValueType expectedTy);
 
     ValueType getExpressionTermType(const ASTNode &exprTerm);
 

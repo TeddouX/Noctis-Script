@@ -147,7 +147,7 @@ void Compiler::exitScope() {
 void Compiler::finalizeBc() {
 #if NCSC_ALWAYS_OPTIMIZE
     Optimizer optimizer(tempCompiledBytecode_);
-    tempCompiledBytecode_ = optimizer.optimizeAll();
+    // tempCompiledBytecode_ = optimizer.optimizeAll();
 #endif
 
     resolveJumps();
@@ -582,11 +582,16 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
 
     const auto &exprValue = exprTerm.getChild(exprValueIdx);
 
+    // Pre-ops and post-ops will push the required value on the stack
+    // If an expression term has none (constant, ...), pushing the value is necessary
+    bool hasValOnStack = false;
+
     size_t childIdx = 0;
     for (const auto &child : exprTerm.getAllChildren()) {
         if (child.getType() == ASTNodeType::EXPRESSION_PREOP) {
             compileExpressionPreOp(child, exprValue, expectedType);
             childIdx++;
+            hasValOnStack = true;
         } else 
             break;
     }
@@ -602,10 +607,12 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
         else {
             compileExpressionPostOp(exprTerm.getChild(childIdx), exprValue, expectedType);
             childIdx++;
+            hasValOnStack = true;
         }
     }
 
-    compileExpressionValue(exprValue, expectedType);
+    if (!hasValOnStack)
+        compileExpressionValue(exprValue, expectedType);
 }
 
 void Compiler::compileStatementBlock(const ASTNode &stmtBlock) {
@@ -821,10 +828,11 @@ void Compiler::compileAssignment(const ASTNode &assignment, ValueType expectedTy
     // Load a reference to the variable
     compileExpressionTerm(exprTerm, setMask(expectedType, ValueType::REF_MASK));
 
-    TokenType opTokTy = assignment.getChild(1).getToken()->type;
-    // If its an =, the variable doesn't need to be on the stack for the expression
+    // Compile expression
     compileExpression(assignment.getChild(2), getExpressionTermType(exprTerm));
     
+    TokenType opTokTy = assignment.getChild(1).getToken()->type;
+    // If its an =, the variable doesn't need to be on the stack for the expression
     if (opTokTy != TokenType::EQUAL) {
         // We need two references on the stack, one for getting 
         // the value, one for setting it
@@ -847,8 +855,44 @@ void Compiler::compileExpressionPreOp(const ASTNode &preOp, const ASTNode &opera
 
     TokenType preopTy = preOp.getToken()->type;
     switch (preopTy) {
-        case TokenType::PLUS_PLUS:   compileIncrement(preOp, operand, expectedTy); break;
-        case TokenType::MINUS_MINUS: compileDecrement(preOp, operand, expectedTy); break;
+        case TokenType::PLUS_PLUS: {
+            if (!isNumeric(expectedTy)) {
+                createCompileError(EXPECTED_NUMERIC_TYPE.format(valueTypeToString(expectedTy)), operand);
+                return;
+            }
+
+            compileExpressionValue(operand, setMask(expectedTy, ValueType::REF_MASK));
+            // One reference for getting the value, one for setting it
+            emit(Instruction::DUP);
+            // Get the value of the operand
+            emit(Instruction::LOADREF);
+            // Increment it
+            emit(Instruction::INC);
+            // Set the value of the operand
+            emit(Instruction::SETREF);
+
+            // For a pre-inc, the updated value should be on the stack at the end of the operation
+            compileExpressionValue(operand, expectedTy);
+
+            break;
+        }
+        case TokenType::MINUS_MINUS: {
+            if (!isNumeric(expectedTy)) {
+                createCompileError(EXPECTED_NUMERIC_TYPE.format(valueTypeToString(expectedTy)), operand);
+                return;
+            }
+
+            compileExpressionValue(operand, setMask(expectedTy, ValueType::REF_MASK));
+            
+            emit(Instruction::DUP);
+            emit(Instruction::LOADREF);
+            emit(Instruction::DEC);
+            emit(Instruction::SETREF);
+            // Same reason as the pre-inc
+            compileExpressionValue(operand, expectedTy);
+
+            break;
+        }
 
         case TokenType::NOT: {
             if (expectedTy != ValueType::BOOL) {
@@ -862,6 +906,8 @@ void Compiler::compileExpressionPreOp(const ASTNode &preOp, const ASTNode &opera
             emit(Instruction::LOADREF);
             emit(Instruction::NOT);
             emit(Instruction::SETREF);
+
+            compileExpressionValue(operand, expectedTy);
 
             break;
         }
@@ -900,8 +946,37 @@ void Compiler::compileExpressionPostOp(const ASTNode &postOp, const ASTNode &ope
 
     TokenType postOpTy = postOp.getToken()->type;
     switch (postOpTy) {
-        case TokenType::PLUS_PLUS:   compileIncrement(postOp, operand, expectedTy); break;
-        case TokenType::MINUS_MINUS: compileDecrement(postOp, operand, expectedTy); break;
+        case TokenType::PLUS_PLUS: {
+            if (!isNumeric(expectedTy)) {
+                createCompileError(EXPECTED_NUMERIC_TYPE.format(valueTypeToString(expectedTy)), operand);
+                return;
+            }
+
+            // Here the last value on the stack is the value before the increment
+            compileExpressionValue(operand, expectedTy);
+            compileExpressionValue(operand, setMask(expectedTy, ValueType::REF_MASK));
+            emit(Instruction::DUP);
+            emit(Instruction::LOADREF);
+            emit(Instruction::INC);
+            emit(Instruction::SETREF);
+
+            break;
+        }
+        case TokenType::MINUS_MINUS: {
+            if (!isNumeric(expectedTy)) {
+                createCompileError(EXPECTED_NUMERIC_TYPE.format(valueTypeToString(expectedTy)), operand);
+                return;
+            }
+
+            compileExpressionValue(operand, expectedTy);
+            compileExpressionValue(operand, setMask(expectedTy, ValueType::REF_MASK));
+            emit(Instruction::DUP);
+            emit(Instruction::LOADREF);
+            emit(Instruction::DEC);
+            emit(Instruction::SETREF);
+
+            break;
+        }
 
         // Member access
         case TokenType::ID: {
@@ -945,37 +1020,6 @@ ValueType Compiler::getExpressionTermType(const ASTNode &exprTerm) {
     }
     // No expression value in the expression term
     return ValueType{};
-}
-
-void Compiler::compileIncrement(const ASTNode &inc, const ASTNode &operand, ValueType expectedTy) {
-    if (!isNumeric(expectedTy)) {
-        createCompileError(EXPECTED_NUMERIC_TYPE.format(valueTypeToString(expectedTy)), operand);
-        return;
-    }
-
-    compileExpressionValue(operand, setMask(expectedTy, ValueType::REF_MASK));
-    // One reference for getting the value, one for setting it
-    emit(Instruction::DUP);
-    // Get the value of the operand
-    emit(Instruction::LOADREF);
-    // Increment it
-    emit(Instruction::INC);
-    // Set the value of the operand
-    emit(Instruction::SETREF);
-}
-
-void Compiler::compileDecrement(const ASTNode &dec, const ASTNode &operand, ValueType expectedTy) {
-    if (!isNumeric(expectedTy)) {
-        createCompileError(EXPECTED_NUMERIC_TYPE, operand);
-        return;
-    }
-
-    compileExpressionValue(operand, setMask(expectedTy, ValueType::REF_MASK));
-
-    emit(Instruction::DUP);
-    emit(Instruction::LOADREF);
-    emit(Instruction::DEC);
-    emit(Instruction::SETREF);
 }
     
 } // namespace NCSC
