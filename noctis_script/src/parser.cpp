@@ -454,17 +454,16 @@ ASTNode Parser::parseStatement() {
 }
 
 ASTNode Parser::parseSimpleStatement() {
-    ASTNode node(ASTNodeType::SIMPLE_STATEMENT);
-
     Token t = peek(0);
     // Just a semicolon is alright
     if (t.type == TokenType::SEMICOLON) {
-        node.setPos(t);
+        // node.setPos(t);
         consume();
-        return node;
+        // Empty assignement
+        return ASTNode{ASTNodeType::ASSIGNMENT};
     }
 
-    node.addChild(parseAssignment(true));     CHECK_SYNTAX_ERROR;
+    ASTNode node = parseAssignment(true); CHECK_SYNTAX_ERROR;
 
     t = consume();
     if (t.type != TokenType::SEMICOLON)

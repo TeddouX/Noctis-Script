@@ -168,6 +168,17 @@ void VM::executeNext() {
 
             END_INSTR(1);
         }
+        INSTR(NOT): {
+            Value v = pop();
+            if (v.ty != ValueType::BOOL) {
+                error(std::string(CANT_INVERT_NON_BOOLEAN));
+                break;
+            }
+
+            push(Value{ .ty = ValueType::BOOL, .b = !v.b });
+
+            END_INSTR(1);
+        }
 
         INSTR(JMP): {
             ip = readWord<QWord>(bytecode, ip + 1);

@@ -13,9 +13,20 @@
 //}
 
 fun main() {
-    Int i = 1;
-    i++;
+    Int i = 0;
     Int a = ++i;
+    Int b = i++;
+
+    Bool boolean = i != 2;
+
+    i++;
+
+    if (!boolean) {
+        printHello(0);
+    } else {
+        printHello(1);
+    }
+
     //Vec2 b = new Vec2(1, 2);
 
 //    if (a < 1) {

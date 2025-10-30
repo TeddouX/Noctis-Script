@@ -59,7 +59,10 @@ bool isPrimitive(ValueType ty) {
 bool canPromoteType(ValueType from, ValueType to) {
     int rankFrom = getRank(from);
     int rankTo = getRank(from);
-    return rankFrom != 1 && rankTo != 1 && getRank(from) <= getRank(to);
+
+    return clearMask(to, ValueType::REF_MASK) == ValueType::VOID // Any type can convert to void 
+        || rankFrom != -1 && rankTo != -1 
+        && (getRank(from) <= getRank(to));
 }
 
 ValueType promoteType(ValueType from, ValueType to) {

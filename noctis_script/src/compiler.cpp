@@ -14,7 +14,7 @@ namespace NCSC
 {
 
 template <typename T>
-static constexpr T getInstrOperand(const std::vector<Byte>& bc, size_t& i) {
+static T getInstrOperand(const std::vector<Byte>& bc, size_t& i) {
     T val = readWord<T>(bc, i);
     i += sizeof(T);
     return val;
@@ -696,6 +696,8 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
 
     if (!hasValOnStack)
         compileExpressionValue(exprValue, expectedType);
+    else if (hasValOnStack && clearMask(expectedType, ValueType::REF_MASK) == ValueType::VOID)
+        emit(Instruction::POP);
 }
 
 void Compiler::compileStatementBlock(const ASTNode &stmtBlock) {
@@ -711,9 +713,8 @@ void Compiler::compileStatementBlock(const ASTNode &stmtBlock) {
             case ASTNodeType::VARIABLE_DECLARATION:
                 compileVariableDeclaration(stmt, false);
                 break;
-            case ASTNodeType::SIMPLE_STATEMENT:
-                if (stmt.hasChildren())
-                    compileAssignment(stmt.getChild(0), ValueType::INVALID);
+            case ASTNodeType::ASSIGNMENT:
+                compileAssignment(stmt);
                 break;
             case ASTNodeType::RETURN_STMT:
                 compileReturn(stmt);
@@ -906,9 +907,12 @@ void Compiler::compileJmpBcPatch(size_t patchLoc, Instruction jmpInstr, size_t j
 void Compiler::compileAssignment(const ASTNode &assignment, ValueType expectedType) {
     assert(assignment.getType() == ASTNodeType::ASSIGNMENT);
 
+    if (assignment.getNumChildren() == 0)
+        return;
+
     // A simple statement like a function call
     if (assignment.getNumChildren() == 1) {
-        compileExpressionTerm(assignment.getChild(0));
+        compileExpressionTerm(assignment.getChild(0), ValueType::VOID);
         return;
     }
 
@@ -995,14 +999,8 @@ void Compiler::compileExpressionPreOp(const ASTNode &preOp, const ASTNode &opera
                 return;
             }
 
-            compileExpressionValue(operand, setMask(expectedTy, ValueType::REF_MASK));
-            
-            emit(Instruction::DUP);
-            emit(Instruction::LOADREF);
-            emit(Instruction::NOT);
-            emit(Instruction::SETREF);
-
             compileExpressionValue(operand, expectedTy);
+            emit(Instruction::NOT);
 
             break;
         }
@@ -1071,7 +1069,7 @@ void Compiler::compileExpressionValue(const ASTNode &exprVal, ValueType expected
         compileConstantPush(firstChild, expectedTy);
     else if (isFnCall)
         // Expect a return only if the expected type isn't void
-        compileFunctionCall(firstChild, expectedTy != ValueType::VOID);
+        compileFunctionCall(firstChild, clearMask(expectedTy, ValueType::REF_MASK) != ValueType::VOID);
     else if (firstChild.getType() == ASTNodeType::IDENTIFIER)
         compileVariableAccess(firstChild, expectedTy);
     else if (firstChild.getType() == ASTNodeType::CONSTRUCT_CALL)

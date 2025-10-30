@@ -20,7 +20,6 @@ static std::string getNodeTypeStrRepr(ASTNodeType type) {
         case ASTNodeType::PARAMETER_LIST:        return "<PARAMETER_LIST>";
         case ASTNodeType::FUNCTION:              return "<FUNCTION>";
         case ASTNodeType::STATEMENT_BLOCK:       return "<STATEMENT_BLOCK>";
-        case ASTNodeType::SIMPLE_STATEMENT:      return "<SIMPLE_STATEMENT>";
         case ASTNodeType::TOKEN:                 return "<TOKEN>";
         case ASTNodeType::ARGUMENT_LIST:         return "<ARGUMENT_LIST>";
         case ASTNodeType::FUNCTION_CALL:         return "<FUNCTION_CALL>";
