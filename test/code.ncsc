@@ -17,14 +17,14 @@ fun main() {
     Int a = ++i;
     Int b = i++;
 
-    Bool boolean = i != 2;
+    Bool boolean = i != 3;
 
     i++;
 
     if (!boolean) {
         printHello(0);
     } else {
-        printHello(1);
+        printHello(i);
     }
 
     //Vec2 b = new Vec2(1, 2);

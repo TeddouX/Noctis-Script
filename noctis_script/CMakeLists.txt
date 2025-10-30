@@ -38,6 +38,7 @@ set(NCSC_SOURCES
     "src/lexer.cpp"
     "src/optimizer.cpp"
     "src/parser.cpp"
+    "src/scope.cpp"
     "src/script_context.cpp"
     "src/script_node.cpp"
     "src/script_source.cpp"

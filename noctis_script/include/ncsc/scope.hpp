@@ -17,7 +17,11 @@ struct NCSC_API Scope {
 
     std::vector<Variable> localVariables;
 
-    GETTERS_SETTERS_FOR_NAMED_VECTOR(LocalVar, localVariables, Variable)
+    void addLocalVar(const Variable &var) { localVariables.push_back(var); }
+    bool hasLocalVar(const std::string &name) { return getLocalVar(name) != nullptr; }
+    Variable *getLocalVar(const std::string &name);
+    Variable *getLocalVar(size_t idx);
+    DWord getLocalVarIdx(const std::string &name);
 };
 
 } // namespace NCSC
