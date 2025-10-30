@@ -26,29 +26,14 @@ public:
     std::shared_ptr<ScriptContext> ctx;
     DWord numGlobalVariables;
     
-    void                               addFunction(const ScriptFunction &fun) { functions_.push_back(fun); }
-    const ScriptFunction              *getFunction(const std::string &name) const;
-    const ScriptFunction              *getFunction(DWord idx) const;
-    DWord                              getFunctionIdx(const std::string &name) const;
-    const std::vector<ScriptFunction> &getAllFunctions() const { return functions_; }
-    
-    bool                          hasGlobalVar(const std::string &name) { return getGlobalVarIdx(name) != NCSC_INVALID_IDX; }
-    void                          addGlovalVar(const GlobalVar& var) { globalVars_.push_back(var); numGlobalVariables++; }
-    GlobalVar                    *getGlobalVar(DWord idx);
-    DWord                         getGlobalVarIdx(const std::string &name) const;
-    const std::vector<GlobalVar> &getAllGlobalVars() const { return globalVars_; }
-
-    bool                             hasObject(const std::string &name) { return getObjectIdx(name) != NCSC_INVALID_IDX; }
-    void                             addObject(const ScriptObject &obj) { objects_.push_back(obj); }
-    const ScriptObject              *getObject(const std::string &name) const;
-    const ScriptObject              *getObject(DWord idx) const;
-    DWord                            getObjectIdx(const std::string &name) const;
-    const std::vector<ScriptObject> &getAllObjects() const { return objects_; }
+    GETTERS_SETTERS_FOR_NAMED_VECTOR(Function, functions_, ScriptFunction)
+    GETTERS_SETTERS_FOR_NAMED_VECTOR(GlobalVariable, globalVars_, GlobalVar)
+    GETTERS_SETTERS_FOR_NAMED_VECTOR(Object, objects_, ScriptObject)
 
 private:
     std::vector<ScriptFunction> functions_;
-    std::vector<ScriptObject>   objects_;
     std::vector<GlobalVar>      globalVars_;
+    std::vector<ScriptObject>   objects_;
 };
 
 } // namespace NCSC

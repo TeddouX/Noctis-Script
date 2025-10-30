@@ -32,12 +32,15 @@
 #include <cstring>
 #include <type_traits>
 #include <vector>
+#include <string>
+
+#if defined(_MSC_VER)
+    // Disable warning from using STD library 
+    // member variables in classes    
+    #pragma warning(disable : 4251)
+#endif
 
 #if defined(_WIN32) || defined(_WIN64)
-    // Disable warning from using STD library 
-    // member variables in classes
-    #pragma warning(disable : 4251)
-    
     #ifdef NCSC_BUILD
         #define NCSC_API __declspec(dllexport)
     #else
@@ -66,6 +69,7 @@ constexpr DWord NCSC_INVALID_IDX = -1;
 typedef double float64_t;
 typedef float  float32_t;
 
+
 template <typename T>
 inline T readWord(const std::vector<Byte> &bytes, size_t idx) {
     assert(idx + sizeof(T) <= bytes.size());
@@ -79,10 +83,50 @@ inline T readWord(const std::vector<Byte> &bytes, size_t idx) {
 }
 
 template <typename T>
-requires std::is_trivially_copyable_v<T>
+requires(std::is_trivially_copyable_v<T>)
 inline void makeBytes(const T &val, std::vector<Byte> &bytes, size_t off = 0) {
     assert(sizeof(T) + off <= bytes.size());
     std::memcpy(bytes.data() + off, &val, sizeof(T));
+}
+
+
+#define GETTERS_SETTERS_FOR_NAMED_VECTOR(name, vec, ty)                                             \
+    bool has##name(const std::string &name) { return get##name##Idx(name) != NCSC_INVALID_IDX; }    \
+    void add##name(const ty& name) { vec.push_back(name); }                                         \
+    ty *get##name(DWord idx) {                                                                      \
+        if (idx > vec.size())                                                                       \
+            return nullptr;                                                                         \
+        return &vec[idx];                                                                           \
+    }                                                                                               \
+    ty *get##name(const std::string &name) { return findNamed(vec, name); }                         \
+    DWord get##name##Idx(const std::string &name) const { return getNamedIndex(vec, name); }        \
+    std::vector<ty> &getAll##name##s() { return vec; }                                              \
+    DWord get##name##Count() const { return vec.size(); }                                           \
+
+
+// Satisfied by a type that contains a member named "name" 
+template <typename T>
+concept IsNamed = requires(T t) {
+    t.name;
+};
+
+template <typename T>
+requires(IsNamed<T>)
+T* findNamed(std::vector<T>& vec, const std::string& name) {
+    for (auto& v : vec)
+        if (v.name == name)
+            return &v;
+    return nullptr;
+}
+
+// Returs NCSC_INVALID_IDX if the search isn't conclusive
+template <typename T>
+requires(IsNamed<T>)
+DWord getNamedIndex(const std::vector<T>& vec, const std::string& name) {
+    for (size_t i = 0; i < vec.size(); ++i)
+        if (vec[i].name == name)
+            return static_cast<DWord>(i);
+    return NCSC_INVALID_IDX;
 }
 
 } // namespace NCSC

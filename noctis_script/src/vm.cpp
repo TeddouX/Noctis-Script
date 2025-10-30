@@ -162,7 +162,7 @@ void VM::executeNext() {
 
                 default: error(std::string(CANT_INC_OR_DEC_NON_NUM));
             }
-#undef CASE_INC
+#undef CASE_DEC
 
             push(a);
 
@@ -327,7 +327,7 @@ bool VM::computeGlobals() {
     }
 
     // Compute values for all global variables
-    for (const auto &global : script_->getAllGlobalVars()) {
+    for (const auto &global : script_->getAllGlobalVariables()) {
         CallFrame cf {
             .bytecode = &global.bytecode,
             .stackSize = global.requiredStackSize,

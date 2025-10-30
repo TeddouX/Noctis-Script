@@ -106,6 +106,27 @@ private:
         emit(bytes);
     }
 
+    struct SymbolSearchRes {
+        union {
+            const ScriptObject *obj;
+            const Function *fun;
+            const Variable *var;
+        };
+        DWord idx = NCSC_INVALID_IDX;
+        ValueType foundType = ValueType::INVALID;
+
+        enum {
+            INVALID,
+            FUNCTION,
+            METHOD,
+            GLOBAL_VAR,
+            LOCAL_VAR,
+            OBJECT,
+            MEMBER_VAR,
+        } ty;
+    };
+    SymbolSearchRes searchSymbol(const std::string &name, ScriptObject *obj = nullptr);
+
     void compileFunction(const ASTNode &funcDecl);
     void compileObject(const ASTNode &obj);
     void compileVariableDeclaration(const ASTNode &varDecl, bool global = false, bool member = false);
@@ -127,8 +148,6 @@ private:
     void compileExpressionValue(const ASTNode &exprVal, ValueType expectedTy);
     void compileExpressionPostOp(const ASTNode &postOp, const ASTNode &operand, ValueType expectedTy);
 
-    ValueType getExpressionTermType(const ASTNode &exprTerm);
-
     inline static ErrInfo CANT_FIND_FUNCTION_NAMED      { "Compilation error", "C", 0,  "Can't find function named '{}'" };
     inline static ErrInfo CANT_FIND_VAR_NAMED           { "Compilation error", "C", 1,  "Can't find variable named '{}'" };
     inline static ErrInfo FUNCTION_HAS_VOID_RET_TY      { "Compilation error", "C", 2,  "Function '{}' has a void return type, but it is still being used in an expression" };
@@ -142,10 +161,11 @@ private:
     inline static ErrInfo NUMBER_IS_TOO_SMALL_FOR_TY    { "Compilation error", "C", 10, "Number '{}' is too small for an {}" };
     inline static ErrInfo VAR_ALREADY_EXISTS            { "Compilation error", "C", 11, "Another variable with name '{}' already exists" };
     inline static ErrInfo FUNC_ALREADY_EXISTS           { "Compilation error", "C", 12, "Another function with name '{}' already exists" };
-    inline static ErrInfo TERM_SHOULD_BE_MODIFIABLE     { "Compilation error", "C", 13, "Expected a modifiable term" };
+    inline static ErrInfo EXP_MODIFIABLE_VALUE          { "Compilation error", "C", 13, "Expected a modifiable value" };
     inline static ErrInfo EXPECTED_AN_ID                { "Compilation error", "C", 14, "Expected an identifier" };
     inline static ErrInfo EXPECTED_NUMERIC_TYPE         { "Compilation error", "C", 15, "Expected a numeric type, instead got {}" };
     inline static ErrInfo EXPECTED_A_BOOLEAN            { "Compilation error", "C", 16, "Expected a boolean, instead got {}" };
+    inline static ErrInfo S_IS_NOT_A_VAR                { "Compilation error", "C", 17, "{} is not a variable" };
 };
 
 } // namespace NCSC

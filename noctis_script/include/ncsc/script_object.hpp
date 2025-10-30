@@ -12,11 +12,19 @@ struct MemberVariable : public Variable {
     bool isPublic = false;
 };
 
-struct ScriptObject {
-    std::string name;
-    std::vector<ScriptFunction> functions;
-    std::vector<MemberVariable> members;
+class ScriptObject {
+public:
+    ScriptObject() = default;
+    
     DWord numMembers;
+    std::string name;
+
+    GETTERS_SETTERS_FOR_NAMED_VECTOR(Method, methods_, ScriptFunction)
+    GETTERS_SETTERS_FOR_NAMED_VECTOR(Member, members_, MemberVariable)
+
+private:
+    std::vector<ScriptFunction> methods_;
+    std::vector<MemberVariable> members_;
 };
 
 } // namespace NCSC

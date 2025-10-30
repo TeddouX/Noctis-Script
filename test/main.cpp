@@ -61,7 +61,7 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    for (const auto &var : script->getAllGlobalVars())
+    for (const auto &var : script->getAllGlobalVariables())
         std::println("global {}:\n{}", var.name, NCSC::Compiler::disassemble(var.bytecode));
     
     for (const auto &fun : script->getAllFunctions())
