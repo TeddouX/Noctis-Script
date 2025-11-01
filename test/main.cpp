@@ -9,6 +9,11 @@
 #include <fstream>
 #include <chrono>
 
+#ifdef _WIN32
+    #include <windows.h>
+    #include <clocale>
+#endif
+
 void printHello(int i) {
     std::println("Hello from CPP! {}", i);
 }
@@ -66,6 +71,23 @@ int main() {
     
     for (const auto &fun : script->getAllFunctions())
         std::println("fun {}:\n{}", fun.name, NCSC::Compiler::disassemble(fun.bytecode));
+
+    for (auto &obj : script->getAllObjects()) {
+        for (const auto &method : obj.getAllMethods()) {
+            std::string argsStr;
+            for (auto ty : method.paramTypes)
+                argsStr += NCSC::valueTypeToString(ty) + ", ";
+
+            std::println("{} method {} {}({}), reqStackSize: {}, numLocals: {}:\n{}", 
+                method.isPublic ? "public" : "private", 
+                NCSC::valueTypeToString(method.returnTy),
+                method.name,
+                argsStr,
+                method.requiredStackSize,
+                method.numLocals,
+                NCSC::Compiler::disassemble(method.bytecode));
+        }
+    }
 
     const NCSC::ScriptFunction *fun = script->getFunction("main");
     if (fun) {

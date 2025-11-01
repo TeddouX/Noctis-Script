@@ -85,31 +85,27 @@ std::unique_ptr<Script> Compiler::compileScript(const ASTNode &root) {
 
     currScript_ = script.get();
 
-    for (const auto &node : root.getAllChildren()) {
-        switch (node.getType()) {
+    for (const auto &node : root.children()) {
+        switch (node.type()) {
             case ASTNodeType::FUNCTION:
                 enterNewScope();
                 compileFunction(node);
-                exitScope();
-
                 scopes_.clear();
+
                 break;
 
             case ASTNodeType::VARIABLE_DECLARATION: {
-                enterNewScope();
                 compileVariableDeclaration(node, true);
-                exitScope();
 
                 emit(Instruction::RETVOID);
 
-                finalizeBc();
+                finalizeBc(tempCompiledBytecode_);
 
                 GlobalVar *gv = currScript_->getGlobalVariable(currScript_->numGlobalVariables - 1); 
                 gv->bytecode = tempCompiledBytecode_;
-                gv->requiredStackSize = computeRequiredStackSize();
+                gv->requiredStackSize = computeRequiredStackSize(tempCompiledBytecode_);
 
                 tempCompiledBytecode_.clear();
-                scopes_.clear();
 
                 break;
             }
@@ -144,13 +140,12 @@ void Compiler::exitScope() {
     }
 }
 
-void Compiler::finalizeBc() {
+void Compiler::finalizeBc(std::vector<Byte> &bc) {
 #if NCSC_ALWAYS_OPTIMIZE
-    Optimizer optimizer(tempCompiledBytecode_);
-    // tempCompiledBytecode_ = optimizer.optimizeAll();
+    Optimizer::optimize(tempCompiledBytecode_);
 #endif
 
-    resolveJumps();
+    resolveJumps(bc);
 }
 
 
@@ -210,44 +205,67 @@ void Compiler::patchBytecode(size_t location, Instruction instr, const std::vect
         tempBytes.end());
 }
 
-void Compiler::compileFunction(const ASTNode &funcDecl) {
-    assert(funcDecl.getType() == ASTNodeType::FUNCTION);
+void Compiler::compileFunction(const ASTNode &funcDecl, bool method) {
+    assert(funcDecl.type() == ASTNodeType::FUNCTION);
 
-    std::string funcDeclName = funcDecl.getChild(1).getToken()->val;
-    if (currScript_->getFunction(funcDeclName)) {
-        createCompileError(FUNC_ALREADY_EXISTS.format(funcDeclName), funcDecl.getChild(1));
+    const auto &firstChild = funcDecl.child(0);
+    size_t reTyNodeIdx = 0;
+    // Access modifier for a member variable
+    if (method && firstChild.type() == ASTNodeType::TOKEN)
+        reTyNodeIdx = 1;
+
+    std::string funcDeclName = funcDecl.child(reTyNodeIdx + 1).token()->val;
+    if ((method && currObject_->getMethod(funcDeclName)) || currScript_->getFunction(funcDeclName)) {
+        createCompileError(FUNC_ALREADY_EXISTS.format(funcDeclName), funcDecl.child(1));
         return;
     }
 
-    ScriptFunction fun;
-    currFunction_ = &fun;
+    if (method) {
+        Method me;
+        me.isPublic = firstChild.token() && 
+                      firstChild.token()->type == TokenType::PUBLIC_KWD;
+        
+        me.numParams = 1;
+
+        Variable thisVar;
+        thisVar.name = "this";
+        thisVar.type = currObject_->type;
+        currScope_->addLocalVar(thisVar);
+
+        currFunction_ = &me;
+    } else {
+        ScriptFunction fun;
+        fun.numParams = 0;
+
+        currFunction_ = &fun;
+    }
     
-    ASTNode retType = funcDecl.getChild(0); 
-    if (retType.getType() == ASTNodeType::DATA_TYPE)
-        currFunction_->returnTy = valueTypeFromTok(*retType.getToken());
+    ASTNode retType = funcDecl.child(reTyNodeIdx); 
+    if (retType.type() == ASTNodeType::DATA_TYPE)
+        currFunction_->returnTy = valueTypeFromTok(*retType.token());
     else
         currFunction_->returnTy = ValueType::VOID;
     
     currFunction_->name = funcDeclName;
 
-    ASTNode paramsNode = funcDecl.getChild(2);
-    currFunction_->numParams = paramsNode.getNumChildren() / 2;
+    ASTNode paramsNode = funcDecl.child(reTyNodeIdx + 2);
+    currFunction_->numParams += paramsNode.numChildren() / 2;
     currFunction_->numLocals = currFunction_->numParams;
-    for (int i = 0; i < paramsNode.getNumChildren(); i++) {
-        ValueType ty = valueTypeFromTok(*paramsNode.getChild(i).getToken());
+    for (int i = 0; i < paramsNode.numChildren(); i++) {
+        ValueType ty = valueTypeFromTok(*paramsNode.child(i).token());
         
         // Arguments are treated as local variables
         Variable v;
-        v.name = paramsNode.getChild(++i).getToken()->val;
+        v.name = paramsNode.child(++i).token()->val;
         v.type = ty;
         currScope_->addLocalVar(v);
         currFunction_->paramTypes.push_back(ty);   
     }
 
-    const ASTNode& statementBlock = funcDecl.getLastChild();
+    const ASTNode& statementBlock = funcDecl.lastChild();
     compileStatementBlock(statementBlock);
 
-    currFunction_->numLocals += computeMaxLocals(&scopes_.back());
+    currFunction_->numLocals += computeMaxLocals(&scopes_.back()) - currFunction_->numParams;
 
     if (!hasErrors()) {
         // For void functions, add a return at the end if none currently exists
@@ -256,27 +274,30 @@ void Compiler::compileFunction(const ASTNode &funcDecl) {
         }
         // For non void functions, error if there is no return at the end
         else if (currFunction_->returnTy != ValueType::VOID && !currScope_->hasReturned) {
-            createCompileError(FUNCTION_SHOULD_RET_VAL.format(currFunction_->name), statementBlock.getLastChild());
+            createCompileError(FUNCTION_SHOULD_RET_VAL.format(currFunction_->name), statementBlock.lastChild());
             return;
         }
 
-        finalizeBc();
+        finalizeBc(tempCompiledBytecode_);
 
-        currFunction_->requiredStackSize = computeRequiredStackSize();
+        currFunction_->requiredStackSize = computeRequiredStackSize(tempCompiledBytecode_);
         currFunction_->bytecode = tempCompiledBytecode_;
         tempCompiledBytecode_.clear();
     }
 
-    currScript_->addFunction(fun);
+    if (method) 
+        currObject_->addMethod(*static_cast<Method *>(currFunction_));
+    else
+        currScript_->addFunction(*currFunction_);
 
     currFunction_ = nullptr;
 }
 
-size_t Compiler::computeRequiredStackSize() {
+size_t Compiler::computeRequiredStackSize(std::vector<Byte> &bc) {
     size_t maxSize = 0;
     size_t currSize = 0;
-    for (size_t i = 0; i < tempCompiledBytecode_.size();) {
-        Instruction instr = static_cast<Instruction>(tempCompiledBytecode_[i]);
+    for (size_t i = 0; i < bc.size();) {
+        Instruction instr = static_cast<Instruction>(bc[i]);
 
         switch (instr) {
             case Instruction::LOADLOCAL: 
@@ -303,7 +324,7 @@ size_t Compiler::computeRequiredStackSize() {
                 break;
 
             case Instruction::CALLSCRFUN: {
-                DWord idx = readWord<DWord>(tempCompiledBytecode_, i + 1);
+                DWord idx = readWord<DWord>(bc, i + 1);
                 const ScriptFunction *scrFun = currScript_->getFunction(idx);
                 currSize -= scrFun->numParams;
 
@@ -311,7 +332,7 @@ size_t Compiler::computeRequiredStackSize() {
             }
 
             case Instruction::CLGLBLCPPFUN: {
-                DWord idx = readWord<DWord>(tempCompiledBytecode_, i + 1);
+                DWord idx = readWord<DWord>(bc, i + 1);
                 const auto *fun = ctx_->getGlobalFunction(idx);
                 currSize -= fun->numParams;
 
@@ -321,7 +342,7 @@ size_t Compiler::computeRequiredStackSize() {
             default: break;
         }
 
-        i += getInstructionSize(tempCompiledBytecode_, i);
+        i += getInstructionSize(bc, i);
     }
 
     return maxSize;
@@ -333,16 +354,16 @@ size_t Compiler::computeMaxLocals(const Scope *scope) {
     return std::max(scope->localVariables.size(), computeMaxLocals(scope->parent));
 }
 
-void Compiler::resolveJumps() {
+void Compiler::resolveJumps(std::vector<Byte> &bc) {
     std::unordered_map<QWord, size_t> jmpLocations;
 
     for (QWord i = 0; i < tempCompiledBytecode_.size();) {
-        Instruction instr = static_cast<Instruction>(tempCompiledBytecode_[i]);
+        Instruction instr = static_cast<Instruction>(bc[i]);
         
         switch (instr) {
             case Instruction::JMP:
             case Instruction::JMPFALSE: {
-                QWord jmpLabelNum = readWord<QWord>(tempCompiledBytecode_, i + sizeof(Instruction));
+                QWord jmpLabelNum = readWord<QWord>(bc, i + sizeof(Instruction));
                 jmpLocations.emplace(jmpLabelNum, i);
 
                 i += sizeof(QWord) + sizeof(Instruction);
@@ -350,26 +371,24 @@ void Compiler::resolveJumps() {
             }
 
             case Instruction::LABEL: {
-                QWord labelNum = readWord<QWord>(tempCompiledBytecode_, i + sizeof(Instruction));
+                QWord labelNum = readWord<QWord>(bc, i + sizeof(Instruction));
                 size_t jmpIdx = jmpLocations.at(labelNum);
-                Instruction jmpTy = static_cast<Instruction>(readWord<Byte>(tempCompiledBytecode_, jmpIdx));
+                Instruction jmpTy = static_cast<Instruction>(readWord<Byte>(bc, jmpIdx));
                 size_t operandIdx = jmpIdx + sizeof(Instruction);
 
                 std::vector<Byte> operandBytes(sizeof(QWord), 0);
                 makeBytes(i, operandBytes, 0);
 
                 // Patch the jump to point to the current idx 
-                std::copy(operandBytes.begin(), operandBytes.end(), tempCompiledBytecode_.begin() + operandIdx);
+                std::copy(operandBytes.begin(), operandBytes.end(), bc.begin() + operandIdx);
                 // Remove the LABEL instruction
                 constexpr size_t instrSize = sizeof(Instruction) + sizeof(QWord);
-                tempCompiledBytecode_.erase(
-                    tempCompiledBytecode_.begin() + i, 
-                    tempCompiledBytecode_.begin() + i + instrSize);
+                bc.erase(bc.begin() + i, bc.begin() + i + instrSize);
                 break;
             }
 
             default:
-                i += getInstructionSize(tempCompiledBytecode_, i);
+                i += getInstructionSize(bc, i);
                 break;
         }
     }
@@ -390,6 +409,31 @@ Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, Script
         }
     }
 
+    // Search for members or methods in the object
+    if (obj) {        
+        DWord memberIdx = obj->getMemberIdx(name);
+        if (memberIdx != NCSC_INVALID_IDX) {
+            const Variable *var = obj->getMember(memberIdx);
+            return SymbolSearchRes{
+                .var = var,
+                .idx = memberIdx,
+                .foundType = var->type,
+                .ty = SymbolSearchRes::MEMBER_VAR,
+            };
+        }
+
+        DWord methodIdx = obj->getMethodIdx(name);
+        if (methodIdx != NCSC_INVALID_IDX) {
+            const Function *method = obj->getMethod(methodIdx);
+            return SymbolSearchRes{
+                .fun = method,
+                .idx = methodIdx,
+                .foundType = method->returnTy,
+                .ty = SymbolSearchRes::METHOD,
+            };
+        } 
+    }
+
     // Script object or function
     if (currScript_) {
         DWord funIdx = currScript_->getFunctionIdx(name);
@@ -404,35 +448,34 @@ Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, Script
         }
 
         DWord scriptObjIdx = currScript_->getObjectIdx(name);
-        if (scriptObjIdx)
+        if (scriptObjIdx != NCSC_INVALID_IDX)
             return SymbolSearchRes{
                 .obj = currScript_->getObject(funIdx),
                 .idx = scriptObjIdx,
-                .ty = SymbolSearchRes::FUNCTION,
+                .ty = SymbolSearchRes::OBJECT,
             };
     }
 
-    // Search for members or methods in the object
-    if (obj) {
-        DWord memberIdx = obj->getMemberIdx(name);
+    if (currObject_) {        
+        DWord memberIdx = currObject_->getMemberIdx(name);
         if (memberIdx != NCSC_INVALID_IDX) {
-            const Variable *var = obj->getMember(memberIdx);
+            const Variable *var = currObject_->getMember(memberIdx);
             return SymbolSearchRes{
                 .var = var,
                 .idx = memberIdx,
                 .foundType = var->type,
-                .ty = SymbolSearchRes::FUNCTION,
+                .ty = SymbolSearchRes::MEMBER_VAR,
             };
         }
 
-        DWord methodIdx = obj->getMethodIdx(name);
+        DWord methodIdx = currObject_->getMethodIdx(name);
         if (methodIdx != NCSC_INVALID_IDX) {
-            const Function *method = obj->getMethod(methodIdx);
+            const Function *method = currObject_->getMethod(methodIdx);
             return SymbolSearchRes{
-                .fun = obj->getMethod(methodIdx),
+                .fun = method,
                 .idx = methodIdx,
                 .foundType = method->returnTy,
-                .ty = SymbolSearchRes::FUNCTION,
+                .ty = SymbolSearchRes::METHOD,
             };
         } 
     }
@@ -452,47 +495,78 @@ Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, Script
 }
 
 void Compiler::compileObject(const ASTNode &obj) {
-    assert(obj.getType() == ASTNodeType::OBJECT);
+    assert(obj.type() == ASTNodeType::OBJECT);
 
     ScriptObject scriptObj;
-    scriptObj.name = obj.getChild(0).getToken()->val;
-    // Member init function
-    scriptObj.addMethod(ScriptFunction{});   
+    scriptObj.name = obj.child(0).token()->val;
+    scriptObj.type = makeObjectType(currScript_->getObjectCount());
+
+    // Member init method
+    Method membInit;
+    membInit.name = "<membInit>";
+    membInit.returnTy = ValueType::VOID;
+    // 'this'
+    membInit.numLocals = 1;
+    membInit.paramTypes = { scriptObj.type };
+
+    scriptObj.addMethod(membInit);   
 
     currObject_ = &scriptObj;
 
-    for (const auto &child : obj.getAllChildren()) {
-        switch (child.getType()) {
+    for (const auto &child : obj.children()) {
+        switch (child.type()) {
             case ASTNodeType::VARIABLE_DECLARATION: {
-                enterNewScope();
                 // Compile variable declaration as a member variable
                 compileVariableDeclaration(child, false, true);
-                exitScope();
 
-                resolveJumps();
+                resolveJumps(tempCompiledBytecode_);
 
-                auto &membInitBc = scriptObj.getAllMethods().back().bytecode; 
+                auto &membInitBc = scriptObj.getMethod(0)->bytecode; 
                 membInitBc.insert(membInitBc.end(), tempCompiledBytecode_.begin(), tempCompiledBytecode_.end());
                 tempCompiledBytecode_.clear();
+
+                break;
             }
+
+            case ASTNodeType::FUNCTION:
+                enterNewScope();
+                compileFunction(child, true);
+                scopes_.clear();
+
+                break;
         }
     }
+
+    // Optimize the member init method's bytecode
+    Method &membInitt = *scriptObj.getMethod(0);
+
+    finalizeBc(membInitt.bytecode);
+    membInitt.requiredStackSize = computeRequiredStackSize(membInitt.bytecode);
+
+    currScript_->addObject(scriptObj);
 }
 
 void Compiler::compileVariableDeclaration(const ASTNode &varDecl, bool global, bool member) {
-    assert(varDecl.getType() == ASTNodeType::VARIABLE_DECLARATION);
+    assert(varDecl.type() == ASTNodeType::VARIABLE_DECLARATION);
 
-    const ASTNode &assignmentNode = varDecl.getChild(1); 
-    const auto &firstExprTerm = assignmentNode.getChild(0).getChild(0); 
-    if (firstExprTerm.getNumChildren() > 1 || firstExprTerm.getNumChildren() == 0) {
-        createCompileError(EXPECTED_AN_ID, firstExprTerm);
+    const auto &firstChild = varDecl.child(0);
+    size_t varTyNodeIdx = 0;
+    // Access modifier for a member variable
+    if (member && firstChild.type() == ASTNodeType::TOKEN)
+        varTyNodeIdx = 1;
+
+    const ASTNode &assignmentNode = varDecl.child(varTyNodeIdx + 1); 
+    const auto &varNameNode = assignmentNode.child(0).child(0);
+
+    if (varNameNode.numChildren() > 1 || varNameNode.numChildren() == 0) {
+        createCompileError(EXPECTED_AN_ID, varNameNode);
         return;
     }
 
-    const ASTNode &firstExprTermVal = firstExprTerm.getChild(0);
+    const ASTNode &varNameVal = varNameNode.child(0);
+    std::string varName = varNameVal.token()->val;
+    ValueType varType = valueTypeFromTok(*varDecl.child(varTyNodeIdx).token());
 
-    std::string varName = firstExprTermVal.getToken()->val;
-    ValueType varType = valueTypeFromTok(*varDecl.getChild(0).getToken());
     if (global) {
         GlobalVar gv;
         gv.name = varName;
@@ -504,6 +578,8 @@ void Compiler::compileVariableDeclaration(const ASTNode &varDecl, bool global, b
         MemberVariable mv;
         mv.name = varName;
         mv.type = varType;
+        mv.isPublic = firstChild.token() && 
+                      firstChild.token()->type == TokenType::PUBLIC_KWD;
 
         currObject_->addMember(mv);
         currObject_->numMembers++;
@@ -511,25 +587,25 @@ void Compiler::compileVariableDeclaration(const ASTNode &varDecl, bool global, b
         Variable v;
         v.name = varName;
         v.type = varType;
+
         currScope_->addLocalVar(v);
-        // currFunction_->numLocals++;
     }
 
     compileAssignment(assignmentNode, varType);
 }
 
 void Compiler::compileExpression(const ASTNode &expr, ValueType expectedType) {
-    assert(expr.getType() == ASTNodeType::EXPRESSION);
+    assert(expr.type() == ASTNodeType::EXPRESSION);
 
-    if (expr.getNumChildren() == 1 && expr.getChild(0).getType() == ASTNodeType::EXPRESSION_TERM) {
-        compileExpressionTerm(expr.getChild(0), expectedType);
+    if (expr.numChildren() == 1 && expr.child(0).type() == ASTNodeType::EXPRESSION_TERM) {
+        compileExpressionTerm(expr.child(0), expectedType);
         return;
     }
 
-    ASTNode rootOp = expr.getChild(0);
+    ASTNode rootOp = expr.child(0);
     // Comparison ops will always be at the top of the binary tree
     // so if any of those is present, the expression returns a boolean
-    TokenType rootOpTy = rootOp.getToken()->type;
+    TokenType rootOpTy = rootOp.token()->type;
     bool isComparisonOp = rootOpTy == TokenType::STRICTLY_SMALLER
        || rootOpTy == TokenType::SMALLER_EQUAL
        || rootOpTy == TokenType::STRICTLY_BIGGER
@@ -553,19 +629,19 @@ void Compiler::compileExpression(const ASTNode &expr, ValueType expectedType) {
 }
 
 void Compiler::recursivelyCompileExpression(const ASTNode &exprChild, ValueType expectedType) {
-    if (exprChild.getType() == ASTNodeType::BINOP) {
-        recursivelyCompileExpression(exprChild.getChild(1), expectedType);
-        recursivelyCompileExpression(exprChild.getChild(0), expectedType);
+    if (exprChild.type() == ASTNodeType::BINOP) {
+        recursivelyCompileExpression(exprChild.child(1), expectedType);
+        recursivelyCompileExpression(exprChild.child(0), expectedType);
         compileOperator(exprChild);
-    } else if (exprChild.getType() == ASTNodeType::EXPRESSION_TERM) {
+    } else if (exprChild.type() == ASTNodeType::EXPRESSION_TERM) {
         compileExpressionTerm(exprChild, expectedType);
     }
 }
 
 void Compiler::compileOperator(const ASTNode &binop) {
-    assert(binop.getType() == ASTNodeType::BINOP);
+    assert(binop.type() == ASTNodeType::BINOP);
 
-    switch (binop.getToken()->type) {
+    switch (binop.token()->type) {
         case TokenType::PLUS:             emit(Instruction::ADD);   return;
         case TokenType::MINUS:            emit(Instruction::SUB);   return;
         case TokenType::STAR:             emit(Instruction::MUL);   return;
@@ -583,10 +659,10 @@ void Compiler::compileOperator(const ASTNode &binop) {
 }
 
 void Compiler::compileConstantPush(const ASTNode &constant, ValueType expectedType) {
-    assert(constant.getType() == ASTNodeType::CONSTANT);
+    assert(constant.type() == ASTNodeType::CONSTANT);
 
-    TokenType constTokTy = constant.getToken()->type; 
-    const std::string &constTokVal = constant.getToken()->val;
+    TokenType constTokTy = constant.token()->type; 
+    const std::string &constTokVal = constant.token()->val;
     if (constTokTy == TokenType::FLOAT_CONSTANT) {
         switch(expectedType) {
             case ValueType::FLOAT32: {
@@ -649,11 +725,11 @@ void Compiler::compileConstantPush(const ASTNode &constant, ValueType expectedTy
 }
 
 void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expectedType) {
-    assert(exprTerm.getType() == ASTNodeType::EXPRESSION_TERM);
+    assert(exprTerm.type() == ASTNodeType::EXPRESSION_TERM);
 
     size_t exprValueIdx = SIZE_MAX;
-    for (size_t i = 0; i < exprTerm.getNumChildren(); i++) {
-        if (exprTerm.getChild(i).getType() == ASTNodeType::EXPRESSION_VALUE) {
+    for (size_t i = 0; i < exprTerm.numChildren(); i++) {
+        if (exprTerm.child(i).type() == ASTNodeType::EXPRESSION_VALUE) {
             exprValueIdx = i;
             break;
         }
@@ -663,15 +739,15 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
         // Parsing error
         return;
 
-    const auto &exprValue = exprTerm.getChild(exprValueIdx);
+    const auto &exprValue = exprTerm.child(exprValueIdx);
 
     // Pre-ops and post-ops will push the required value on the stack
     // If an expression term has none (constant, ...), pushing the value is necessary
     bool hasValOnStack = false;
 
     size_t childIdx = 0;
-    for (const auto &child : exprTerm.getAllChildren()) {
-        if (child.getType() == ASTNodeType::EXPRESSION_PREOP) {
+    for (const auto &child : exprTerm.children()) {
+        if (child.type() == ASTNodeType::EXPRESSION_PREOP) {
             compileExpressionPreOp(child, exprValue, expectedType);
             childIdx++;
             hasValOnStack = true;
@@ -679,16 +755,16 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
             break;
     }
 
-    if (exprTerm.getChild(childIdx).getType() != ASTNodeType::EXPRESSION_VALUE)
+    if (exprTerm.child(childIdx).type() != ASTNodeType::EXPRESSION_VALUE)
         // Error while parsing
         return;
     childIdx++;
 
     for (;;) {
-        if (childIdx >= exprTerm.getNumChildren())
+        if (childIdx >= exprTerm.numChildren())
             break;
         else {
-            compileExpressionPostOp(exprTerm.getChild(childIdx), exprValue, expectedType);
+            compileExpressionPostOp(exprTerm.child(childIdx), exprValue, expectedType);
             childIdx++;
             hasValOnStack = true;
         }
@@ -701,12 +777,12 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
 }
 
 void Compiler::compileStatementBlock(const ASTNode &stmtBlock) {
-    assert(stmtBlock.getType() == ASTNodeType::STATEMENT_BLOCK);
+    assert(stmtBlock.type() == ASTNodeType::STATEMENT_BLOCK);
 
-    for (const auto &stmt : stmtBlock.getAllChildren()) {
+    for (const auto &stmt : stmtBlock.children()) {
         if (currScope_->hasReturned) break;
 
-        switch (stmt.getType()) {
+        switch (stmt.type()) {
             case ASTNodeType::IF_STATEMENT:
                 compileIfStatement(stmt);
                 break;
@@ -727,10 +803,10 @@ void Compiler::compileStatementBlock(const ASTNode &stmtBlock) {
 }
 
 void Compiler::compileFunctionCall(const ASTNode &funCall, bool shouldReturnVal) {
-    assert(funCall.getType() == ASTNodeType::FUNCTION_CALL);
+    assert(funCall.type() == ASTNodeType::FUNCTION_CALL);
 
-    const auto &funNameNode = funCall.getChild(0);
-    std::string funName = funNameNode.getToken()->val;
+    const auto &funNameNode = funCall.child(0);
+    std::string funName = funNameNode.token()->val;
     if (isScriptFunction(funName)) {
         DWord idx = currScript_->getFunctionIdx(funName);
         const Function *fun = currScript_->getFunction(idx);
@@ -740,7 +816,7 @@ void Compiler::compileFunctionCall(const ASTNode &funCall, bool shouldReturnVal)
             return;
         }
 
-        ASTNode argsNode = funCall.getChild(1);
+        ASTNode argsNode = funCall.child(1);
         compileArguments(argsNode, fun);
 
         emit(Instruction::CALLSCRFUN);
@@ -761,7 +837,7 @@ void Compiler::compileFunctionCall(const ASTNode &funCall, bool shouldReturnVal)
             return;
         }
 
-        ASTNode argsNode = funCall.getChild(1);
+        ASTNode argsNode = funCall.child(1);
         compileArguments(argsNode, fun);
 
         emit(Instruction::CLGLBLCPPFUN);
@@ -770,11 +846,11 @@ void Compiler::compileFunctionCall(const ASTNode &funCall, bool shouldReturnVal)
 }
 
 void Compiler::compileReturn(const ASTNode &ret) {
-    assert(ret.getType() == ASTNodeType::RETURN_STMT);
+    assert(ret.type() == ASTNodeType::RETURN_STMT);
 
     ValueType funRetTy = currFunction_->returnTy;
     if (ret.hasChildren()) {
-        ASTNode expr = ret.getChild(0);
+        ASTNode expr = ret.child(0);
         if (funRetTy == ValueType::VOID) {
             createCompileError(FUNCTION_SHOULDNT_RET_VAL.format(currFunction_->name), ret);
             return;
@@ -795,54 +871,54 @@ void Compiler::compileReturn(const ASTNode &ret) {
 }
 
 void Compiler::compileVariableAccess(const ASTNode &varAccess, ValueType expectedType) {
-    assert(varAccess.getType() == ASTNodeType::IDENTIFIER);
+    assert(varAccess.type() == ASTNodeType::IDENTIFIER);
 
-    bool wantRef = (DWord)expectedType & (DWord)ValueType::REF_MASK;
+    bool wantRef = hasMask(expectedType, ValueType::REF_MASK);
     expectedType = clearMask(expectedType, ValueType::REF_MASK);
 
-    std::string varAccessName = varAccess.getToken()->val;
+    std::string varAccessName = varAccess.token()->val;
     SymbolSearchRes sres = searchSymbol(varAccessName);
 
     if (sres.ty == SymbolSearchRes::INVALID) {
-        createCompileError(CANT_FIND_VAR_NAMED.format(varAccess.getToken()->val), varAccess);
+        createCompileError(CANT_FIND_VAR_NAMED.format(varAccess.token()->val), varAccess);
         return;
     }
 
-    if (sres.ty == SymbolSearchRes::LOCAL_VAR) {
-        DWord idx = currScope_->getLocalVarIdx(varAccessName);
-        ValueType varType = sres.var->type;
-        // If expected type is INVALID, the expression this variable access is in can be of any type
-        // so type checking is useless
-        if (expectedType != ValueType::INVALID && !canPromoteType(varType, expectedType)) {
-            createCompileError(CANT_PROMOTE_TY_TO.format(valueTypeToString(varType), valueTypeToString(expectedType)), varAccess);
-            return;
-        }
- 
-        emit(wantRef ? Instruction::LOADLOCAL_REF : Instruction::LOADLOCAL);
-        emit(idx);
-    } 
-    else if (sres.ty == SymbolSearchRes::GLOBAL_VAR) {
-        DWord globalIdx = currScript_->getGlobalVariableIdx(varAccess.getToken()->val);
-        ValueType varType = sres.var->type;
-        if (expectedType != ValueType::INVALID && !canPromoteType(varType, expectedType)) {
-            createCompileError(CANT_PROMOTE_TY_TO.format(valueTypeToString(varType), valueTypeToString(expectedType)), varAccess);
-            return;
-        }
-
-        emit(wantRef ? Instruction::LOADGLOBAL_REF : Instruction::LOADGLOBAL);
-        emit(globalIdx);
-    } 
-    else {
-        // what
+    if (sres.ty != SymbolSearchRes::LOCAL_VAR 
+     && sres.ty != SymbolSearchRes::GLOBAL_VAR 
+     && sres.ty != SymbolSearchRes::MEMBER_VAR) {
         createCompileError(S_IS_NOT_A_VAR.format(varAccessName), varAccess);
         return;
     }
+
+    DWord idx = sres.idx;
+    ValueType varType = sres.var->type;
+    // If expected type is INVALID, the expression this variable access is in can be of any type
+    // so type checking is useless
+    if (expectedType != ValueType::INVALID && !canPromoteType(varType, expectedType)) {
+        createCompileError(CANT_PROMOTE_TY_TO.format(valueTypeToString(varType), valueTypeToString(expectedType)), varAccess);
+        return;
+    }
+
+    if (sres.ty == SymbolSearchRes::LOCAL_VAR)       
+        emit(wantRef ? Instruction::LOADLOCAL_REF : Instruction::LOADLOCAL);
+    else if (sres.ty == SymbolSearchRes::GLOBAL_VAR) 
+        emit(wantRef ? Instruction::LOADGLOBAL_REF : Instruction::LOADGLOBAL);
+    else if (sres.ty == SymbolSearchRes::MEMBER_VAR) {
+        emit(Instruction::LOADLOCAL);
+        emit((DWord)0); // 'this'
+
+        emit(wantRef ? Instruction::LOADMEMBER_REF : Instruction::LOADMEMBER);
+    }
+    else return;
+
+    emit(idx);
 }
 
 bool Compiler::compileArguments(const ASTNode &argsNode, const Function *fun) {
-    assert(argsNode.getType() == ASTNodeType::ARGUMENT_LIST);
+    assert(argsNode.type() == ASTNodeType::ARGUMENT_LIST);
 
-    size_t argsNum = argsNode.getNumChildren();
+    size_t argsNum = argsNode.numChildren();
     if (argsNum != fun->numParams) {
         createCompileError(EXPECTED_NUM_ARGS_INSTEAD_GOT.format(fun->numParams, fun->name, argsNum), argsNode);
         return false;
@@ -850,26 +926,26 @@ bool Compiler::compileArguments(const ASTNode &argsNode, const Function *fun) {
 
     if (argsNum > 0) {
         for (int i = 0; i < argsNum; i++)
-            compileExpression(argsNode.getChild(i), fun->paramTypes[i]);
+            compileExpression(argsNode.child(i), fun->paramTypes[i]);
     }
 
     return true;
 }
 
 void Compiler::compileIfStatement(const ASTNode &ifStmt, int nestedCount) {
-    assert(ifStmt.getType() == ASTNodeType::IF_STATEMENT);
+    assert(ifStmt.type() == ASTNodeType::IF_STATEMENT);
 
-    bool hasElse = ifStmt.getNumChildren() > 2;
+    bool hasElse = ifStmt.numChildren() > 2;
 
     // No expected type
-    compileExpression(ifStmt.getChild(0), ValueType::BOOL);
+    compileExpression(ifStmt.child(0), ValueType::BOOL);
     
     QWord ifLabelNum = tmpLabelNum_++; 
     emit(Instruction::JMPFALSE);
     emit(ifLabelNum);
 
     enterNewScope();
-    compileStatementBlock(ifStmt.getChild(1));
+    compileStatementBlock(ifStmt.child(1));
     exitScope();
 
     if (hasElse) {
@@ -881,10 +957,10 @@ void Compiler::compileIfStatement(const ASTNode &ifStmt, int nestedCount) {
         emit(Instruction::LABEL);
         emit(ifLabelNum);
         
-        const ASTNode &elseBrChild = ifStmt.getChild(2).getChild(0);
-        if (elseBrChild.getType() == ASTNodeType::IF_STATEMENT) {
+        const ASTNode &elseBrChild = ifStmt.child(2).child(0);
+        if (elseBrChild.type() == ASTNodeType::IF_STATEMENT) {
             compileIfStatement(elseBrChild, nestedCount + 1);
-        } else if (elseBrChild.getType() == ASTNodeType::STATEMENT_BLOCK) {
+        } else if (elseBrChild.type() == ASTNodeType::STATEMENT_BLOCK) {
             enterNewScope();
             compileStatementBlock(elseBrChild);
             exitScope();
@@ -905,26 +981,26 @@ void Compiler::compileJmpBcPatch(size_t patchLoc, Instruction jmpInstr, size_t j
 }
 
 void Compiler::compileAssignment(const ASTNode &assignment, ValueType expectedType) {
-    assert(assignment.getType() == ASTNodeType::ASSIGNMENT);
+    assert(assignment.type() == ASTNodeType::ASSIGNMENT);
 
-    if (assignment.getNumChildren() == 0)
+    if (assignment.numChildren() == 0)
         return;
 
     // A simple statement like a function call
-    if (assignment.getNumChildren() == 1) {
-        compileExpressionTerm(assignment.getChild(0), ValueType::VOID);
+    if (assignment.numChildren() == 1) {
+        compileExpressionTerm(assignment.child(0), ValueType::VOID);
         return;
     }
 
-    const ASTNode &varTerm = assignment.getChild(0);
+    const ASTNode &varTerm = assignment.child(0);
 
     // Load a reference to the variable
     compileExpressionTerm(varTerm, setMask(expectedType, ValueType::REF_MASK));
 
     // Compile expression
-    compileExpression(assignment.getChild(2), expectedType);
+    compileExpression(assignment.child(2), expectedType);
     
-    TokenType opTokTy = assignment.getChild(1).getToken()->type;
+    TokenType opTokTy = assignment.child(1).token()->type;
     // If its an =, the variable doesn't need to be on the stack for the expression
     if (opTokTy != TokenType::EQUAL) {
         // We need two references on the stack, one for getting 
@@ -944,7 +1020,7 @@ void Compiler::compileAssignment(const ASTNode &assignment, ValueType expectedTy
 }
 
 #define CHECK_OPERAND_IS_MODIFIABLE_AND_NUMERIC()                                                       \
-    auto sres = searchSymbol(operand.getChild(0).getToken()->val);                                      \
+    auto sres = searchSymbol(operand.child(0).token()->val);                                      \
     if (sres.ty != SymbolSearchRes::LOCAL_VAR && sres.ty != SymbolSearchRes::GLOBAL_VAR                 \
         && !hasMask(sres.foundType, ValueType::REF_MASK)) {                                             \
         createCompileError(EXP_MODIFIABLE_VALUE, operand);                                              \
@@ -956,9 +1032,9 @@ void Compiler::compileAssignment(const ASTNode &assignment, ValueType expectedTy
     }                                                                                                   \
 
 void Compiler::compileExpressionPreOp(const ASTNode &preOp, const ASTNode &operand, ValueType expectedTy) {
-    assert(preOp.getType() == ASTNodeType::EXPRESSION_PREOP);
+    assert(preOp.type() == ASTNodeType::EXPRESSION_PREOP);
 
-    TokenType preopTy = preOp.getToken()->type;
+    TokenType preopTy = preOp.token()->type;
     switch (preopTy) {
         case TokenType::PLUS_PLUS: {
             CHECK_OPERAND_IS_MODIFIABLE_AND_NUMERIC()
@@ -1010,9 +1086,9 @@ void Compiler::compileExpressionPreOp(const ASTNode &preOp, const ASTNode &opera
 }
 
 void Compiler::compileExpressionPostOp(const ASTNode &postOp, const ASTNode &operand, ValueType expectedTy) {
-    assert(postOp.getType() == ASTNodeType::EXPRESSION_POSTOP);
+    assert(postOp.type() == ASTNodeType::EXPRESSION_POSTOP);
 
-    TokenType postOpTy = postOp.getToken()->type;
+    TokenType postOpTy = postOp.token()->type;
     switch (postOpTy) {
         case TokenType::PLUS_PLUS: {
             CHECK_OPERAND_IS_MODIFIABLE_AND_NUMERIC()
@@ -1052,12 +1128,12 @@ void Compiler::compileExpressionPostOp(const ASTNode &postOp, const ASTNode &ope
 #undef CHECK_OPERAND_IS_MODIFIABLE_AND_NUMERIC
     
 void Compiler::compileExpressionValue(const ASTNode &exprVal, ValueType expectedTy) {
-    assert(exprVal.getType() == ASTNodeType::EXPRESSION_VALUE);
+    assert(exprVal.type() == ASTNodeType::EXPRESSION_VALUE);
 
-    ASTNode firstChild = exprVal.getChild(0);
+    ASTNode firstChild = exprVal.child(0);
 
-    bool isConst = firstChild.getType() == ASTNodeType::CONSTANT;
-    bool isFnCall = firstChild.getType() == ASTNodeType::FUNCTION_CALL;
+    bool isConst = firstChild.type() == ASTNodeType::CONSTANT;
+    bool isFnCall = firstChild.type() == ASTNodeType::FUNCTION_CALL;
     bool wantRef = hasMask(expectedTy, ValueType::REF_MASK);
 
     if (isConst && wantRef) {
@@ -1070,9 +1146,9 @@ void Compiler::compileExpressionValue(const ASTNode &exprVal, ValueType expected
     else if (isFnCall)
         // Expect a return only if the expected type isn't void
         compileFunctionCall(firstChild, clearMask(expectedTy, ValueType::REF_MASK) != ValueType::VOID);
-    else if (firstChild.getType() == ASTNodeType::IDENTIFIER)
+    else if (firstChild.type() == ASTNodeType::IDENTIFIER)
         compileVariableAccess(firstChild, expectedTy);
-    else if (firstChild.getType() == ASTNodeType::CONSTRUCT_CALL)
+    else if (firstChild.type() == ASTNodeType::CONSTRUCT_CALL)
         true; // TODO
 }
 

@@ -10,24 +10,19 @@
 namespace NCSC
 {
 
-struct OptimizationRule {
-    std::function<bool (std::vector<Byte>&, size_t&)> rule;
-};
-
 class NCSC_API Optimizer {
 public:
-    Optimizer(const std::vector<Byte> &bc)
-        : bc_(bc) {}
-
-    std::vector<Byte> optimizeAll();
+    static void optimize(std::vector<Byte> &bc);
 
 private:
-    const std::vector<Byte> &bc_;
-
     static bool constantFolding(std::vector<Byte> &bc, size_t &idx);
 
-    static inline const std::array<OptimizationRule, 1> rules_ = {
-        OptimizationRule{ constantFolding }
+    struct Rule {
+        std::function<bool (std::vector<Byte>&, size_t&)> rule;
+    };
+
+    static inline const std::array<Rule, 1> rules_ = {
+        Rule{ constantFolding }
     };
 };
 

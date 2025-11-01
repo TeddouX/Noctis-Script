@@ -17,11 +17,12 @@ enum class Instruction : Byte {
 
     LOADLOCAL,      // LOADLOCAL 1 ; Loads a local variable a onto the stack
     LOADLOCAL_REF,  // LOADLOCAL_REF 1 ; Loads a reference to a local variable a onto the stack
-    // STORELOCAL,     // STORELOCAL 1 ; Pops last value on the stack it and stores it into local 1
     
     LOADGLOBAL,     // LOADLOCAL 1 ; Loads a global variable a onto the stack
     LOADGLOBAL_REF, // LOADGLOBAL_REF 1 ; Loads a reference to a global variable a onto the stack
-    // STOREGLOBAL,    // STOREGLOBAL 1 ; Pops last value on the stack it and stores it into global 1
+
+    LOADMEMBER,     // LOADMEMBER 1 ; Loads a member variable from the last object pushed on the stack, if none exists, try loading it from the object register
+    LOADMEMBER_REF, // LOADMEMBER_REF 1 ; Loads a reference to a global variable a onto the stack
 
     ADD,            // ADD ; pop first two values on the stack, adds them and pushes the result on the stack
     SUB,            // SUB ; pop first two values on the stack, substracts them and pushes the result on the stack
@@ -63,11 +64,12 @@ const std::unordered_map<Instruction, std::pair<const char *, size_t>> INSTR_INF
     
     { Instruction::LOADLOCAL,       {"LOADLOCAL",      sizeof(DWord)} },
     { Instruction::LOADLOCAL_REF,   {"LOADLOCAL_REF",  sizeof(DWord)} },
-    // { Instruction::STORELOCAL,      {"STORELOCAL",     sizeof(DWord)} },
 
     { Instruction::LOADGLOBAL,      {"LOADGLOBAL",     sizeof(DWord)} },
     { Instruction::LOADGLOBAL_REF,  {"LOADGLOBAL_REF", sizeof(DWord)} },
-    // { Instruction::STOREGLOBAL,     {"STOREGLOBAL",    sizeof(DWord)} },
+
+    { Instruction::LOADMEMBER,      {"LOADMEMBER",     sizeof(DWord)} },
+    { Instruction::LOADMEMBER_REF,  {"LOADMEMBER_REF", sizeof(DWord)} },
 
     { Instruction::CALLSCRFUN,      {"CALLSCRFUN",     sizeof(DWord)} },
     { Instruction::CLGLBLCPPFUN,    {"CLGLBLCPPFUN",   sizeof(DWord)} },

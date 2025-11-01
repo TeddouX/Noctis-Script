@@ -7,16 +7,14 @@
 namespace NCSC
 {
 
-std::vector<Byte> Optimizer::optimizeAll() {
-    auto res = bc_;
-    bool changed = true;
-
-    while (changed) {
+void Optimizer::optimize(std::vector<Byte> &bc) {
+    bool changed;
+    do {
         changed = false;
-        
-        for (size_t i = 0; i < res.size();) {
+
+        for (size_t i = 0; i < bc.size();) {
             for (auto &optimizationRule : rules_) {
-                if (optimizationRule.rule(res, i)) {
+                if (optimizationRule.rule(bc, i)) {
                     changed = true;
                     // Restart from the beginning
                     break;
@@ -26,11 +24,10 @@ std::vector<Byte> Optimizer::optimizeAll() {
             if (changed)
                 break;
             else
-                i += getInstructionSize(res, i);
+                i += getInstructionSize(bc, i);
         }
-    }
 
-    return res;
+    } while(changed);
 }
 
 static constexpr Instruction toInstruction(const Byte &byte) {
@@ -65,16 +62,16 @@ bool Optimizer::constantFolding(std::vector<Byte> &bc, size_t &idx) {
     TRY_READ_INSTR(first, Instruction::PUSH);
 
     size_t readSize = 0;
-    Value a = Value::fromBytes(bc, end, readSize);
-    if (!isPrimitive(a.ty))
+    Value b = Value::fromBytes(bc, end, readSize);
+    if (!isPrimitive(b.ty))
         return false;
     end += readSize;
 
     TRY_READ_INSTR(second, Instruction::PUSH);
 
     readSize = 0;
-    Value b = Value::fromBytes(bc, end, readSize);
-    if (!isPrimitive(b.ty))
+    Value a = Value::fromBytes(bc, end, readSize);
+    if (!isPrimitive(a.ty))
         return false;
     end += readSize;
 

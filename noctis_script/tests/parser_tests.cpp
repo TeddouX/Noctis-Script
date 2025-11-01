@@ -16,39 +16,39 @@ TEST(ParserTests, ParsesVariableDeclaration) {
     auto rootNode = parse("Int a;");
 
     ASSERT_TRUE(rootNode.hasChildren());
-    ASSERT_EQ(rootNode.getChild(0).getType(), ASTNodeType::VARIABLE_DECLARATION);
+    ASSERT_EQ(rootNode.child(0).type(), ASTNodeType::VARIABLE_DECLARATION);
 }
 
 TEST(ParserTests, VariableDeclarationTypeIsParsed) {
     auto rootNode = parse("UInt64 a;");
 
     ASSERT_TRUE(rootNode.hasChildren());
-    ASSERT_TRUE(rootNode.getChild(0).hasChildren());
-    ASSERT_EQ(rootNode.getChild(0).getChild(0).getType(), ASTNodeType::DATA_TYPE);
+    ASSERT_TRUE(rootNode.child(0).hasChildren());
+    ASSERT_EQ(rootNode.child(0).child(0).type(), ASTNodeType::DATA_TYPE);
 }
 
 TEST(ParserTests, VariableDeclarationIdentifierIsParsed) {
     auto rootNode = parse("Double jdkqsljdlqsjdmjqmLDJKLMQS;");
 
     ASSERT_TRUE(rootNode.hasChildren());
-    ASSERT_TRUE(rootNode.getChild(0).hasChildren());
-    ASSERT_EQ(rootNode.getChild(0).getChild(1).getType(), ASTNodeType::IDENTIFIER);
+    ASSERT_TRUE(rootNode.child(0).hasChildren());
+    ASSERT_EQ(rootNode.child(0).child(1).type(), ASTNodeType::IDENTIFIER);
 }
 
 TEST(ParserTests, VariableDeclarationWithAssignmentIsParsed) {
     auto rootNode = parse("Double a = 1.00010;");
 
     ASSERT_TRUE(rootNode.hasChildren());
-    ASSERT_TRUE(rootNode.getChild(0).hasChildren());
-    ASSERT_EQ(rootNode.getChild(0).getNumChildren(), 3);
-    ASSERT_EQ(rootNode.getChild(0).getChild(2).getType(), ASTNodeType::EXPRESSION);
+    ASSERT_TRUE(rootNode.child(0).hasChildren());
+    ASSERT_EQ(rootNode.child(0).numChildren(), 3);
+    ASSERT_EQ(rootNode.child(0).child(2).type(), ASTNodeType::EXPRESSION);
 }
 
 TEST(ParserTests, CanParseTwoStatementsSeparatedBySemicolon) {
     auto rootNode = parse("Double a; Int b;");
 
     ASSERT_TRUE(rootNode.hasChildren());
-    ASSERT_EQ(rootNode.getNumChildren(), 2);
-    ASSERT_EQ(rootNode.getChild(0).getType(), ASTNodeType::VARIABLE_DECLARATION);
-    ASSERT_EQ(rootNode.getChild(1).getType(), ASTNodeType::VARIABLE_DECLARATION);
+    ASSERT_EQ(rootNode.numChildren(), 2);
+    ASSERT_EQ(rootNode.child(0).type(), ASTNodeType::VARIABLE_DECLARATION);
+    ASSERT_EQ(rootNode.child(1).type(), ASTNodeType::VARIABLE_DECLARATION);
 }

@@ -1,45 +1,21 @@
-// Int global = 10;
+obj Vec2 {
+    public Int x = 0;
+    public Int y = 0;
 
-//obj Vec2 {
-//    public Int x;
-//    public Int y;
-//
-//    private Float mag;
-//
-//    public fun _constructor(Int x, Int y) {
-//        //this.x = x;
-//        //this.y = y;
-//    }
-//}
-
-fun main() {
-    Int i = 0;
-    Int a = ++i;
-    Int b = i++;
-
-    Bool boolean = i != 3;
-
-    i++;
-
-    if (!boolean) {
-        printHello(0);
-    } else {
-        printHello(i);
+    Int addButPriv(Int a, Int b) {
+        return a + b;
     }
 
-    //Vec2 b = new Vec2(1, 2);
+    private Int addButPrivWithKw(Int a, Int b) {
+        return a + b;
+    }
 
-//    if (a < 1) {
-//        printHello(0);
-//    } else if (a == 2) {
-//        printHello(1);
-//    } else {
-//        printHello(2);
-//    }
-//
-//    printHello(3);
+    public Int add(Int a, Int b) {
+        Int res = a + b;
+        return res;
+    }
+}
 
-    // Int c = global;
+fun main() {
 
-    return;
 }

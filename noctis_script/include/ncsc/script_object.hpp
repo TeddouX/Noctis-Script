@@ -12,18 +12,23 @@ struct MemberVariable : public Variable {
     bool isPublic = false;
 };
 
+struct Method : public ScriptFunction {
+    bool isPublic = false;
+};
+
 class ScriptObject {
 public:
     ScriptObject() = default;
     
     DWord numMembers;
     std::string name;
+    ValueType type;
 
-    GETTERS_SETTERS_FOR_NAMED_VECTOR(Method, methods_, ScriptFunction)
+    GETTERS_SETTERS_FOR_NAMED_VECTOR(Method, methods_, Method)
     GETTERS_SETTERS_FOR_NAMED_VECTOR(Member, members_, MemberVariable)
 
 private:
-    std::vector<ScriptFunction> methods_;
+    std::vector<Method> methods_;
     std::vector<MemberVariable> members_;
 };
 

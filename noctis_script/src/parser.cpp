@@ -258,11 +258,11 @@ ASTNode Parser::parseExpression() {
         return node;
 
     // Assure operator precedence
-    while (node.getNumChildren() > 1) {
+    while (node.numChildren() > 1) {
         int highestPre = 0;
         int highestPreIdx = 0;
-        for (int i = 1; i < node.getNumChildren(); i += 2) {
-            const Token *tok = node.getChild(i).getToken();
+        for (int i = 1; i < node.numChildren(); i += 2) {
+            const Token *tok = node.child(i).token();
             int opPre = getOperatorPrecedence(*tok); CHECK_SYNTAX_ERROR;
             highestPreIdx = (opPre > highestPre) ? i : highestPreIdx;
             highestPre = std::max(highestPre, opPre);

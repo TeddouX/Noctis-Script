@@ -11,7 +11,7 @@
 #include "scope.hpp"
 
 #include <memory>
-#include <deque >
+#include <deque>
 
 namespace NCSC
 {
@@ -49,19 +49,17 @@ private:
     void enterNewScope();
     void exitScope();
 
-    void finalizeBc();
+    void finalizeBc(std::vector<Byte> &bc);
 
     void createCompileError(const ErrInfo &info, const ASTNode &node);
 
     bool isScriptFunction(const std::string &name) const { return currScript_->getFunction(name) != nullptr; }
 
-    // Computes the required stack size for tempCompiledBytecode_
-    size_t computeRequiredStackSize();
+    size_t computeRequiredStackSize(std::vector<Byte> &bc);
     // Computes maximum number of local variables of the scope
     size_t computeMaxLocals(const Scope *scope);
 
-    // Resolves jumps for tempCompiledBytecode_
-    void resolveJumps();
+    void resolveJumps(std::vector<Byte> &bc);
 
     // Add a byte to the bytecode of the current function
     void emit(Byte bytecode);
@@ -127,7 +125,7 @@ private:
     };
     SymbolSearchRes searchSymbol(const std::string &name, ScriptObject *obj = nullptr);
 
-    void compileFunction(const ASTNode &funcDecl);
+    void compileFunction(const ASTNode &funcDecl, bool method = false);
     void compileObject(const ASTNode &obj);
     void compileVariableDeclaration(const ASTNode &varDecl, bool global = false, bool member = false);
     void compileConstantPush(const ASTNode &constant, ValueType expectedType);

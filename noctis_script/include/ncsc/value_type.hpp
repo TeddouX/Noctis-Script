@@ -76,6 +76,10 @@ inline ValueType setMask(ValueType in, ValueType mask) {
     return static_cast<ValueType>((DWord)in | (DWord)mask);
 }
 
+inline ValueType makeObjectType(DWord objIdx) {
+    return setMask(static_cast<ValueType>(objIdx), ValueType::OBJ_MASK);
+}
+
 inline constexpr size_t getValueTypeSize(ValueType ty) {
     switch (ty) {
         case ValueType::INVALID:

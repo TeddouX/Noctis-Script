@@ -52,13 +52,13 @@ public:
 
     bool hasChildren() const noexcept { return !children_.empty(); }
     void addChild(const ASTNode &child);
-    const ASTNode &getChild(size_t idx) const { return children_[idx]; }
-    const ASTNode &getLastChild() const { return children_.back(); }
-    const std::vector<ASTNode> &getAllChildren() const { return children_; }
-    size_t getNumChildren() const { return children_.size(); }
+    const ASTNode &child(size_t idx) const { return children_[idx]; }
+    const ASTNode &lastChild() const { return children_.back(); }
+    const std::vector<ASTNode> &children() const { return children_; }
+    size_t numChildren() const { return children_.size(); }
 
-    ASTNodeType getType() const { return type_; }
-    const Token *getToken() const { return token_; }
+    ASTNodeType type() const { return type_; }
+    const Token *token() const { return token_; }
     void setToken(const Token *tok) { token_ = tok; }
 
     friend class Parser;
