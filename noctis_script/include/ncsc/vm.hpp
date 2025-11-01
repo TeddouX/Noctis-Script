@@ -6,6 +6,7 @@
 #include "value.hpp"
 
 #include <memory>
+#include <deque>
 #include <typeinfo>
 #include <print>
 
@@ -75,13 +76,15 @@ public:
     }
 
 private:
-    std::shared_ptr<Script> script_; 
+    std::shared_ptr<Script> script_;
+    const std::shared_ptr<ScriptContext> &ctx_; // script_'s ctx
+
     const ScriptFunction *currFun_ = nullptr;
     
     bool executionFinished_ = false;
 
     // Stack
-    std::vector<Value> stack_;
+    std::deque<Value> stack_;
     // In this implementation, the stack pointer points at the 
     // next free spot on the stack
     size_t sp_ = 0;
@@ -117,7 +120,7 @@ private:
         ValueType paramType = currFun_->paramTypes[idx];
 
         if (!canPromoteType(givenTy, paramType)) {
-            error(std::format(ARG_DONT_MATCH_WITH_PARAM, idx, valueTypeToString(paramType)));
+            error(std::format(ARG_DONT_MATCH_WITH_PARAM, idx, script_->ctx->getTypeName(paramType)));
             return false;
         }
 

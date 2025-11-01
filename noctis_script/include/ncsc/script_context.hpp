@@ -42,8 +42,13 @@ public:
     
     Value callGlobalFunction(DWord idx, const std::vector<Value> &args);
 
+    std::string getTypeName(ValueType ty) const;
+
 private:
+    friend class Compiler;
+
     std::vector<GlobalCPPFunctionRepr> globalCPPFunctions_;
+    std::unordered_map<ValueType, std::string> typeNames_;
     
     // Force the user to create a ptr to the class 
     // instead of a regular instance
@@ -63,7 +68,9 @@ private:
             RetTy_ ret = fun(args[I].castTo<FuncArgs_>()...);
             return Value::fromLiteral(ret);
         }
-    } 
+    }
+
+    void addTypeName(ValueType ty, const std::string &name) { typeNames_.emplace(ty, name); }
 };
 
 } // namespace NCSC

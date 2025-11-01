@@ -7,19 +7,30 @@
 namespace NCSC
 {
 
-static std::string getStackString(const std::vector<Value> &stack) {
+static std::string getStackString(const std::deque<Value> &stack) {
     if (stack.empty())
         return "empty";
 
     std::ostringstream oss;
-    for (auto val : stack)
-        oss << val.operator std::string() << ", ";
+    for (auto &val : stack) {
+        if (hasMask(val.ty, ValueType::OBJ_MASK)) {
+            std::string str = "{";
+            for (auto &member : *val.obj)
+                str += member.operator std::string() + ", ";
+            
+            str += "}, ";
+            oss << str;
+        }
+        else
+            oss << val.operator std::string() << ", ";
+    }
     return oss.str();
 }
 
 
 VM::VM(std::shared_ptr<Script> script)
-    : script_(script) 
+    : script_(script),
+      ctx_(script->ctx)
 {
     globalVariables_.resize(script_->numGlobalVariables);
 }
@@ -31,7 +42,7 @@ void VM::executeNext() {
     QWord &ip = currFrame.ip;
     size_t &bp = currFrame.bp;
 
-    if (ip > bytecode.size()) {
+    if (ip >= bytecode.size()) {
         error("Bytecode ended without return");
         return;
     }
@@ -99,6 +110,35 @@ void VM::executeNext() {
                 .ref = isRef ? global.ref : &global,
             };
             push(globalRef);
+            
+            END_INSTR(sizeof(DWord) + 1);
+        }
+        INSTR(LOADMEMBER): {
+            DWord idx = readWord<DWord>(bytecode, ip + 1);
+            Value obj = pop();
+
+            if (!obj.isObject())
+                return;
+            
+            push(obj.obj->at(idx));
+
+            END_INSTR(sizeof(DWord) + 1);
+        }
+        INSTR(LOADMEMBER_REF): {
+            DWord idx = readWord<DWord>(bytecode, ip + 1);
+            Value obj = pop();
+
+            if (!obj.isObject())
+                return;
+
+            Value &member = obj.obj->at(idx);
+            bool isRef = hasMask(member.ty, ValueType::REF_MASK);
+            Value memberRef {
+                .ty = setMask(member.ty, ValueType::REF_MASK),
+                .ref = isRef ? member.ref : &member,
+            };
+
+            push(memberRef);
             
             END_INSTR(sizeof(DWord) + 1);
         }
@@ -219,7 +259,7 @@ void VM::executeNext() {
             ValueType castTy = static_cast<ValueType>(readWord<DWord>(bytecode, ip + 1));
             if (!canPromoteType(val.ty, castTy)) {
                 // Might mess up the stack and cause weird errors
-                error(std::format(UNSAFE_CAST, valueTypeToString(val.ty), valueTypeToString(castTy)));
+                error(std::format(UNSAFE_CAST, ctx_->getTypeName(val.ty), ctx_->getTypeName(castTy)));
                 break;
             }
             val.ty = castTy;
@@ -233,11 +273,28 @@ void VM::executeNext() {
             ip += 1 + sizeof(DWord);
 
             const ScriptFunction *fun = script_->getFunction(idx);
-            sp_ -= fun->numParams;
+            sp_ -= fun->numParams - 1;
 
             prepareScriptFunction(fun);
 
-            END_INSTR(0);
+            break;
+        }
+        INSTR(CALLMETHOD): {
+            Value obj = pop();
+            if (!obj.isObject())
+                return;
+
+            DWord objIdx = (DWord)clearMask(obj.ty, ValueType::OBJ_MASK);
+            DWord methodIdx = readWord<DWord>(bytecode, ip + 1);
+            ScriptObject *scriptObj = script_->getObject(objIdx);
+            const ScriptFunction *method = scriptObj->getMethod(methodIdx);
+
+            ip += 1 + sizeof(DWord);
+
+            sp_ -= method->numParams - 1;
+            prepareScriptFunction(method);
+
+            break;
         }
 
         INSTR(CLGLBLCPPFUN): {
@@ -248,7 +305,7 @@ void VM::executeNext() {
             // Build vector of arguments from the top n values on the stack
             auto spIt = stack_.begin() + sp_;
             std::vector<Value> args(spIt - fun->numParams, spIt);
-            sp_ -= fun->numParams;
+            sp_ -= fun->numParams + 1;
 
             // Call function and push the result, if one exists
             Value ret = script_->ctx->callGlobalFunction(idx, args);
@@ -286,14 +343,30 @@ void VM::executeNext() {
             END_INSTR(1);
         }
 
+        INSTR(NEW): {
+            DWord idx = readWord<DWord>(bytecode, ip + 1);
+            ScriptObject *scriptObj = script_->getObject(idx);
+            auto objVals = new std::vector<Value>;
+            objVals->resize(scriptObj->getMemberCount());
+
+            Value obj{
+                .ty = setMask((ValueType)idx, ValueType::OBJ_MASK),
+                .obj = objVals,
+            };
+
+            push(obj);
+
+            END_INSTR(1 + sizeof(DWord));
+        }
+
         default:
             error(std::string(INVALID_OR_CORRUPTED_BC));
             break;
     }
 
+    std::println("Instr: {} SP: {}", INSTR_INFO.at(instr).first, sp_);
     std::println("Stack: {}", getStackStrRepr());
     // std::println("Globals: {}", getStackString(globalVariables_));
-    // std::println("Instr: {} SP: {}", INSTR_INFO.at(instr).first, sp_);
     // std::println();
 
 #undef INSTR
@@ -307,7 +380,7 @@ void VM::prepareScriptFunction(const ScriptFunction *fun) {
         .bp = sp_,
         .ip = 0,
         .sp = sp_ + fun->numLocals,
-        .stackSize = fun->requiredStackSize + fun->numLocals,
+        .stackSize = callStack_.back().stackSize + fun->requiredStackSize + fun->numLocals,
     };
 
     callStack_.back().sp = sp_;

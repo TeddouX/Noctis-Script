@@ -209,21 +209,33 @@ void Compiler::compileFunction(const ASTNode &funcDecl, bool method) {
     assert(funcDecl.type() == ASTNodeType::FUNCTION);
 
     const auto &firstChild = funcDecl.child(0);
-    size_t reTyNodeIdx = 0;
-    // Access modifier for a member variable
+    int reTyNodeIdx = 0;
+    // Access modifier
     if (method && firstChild.type() == ASTNodeType::TOKEN)
         reTyNodeIdx = 1;
 
-    std::string funcDeclName = funcDecl.child(reTyNodeIdx + 1).token()->val;
+    if (funcDecl.child(reTyNodeIdx).type() == ASTNodeType::IDENTIFIER)
+        // Constructor don't have a return type specified
+        reTyNodeIdx -= 1;
+
+    const auto &funcDeclNameNode = funcDecl.child(reTyNodeIdx + 1);
+    std::string funcDeclName = funcDeclNameNode.token()->val;
     if ((method && currObject_->getMethod(funcDeclName)) || currScript_->getFunction(funcDeclName)) {
         createCompileError(FUNC_ALREADY_EXISTS.format(funcDeclName), funcDecl.child(1));
         return;
     }
 
+    bool isConstructor = false;
     if (method) {
+        isConstructor = funcDeclName == currObject_->name;
+        if (firstChild.type() == ASTNodeType::IDENTIFIER && !isConstructor) {
+            createCompileError(NOT_A_TYPE, funcDeclNameNode);
+            return;
+        }
+
         Method me;
         me.isPublic = firstChild.token() && 
-                      firstChild.token()->type == TokenType::PUBLIC_KWD;
+            firstChild.token()->type == TokenType::PUBLIC_KWD;
         
         me.numParams = 1;
 
@@ -240,11 +252,23 @@ void Compiler::compileFunction(const ASTNode &funcDecl, bool method) {
         currFunction_ = &fun;
     }
     
-    ASTNode retType = funcDecl.child(reTyNodeIdx); 
-    if (retType.type() == ASTNodeType::DATA_TYPE)
-        currFunction_->returnTy = valueTypeFromTok(*retType.token());
-    else
-        currFunction_->returnTy = ValueType::VOID;
+    if (isConstructor) {
+        currFunction_->returnTy = currObject_->type;
+
+        // <membInit> takes a reference to 'this'
+        emit(Instruction::LOADLOCAL);
+        emit((DWord)0); // this
+
+        emit(Instruction::CALLMETHOD);
+        emit((DWord)0); // <membInit>
+    }
+    else {
+        ASTNode retType = funcDecl.child(reTyNodeIdx); 
+        if (retType.type() == ASTNodeType::DATA_TYPE)
+            currFunction_->returnTy = valueTypeFromASTNode(retType);
+        else
+            currFunction_->returnTy = ValueType::VOID;
+    }
     
     currFunction_->name = funcDeclName;
 
@@ -252,7 +276,7 @@ void Compiler::compileFunction(const ASTNode &funcDecl, bool method) {
     currFunction_->numParams += paramsNode.numChildren() / 2;
     currFunction_->numLocals = currFunction_->numParams;
     for (int i = 0; i < paramsNode.numChildren(); i++) {
-        ValueType ty = valueTypeFromTok(*paramsNode.child(i).token());
+        ValueType ty = valueTypeFromASTNode(paramsNode.child(i));
         
         // Arguments are treated as local variables
         Variable v;
@@ -269,7 +293,19 @@ void Compiler::compileFunction(const ASTNode &funcDecl, bool method) {
 
     if (!hasErrors()) {
         // For void functions, add a return at the end if none currently exists
-        if (currFunction_->returnTy == ValueType::VOID && !currScope_->hasReturned) {
+        if (isConstructor) {
+            // Constructor can't return
+            if (currScope_->hasReturned) {
+                createCompileError(CONSTRUCTOR_SHOULDNT_RET, funcDeclNameNode);
+                return;
+            }
+
+            emit(Instruction::LOADLOCAL);
+            emit((DWord)0); // this
+
+            emit(Instruction::RET);
+        }
+        else if (currFunction_->returnTy == ValueType::VOID && !currScope_->hasReturned) {
             emit(Instruction::RETVOID);
         }
         // For non void functions, error if there is no return at the end
@@ -296,6 +332,8 @@ void Compiler::compileFunction(const ASTNode &funcDecl, bool method) {
 size_t Compiler::computeRequiredStackSize(std::vector<Byte> &bc) {
     size_t maxSize = 0;
     size_t currSize = 0;
+    ValueType lastPushedTy = ValueType::INVALID;
+
     for (size_t i = 0; i < bc.size();) {
         Instruction instr = static_cast<Instruction>(bc[i]);
 
@@ -304,7 +342,8 @@ size_t Compiler::computeRequiredStackSize(std::vector<Byte> &bc) {
             case Instruction::LOADLOCAL_REF: 
             case Instruction::LOADGLOBAL: 
             case Instruction::LOADGLOBAL_REF: 
-            case Instruction::PUSH: 
+            case Instruction::PUSH:
+            case Instruction::NEW:
             case Instruction::DUP: 
                 maxSize = std::max(maxSize, ++currSize);
                 break;
@@ -327,6 +366,14 @@ size_t Compiler::computeRequiredStackSize(std::vector<Byte> &bc) {
                 DWord idx = readWord<DWord>(bc, i + 1);
                 const ScriptFunction *scrFun = currScript_->getFunction(idx);
                 currSize -= scrFun->numParams;
+
+                break;
+            }
+
+            case Instruction::CALLMETHOD: {
+                DWord idx = readWord<DWord>(bc, i + 1);
+
+                // ...
 
                 break;
             }
@@ -448,12 +495,15 @@ Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, Script
         }
 
         DWord scriptObjIdx = currScript_->getObjectIdx(name);
-        if (scriptObjIdx != NCSC_INVALID_IDX)
+        if (scriptObjIdx != NCSC_INVALID_IDX) {
+            const ScriptObject *scriptObj = currScript_->getObject(scriptObjIdx);
             return SymbolSearchRes{
-                .obj = currScript_->getObject(funIdx),
+                .obj = scriptObj,
                 .idx = scriptObjIdx,
+                .foundType = scriptObj->type,
                 .ty = SymbolSearchRes::OBJECT,
             };
+        } 
     }
 
     if (currObject_) {        
@@ -487,11 +537,43 @@ Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, Script
             .fun = cppFun,
             .idx = cppFunIdx,
             .foundType = cppFun->returnTy,
-            .ty = SymbolSearchRes::FUNCTION,
+            .ty = SymbolSearchRes::CPP_FUNCTION,
         };
     }
         
     return SymbolSearchRes{ .ty = SymbolSearchRes::INVALID };
+}
+
+ValueType Compiler::valueTypeFromASTNode(const ASTNode &typeNode) {
+    assert(typeNode.type() == ASTNodeType::TOKEN || typeNode.type() == ASTNodeType::DATA_TYPE);
+    
+    const Token *tok = typeNode.token();
+    switch(tok->type) {
+        case TokenType::INT8_KWD:    return ValueType::INT8;
+        case TokenType::INT16_KWD:   return ValueType::INT16;
+        case TokenType::INT32_KWD:   return ValueType::INT32;
+        case TokenType::INT64_KWD:   return ValueType::INT64;
+
+        case TokenType::UINT8_KWD:   return ValueType::UINT8;
+        case TokenType::UINT16_KWD:  return ValueType::UINT16;
+        case TokenType::UINT32_KWD:  return ValueType::UINT32;
+        case TokenType::UINT64_KWD:  return ValueType::UINT64;
+        
+        case TokenType::FLOAT32_KWD: return ValueType::FLOAT32;
+        case TokenType::FLOAT64_KWD: return ValueType::FLOAT64;
+        
+        case TokenType::BOOL_KWD:    return ValueType::BOOL;
+
+        default: break;
+    }
+
+    SymbolSearchRes sres = searchSymbol(tok->val);
+    if (sres.ty == SymbolSearchRes::OBJECT)
+        return sres.foundType;
+
+    createCompileError(NOT_A_TYPE, typeNode);
+
+    return ValueType::INVALID;
 }
 
 void Compiler::compileObject(const ASTNode &obj) {
@@ -507,6 +589,7 @@ void Compiler::compileObject(const ASTNode &obj) {
     membInit.returnTy = ValueType::VOID;
     // 'this'
     membInit.numLocals = 1;
+    membInit.numParams = 1;
     membInit.paramTypes = { scriptObj.type };
 
     scriptObj.addMethod(membInit);   
@@ -537,13 +620,51 @@ void Compiler::compileObject(const ASTNode &obj) {
         }
     }
 
-    // Optimize the member init method's bytecode
-    Method &membInitt = *scriptObj.getMethod(0);
+    DWord constructorIdx = scriptObj.getConstructorIdx();
+    if (constructorIdx == NCSC_INVALID_IDX) {
+        Method defaultConstructor;
+        defaultConstructor.isPublic = false;
+        defaultConstructor.name = scriptObj.name;
+        defaultConstructor.numLocals = 0;
+        // 'this'
+        defaultConstructor.numParams = 1;
+        defaultConstructor.paramTypes = { scriptObj.type };
+        // One call to <membInit>
+        defaultConstructor.requiredStackSize = 1;
+        defaultConstructor.returnTy = scriptObj.type;
 
-    finalizeBc(membInitt.bytecode);
-    membInitt.requiredStackSize = computeRequiredStackSize(membInitt.bytecode);
+        tempCompiledBytecode_.clear();
+
+        // <membInit> takes a reference to 'this'
+        emit(Instruction::LOADLOCAL);
+        emit((DWord)0); // this
+
+        emit(Instruction::CALLMETHOD);
+        emit((DWord)0); // <membInit>
+
+        emit(Instruction::LOADLOCAL);
+        emit((DWord)0); // this
+
+        emit(Instruction::RET);
+
+        defaultConstructor.bytecode = tempCompiledBytecode_;
+
+        scriptObj.addMethod(defaultConstructor);
+
+        tempCompiledBytecode_.clear();
+    }
+
+    // Optimize the member init method's bytecode
+    Method &membInitFinal = *scriptObj.getMethod(0);
+    membInitFinal.bytecode.push_back(static_cast<Byte>(Instruction::RETVOID));
+
+    finalizeBc(membInitFinal.bytecode);
+    membInitFinal.requiredStackSize = computeRequiredStackSize(membInitFinal.bytecode);
 
     currScript_->addObject(scriptObj);
+    ctx_->addTypeName(scriptObj.type, scriptObj.name);
+    
+    currObject_ = nullptr;
 }
 
 void Compiler::compileVariableDeclaration(const ASTNode &varDecl, bool global, bool member) {
@@ -564,8 +685,8 @@ void Compiler::compileVariableDeclaration(const ASTNode &varDecl, bool global, b
     }
 
     const ASTNode &varNameVal = varNameNode.child(0);
-    std::string varName = varNameVal.token()->val;
-    ValueType varType = valueTypeFromTok(*varDecl.child(varTyNodeIdx).token());
+    const std::string &varName = varNameVal.token()->val;
+    ValueType varType = valueTypeFromASTNode(varDecl.child(varTyNodeIdx));
 
     if (global) {
         GlobalVar gv;
@@ -616,8 +737,8 @@ void Compiler::compileExpression(const ASTNode &expr, ValueType expectedType) {
     if (isComparisonOp) {
         if (expectedType != ValueType::BOOL) {
             createCompileError(EXPECTED_TYPE_INSTEAD_GOT.format(
-                valueTypeToString(expectedType), 
-                valueTypeToString(ValueType::BOOL)), expr);
+                ctx_->getTypeName(expectedType), 
+                ctx_->getTypeName(ValueType::BOOL)), expr);
             return;
         }
         else
@@ -712,8 +833,8 @@ void Compiler::compileConstantPush(const ASTNode &constant, ValueType expectedTy
     } else if (constTokTy == TokenType::TRUE_KWD || constTokTy == TokenType::FALSE_KWD) {
         if (expectedType != ValueType::BOOL) {
             createCompileError(CANT_PROMOTE_TY_TO.format( 
-                valueTypeToString(expectedType), 
-                valueTypeToString(ValueType::BOOL)), constant);
+                ctx_->getTypeName(expectedType), 
+                ctx_->getTypeName(ValueType::BOOL)), constant);
             return;
         }
         
@@ -772,8 +893,6 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
 
     if (!hasValOnStack)
         compileExpressionValue(exprValue, expectedType);
-    else if (hasValOnStack && clearMask(expectedType, ValueType::REF_MASK) == ValueType::VOID)
-        emit(Instruction::POP);
 }
 
 void Compiler::compileStatementBlock(const ASTNode &stmtBlock) {
@@ -806,43 +925,39 @@ void Compiler::compileFunctionCall(const ASTNode &funCall, bool shouldReturnVal)
     assert(funCall.type() == ASTNodeType::FUNCTION_CALL);
 
     const auto &funNameNode = funCall.child(0);
-    std::string funName = funNameNode.token()->val;
-    if (isScriptFunction(funName)) {
-        DWord idx = currScript_->getFunctionIdx(funName);
-        const Function *fun = currScript_->getFunction(idx);
+    const std::string &funName = funNameNode.token()->val;
+    SymbolSearchRes sres = searchSymbol(funName);
 
-        if (shouldReturnVal && fun->returnTy == ValueType::VOID) {
-            createCompileError(FUNCTION_HAS_VOID_RET_TY.format(funName), funNameNode);
-            return;
-        }
-
-        ASTNode argsNode = funCall.child(1);
-        compileArguments(argsNode, fun);
-
-        emit(Instruction::CALLSCRFUN);
-        emit(idx);
+    if (sres.ty == SymbolSearchRes::INVALID) {
+        createCompileError(CANT_FIND_FUNCTION_NAMED.format(funName), funCall);
+        return;
     }
-    // Try finding it in globally registered functions
-    else {
-        DWord idx = ctx_->getGlobalFunctionIdx(funName);
-        if (idx == NCSC_INVALID_IDX) {
-            createCompileError(CANT_FIND_FUNCTION_NAMED.format(funName), funNameNode);
-            return;
-        }
 
-        const Function *fun = ctx_->getGlobalFunction(idx);
-
-        if (shouldReturnVal && fun->returnTy == ValueType::VOID) {
-            createCompileError(FUNCTION_HAS_VOID_RET_TY.format(funName), funNameNode);
-            return;
-        }
-
-        ASTNode argsNode = funCall.child(1);
-        compileArguments(argsNode, fun);
-
-        emit(Instruction::CLGLBLCPPFUN);
-        emit(idx);
+    if (sres.ty != SymbolSearchRes::FUNCTION && sres.ty != SymbolSearchRes::CPP_FUNCTION) {
+        createCompileError(NOT_A_FUNCTION, funNameNode);
+        return;
     }
+
+    DWord idx = sres.idx;
+    const Function* fun;
+    if (sres.ty == SymbolSearchRes::FUNCTION)
+        fun = currScript_->getFunction(idx);
+    else if (sres.ty == SymbolSearchRes::CPP_FUNCTION)
+        fun = ctx_->getGlobalFunction(idx);
+
+    if (shouldReturnVal && fun->returnTy == ValueType::VOID) {
+        createCompileError(FUNCTION_HAS_VOID_RET_TY.format(funName), funNameNode);
+        return;
+    }
+
+    ASTNode argsNode = funCall.child(1);
+    compileArguments(argsNode, fun);
+    
+    if (sres.ty == SymbolSearchRes::FUNCTION)          emit(Instruction::CALLSCRFUN);
+    else if (sres.ty == SymbolSearchRes::CPP_FUNCTION) emit(Instruction::CLGLBLCPPFUN);
+    else return;
+
+    emit(idx);
 }
 
 void Compiler::compileReturn(const ASTNode &ret) {
@@ -887,7 +1002,7 @@ void Compiler::compileVariableAccess(const ASTNode &varAccess, ValueType expecte
     if (sres.ty != SymbolSearchRes::LOCAL_VAR 
      && sres.ty != SymbolSearchRes::GLOBAL_VAR 
      && sres.ty != SymbolSearchRes::MEMBER_VAR) {
-        createCompileError(S_IS_NOT_A_VAR.format(varAccessName), varAccess);
+        createCompileError(NOT_A_VAR, varAccess);
         return;
     }
 
@@ -896,7 +1011,9 @@ void Compiler::compileVariableAccess(const ASTNode &varAccess, ValueType expecte
     // If expected type is INVALID, the expression this variable access is in can be of any type
     // so type checking is useless
     if (expectedType != ValueType::INVALID && !canPromoteType(varType, expectedType)) {
-        createCompileError(CANT_PROMOTE_TY_TO.format(valueTypeToString(varType), valueTypeToString(expectedType)), varAccess);
+        createCompileError(CANT_PROMOTE_TY_TO.format(
+            ctx_->getTypeName(varType), 
+            ctx_->getTypeName(expectedType)), varAccess);
         return;
     }
 
@@ -1020,14 +1137,14 @@ void Compiler::compileAssignment(const ASTNode &assignment, ValueType expectedTy
 }
 
 #define CHECK_OPERAND_IS_MODIFIABLE_AND_NUMERIC()                                                       \
-    auto sres = searchSymbol(operand.child(0).token()->val);                                      \
+    auto sres = searchSymbol(operand.child(0).token()->val);                                            \
     if (sres.ty != SymbolSearchRes::LOCAL_VAR && sres.ty != SymbolSearchRes::GLOBAL_VAR                 \
         && !hasMask(sres.foundType, ValueType::REF_MASK)) {                                             \
         createCompileError(EXP_MODIFIABLE_VALUE, operand);                                              \
         return;                                                                                         \
     }                                                                                                   \
     if (!isNumeric(clearMask(sres.foundType, ValueType::REF_MASK))) {                                   \
-        createCompileError(EXPECTED_NUMERIC_TYPE.format(valueTypeToString(sres.foundType)), operand);   \
+        createCompileError(EXPECTED_NUMERIC_TYPE.format(ctx_->getTypeName(sres.foundType)), operand);   \
         return;                                                                                         \
     }                                                                                                   \
 
@@ -1050,7 +1167,8 @@ void Compiler::compileExpressionPreOp(const ASTNode &preOp, const ASTNode &opera
             emit(Instruction::SETREF);
 
             // For a pre-inc, the updated value should be on the stack at the end of the operation
-            compileExpressionValue(operand, expectedTy);
+            if (expectedTy != ValueType::VOID)
+                compileExpressionValue(operand, expectedTy);
 
             break;
         }
@@ -1064,14 +1182,16 @@ void Compiler::compileExpressionPreOp(const ASTNode &preOp, const ASTNode &opera
             emit(Instruction::DEC);
             emit(Instruction::SETREF);
             // Same reason as the pre-inc
-            compileExpressionValue(operand, expectedTy);
+
+            if (expectedTy != ValueType::VOID)
+                compileExpressionValue(operand, expectedTy);
 
             break;
         }
 
         case TokenType::NOT: {
             if (expectedTy != ValueType::BOOL) {
-                createCompileError(EXPECTED_A_BOOLEAN.format(valueTypeToString(expectedTy)), operand);
+                createCompileError(EXPECTED_A_BOOLEAN.format(ctx_->getTypeName(expectedTy)), operand);
                 return;
             }
 
@@ -1094,7 +1214,9 @@ void Compiler::compileExpressionPostOp(const ASTNode &postOp, const ASTNode &ope
             CHECK_OPERAND_IS_MODIFIABLE_AND_NUMERIC()
 
             // Here the last value on the stack is the value before the increment
-            compileExpressionValue(operand, expectedTy);
+            if (expectedTy != ValueType::VOID)
+                compileExpressionValue(operand, expectedTy);
+            
             compileExpressionValue(operand, setMask(expectedTy, ValueType::REF_MASK));
             emit(Instruction::DUP);
             emit(Instruction::LOADREF);
@@ -1106,7 +1228,9 @@ void Compiler::compileExpressionPostOp(const ASTNode &postOp, const ASTNode &ope
         case TokenType::MINUS_MINUS: {
             CHECK_OPERAND_IS_MODIFIABLE_AND_NUMERIC()
 
-            compileExpressionValue(operand, expectedTy);
+            if (expectedTy != ValueType::VOID)
+                compileExpressionValue(operand, expectedTy);
+            
             compileExpressionValue(operand, setMask(expectedTy, ValueType::REF_MASK));
             emit(Instruction::DUP);
             emit(Instruction::LOADREF);
@@ -1149,7 +1273,26 @@ void Compiler::compileExpressionValue(const ASTNode &exprVal, ValueType expected
     else if (firstChild.type() == ASTNodeType::IDENTIFIER)
         compileVariableAccess(firstChild, expectedTy);
     else if (firstChild.type() == ASTNodeType::CONSTRUCT_CALL)
-        true; // TODO
+        compileConstructCall(firstChild, expectedTy);
+}
+
+void Compiler::compileConstructCall(const ASTNode &constructCall, ValueType expectedTy) {
+    assert(constructCall.type() == ASTNodeType::CONSTRUCT_CALL);
+
+    const std::string &typeName = constructCall.child(0).token()->val;
+    SymbolSearchRes sres = searchSymbol(typeName);
+    if (sres.ty != SymbolSearchRes::OBJECT) {
+        createCompileError(NOT_AN_OBJ, constructCall);
+        return;
+    }
+
+    DWord objIdx = sres.idx;
+    emit(Instruction::NEW);
+    emit(objIdx);
+
+    DWord constructorIdx = sres.obj->getConstructorIdx();
+    emit(Instruction::CALLMETHOD);
+    emit(constructorIdx);
 }
 
 } // namespace NCSC

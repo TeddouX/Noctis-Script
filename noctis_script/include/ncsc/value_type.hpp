@@ -32,7 +32,20 @@ enum class ValueType : DWord {
     OBJ_MASK = 1 << 30,
 };
 
-ValueType NCSC_API valueTypeFromTok(const Token &tok);
+const std::unordered_map<ValueType, std::string> BUILTIN_VTYPES_NAMES = {
+    { ValueType::VOID,    "Void"    },
+    { ValueType::INT8,    "Int8"    },
+    { ValueType::INT16,   "Int16"   },
+    { ValueType::INT32,   "Int32"   },
+    { ValueType::INT64,   "Int64"   },
+    { ValueType::UINT8,   "UInt8"   },
+    { ValueType::UINT16,  "UInt16"  },
+    { ValueType::UINT32,  "UInt32"  },
+    { ValueType::UINT64,  "UInt64"  },
+    { ValueType::FLOAT32, "Float32" },
+    { ValueType::FLOAT64, "Float64" },
+    { ValueType::BOOL,    "Bool"    },
+};
 
 template <typename T>
 inline ValueType valueTypeFromCPPType() {
@@ -109,7 +122,5 @@ inline constexpr size_t getValueTypeSize(ValueType ty) {
 
 bool      NCSC_API canPromoteType(ValueType from, ValueType to);
 ValueType NCSC_API promoteType(ValueType from, ValueType to);
-
-std::string NCSC_API valueTypeToString(ValueType vtype);
 
 } // namespace NCSC

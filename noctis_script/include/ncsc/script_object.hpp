@@ -24,6 +24,9 @@ public:
     std::string name;
     ValueType type;
 
+    Method *getConstructor();
+    DWord   getConstructorIdx() const;
+
     GETTERS_SETTERS_FOR_NAMED_VECTOR(Method, methods_, Method)
     GETTERS_SETTERS_FOR_NAMED_VECTOR(Member, members_, MemberVariable)
 

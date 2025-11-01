@@ -9,27 +9,6 @@ namespace NCSC
 // UINT32 < INT64 < UINT64 < FLOAT32 < FLOAT64
 static int getRank(ValueType ty);
 
-ValueType valueTypeFromTok(const Token &tok) {
-    switch(tok.type) {
-        case TokenType::INT8_KWD:    return ValueType::INT8;
-        case TokenType::INT16_KWD:   return ValueType::INT16;
-        case TokenType::INT32_KWD:   return ValueType::INT32;
-        case TokenType::INT64_KWD:   return ValueType::INT64;
-
-        case TokenType::UINT8_KWD:   return ValueType::UINT8;
-        case TokenType::UINT16_KWD:  return ValueType::UINT16;
-        case TokenType::UINT32_KWD:  return ValueType::UINT32;
-        case TokenType::UINT64_KWD:  return ValueType::UINT64;
-        
-        case TokenType::FLOAT32_KWD: return ValueType::FLOAT32;
-        case TokenType::FLOAT64_KWD: return ValueType::FLOAT64;
-        
-        case TokenType::BOOL_KWD:    return ValueType::BOOL;
-
-        default:                     return ValueType::VOID;
-    }
-}
-
 bool isInt(ValueType ty) {
     return ty == ValueType::INT8 ||
            ty == ValueType::INT16 ||
@@ -57,11 +36,14 @@ bool isPrimitive(ValueType ty) {
 }
 
 bool canPromoteType(ValueType from, ValueType to) {
+    if (from == to)
+        return true;
+
     int rankFrom = getRank(from);
     int rankTo = getRank(from);
 
     return clearMask(to, ValueType::REF_MASK) == ValueType::VOID // Any type can convert to void 
-        || rankFrom != -1 && rankTo != -1 
+        || rankFrom != -1 && rankTo != -1
         && (getRank(from) <= getRank(to));
 }
 
@@ -99,36 +81,6 @@ ValueType promoteType(ValueType from, ValueType to) {
 
     return higher;  
 }
-
-std::string valueTypeToString(ValueType vtype) {
-    switch (vtype) {
-        case ValueType::INVALID: return "invalid";
-        case ValueType::VOID:    return "Void"; 
-
-        case ValueType::INT8:    return "Int8"; 
-        case ValueType::INT16:   return "Int16"; 
-        case ValueType::INT32:   return "Int32"; 
-        case ValueType::INT64:   return "Int64"; 
-        
-        case ValueType::UINT8:   return "UInt8"; 
-        case ValueType::UINT16:  return "UInt16"; 
-        case ValueType::UINT32:  return "UInt32"; 
-        case ValueType::UINT64:  return "UInt64"; 
-        
-        case ValueType::FLOAT32: return "FLoat32"; 
-        case ValueType::FLOAT64: return "FLoat64"; 
-        
-        case ValueType::BOOL:    return "Bool";
-        default: break;
-    }
-
-    if ((DWord)vtype & (DWord)ValueType::OBJ_MASK) {
-        return "Object";
-    }
-
-    return "unknown";
-}
-
 
 int getRank(ValueType ty) {
     switch (ty) {

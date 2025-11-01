@@ -126,7 +126,7 @@ Value Value::operator /(const Value &other) {
     return Value{ .ty = ValueType::FLOAT64, .f64 = castTo<float64_t>() / other.castTo<float64_t>() };
 }
 
-Value::operator std::string() {
+Value::operator std::string() const {
     if (hasMask(ty, ValueType::REF_MASK))
         return std::format("ref 0x{:X}", (intptr_t)ref);
 

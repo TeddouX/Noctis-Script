@@ -53,8 +53,6 @@ private:
 
     void createCompileError(const ErrInfo &info, const ASTNode &node);
 
-    bool isScriptFunction(const std::string &name) const { return currScript_->getFunction(name) != nullptr; }
-
     size_t computeRequiredStackSize(std::vector<Byte> &bc);
     // Computes maximum number of local variables of the scope
     size_t computeMaxLocals(const Scope *scope);
@@ -88,10 +86,10 @@ private:
             intermediate = std::strtoull(valStr.c_str(), nullptr, 0);
 
         if (intermediate < std::numeric_limits<T>::min()) {
-            createCompileError(NUMBER_IS_TOO_SMALL_FOR_TY.format(valStr, valueTypeToString(vtype)), constant);
+            createCompileError(NUMBER_IS_TOO_SMALL_FOR_TY.format(ctx_->getTypeName(vtype)), constant);
             return;
         } else if (intermediate > std::numeric_limits<T>::max()) {
-            createCompileError(NUMBER_IS_TOO_BIG_FOR_TY.format(valStr, valueTypeToString(vtype)), constant);
+            createCompileError(NUMBER_IS_TOO_BIG_FOR_TY.format(ctx_->getTypeName(vtype)), constant);
             return;
         }
 
@@ -116,6 +114,7 @@ private:
         enum {
             INVALID,
             FUNCTION,
+            CPP_FUNCTION,
             METHOD,
             GLOBAL_VAR,
             LOCAL_VAR,
@@ -124,6 +123,8 @@ private:
         } ty;
     };
     SymbolSearchRes searchSymbol(const std::string &name, ScriptObject *obj = nullptr);
+
+    ValueType valueTypeFromASTNode(const ASTNode &typeNode);
 
     void compileFunction(const ASTNode &funcDecl, bool method = false);
     void compileObject(const ASTNode &obj);
@@ -145,6 +146,7 @@ private:
     void compileExpressionPreOp(const ASTNode &preOp, const ASTNode &operand, ValueType expectedTy);
     void compileExpressionValue(const ASTNode &exprVal, ValueType expectedTy);
     void compileExpressionPostOp(const ASTNode &postOp, const ASTNode &operand, ValueType expectedTy);
+    void compileConstructCall(const ASTNode &constructCall, ValueType expectedTy);
 
     inline static ErrInfo CANT_FIND_FUNCTION_NAMED      { "Compilation error", "C", 0,  "Can't find function named '{}'" };
     inline static ErrInfo CANT_FIND_VAR_NAMED           { "Compilation error", "C", 1,  "Can't find variable named '{}'" };
@@ -155,15 +157,19 @@ private:
     inline static ErrInfo EXPECTED_NUM_ARGS_INSTEAD_GOT { "Compilation error", "C", 6,  "Expected {} arguments for function {} instead got {}" };
     inline static ErrInfo EXPECTED_NON_FLOATING_POINT   { "Compilation error", "C", 7,  "Unexpected floating point number '{}'" };
     inline static ErrInfo CANT_PROMOTE_TY_TO            { "Compilation error", "C", 8,  "Unable to convert type {} to {}" };
-    inline static ErrInfo NUMBER_IS_TOO_BIG_FOR_TY      { "Compilation error", "C", 9,  "Number '{}' is too big for an {}" };
-    inline static ErrInfo NUMBER_IS_TOO_SMALL_FOR_TY    { "Compilation error", "C", 10, "Number '{}' is too small for an {}" };
+    inline static ErrInfo NUMBER_IS_TOO_BIG_FOR_TY      { "Compilation error", "C", 9,  "Number is too big for an {}" };
+    inline static ErrInfo NUMBER_IS_TOO_SMALL_FOR_TY    { "Compilation error", "C", 10, "Number is too small for an {}" };
     inline static ErrInfo VAR_ALREADY_EXISTS            { "Compilation error", "C", 11, "Another variable with name '{}' already exists" };
     inline static ErrInfo FUNC_ALREADY_EXISTS           { "Compilation error", "C", 12, "Another function with name '{}' already exists" };
     inline static ErrInfo EXP_MODIFIABLE_VALUE          { "Compilation error", "C", 13, "Expected a modifiable value" };
     inline static ErrInfo EXPECTED_AN_ID                { "Compilation error", "C", 14, "Expected an identifier" };
     inline static ErrInfo EXPECTED_NUMERIC_TYPE         { "Compilation error", "C", 15, "Expected a numeric type, instead got {}" };
     inline static ErrInfo EXPECTED_A_BOOLEAN            { "Compilation error", "C", 16, "Expected a boolean, instead got {}" };
-    inline static ErrInfo S_IS_NOT_A_VAR                { "Compilation error", "C", 17, "{} is not a variable" };
+    inline static ErrInfo NOT_A_VAR                     { "Compilation error", "C", 17, "Not a variable" };
+    inline static ErrInfo NOT_A_TYPE                    { "Compilation error", "C", 18, "Not a type" };
+    inline static ErrInfo NOT_A_FUNCTION                { "Compilation error", "C", 19, "Not a function" };
+    inline static ErrInfo NOT_AN_OBJ                    { "Compilation error", "C", 20, "Not a constructible object" };
+    inline static ErrInfo CONSTRUCTOR_SHOULDNT_RET      { "Compilation error", "C", 21, "The compiler shouldn't return" };
 };
 
 } // namespace NCSC

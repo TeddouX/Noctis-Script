@@ -1,21 +1,33 @@
 obj Vec2 {
-    public Int x = 0;
-    public Int y = 0;
+    pub Int x = 0;
+    pub Int y = 0;
 
-    Int addButPriv(Int a, Int b) {
+    priv Vec2() {
+        x = 10;
+    }
+
+    Int AddButPriv(Int a, Int b) {
         return a + b;
     }
 
-    private Int addButPrivWithKw(Int a, Int b) {
+    priv Int AddButPrivWithKw(Int a, Int b) {
         return a + b;
     }
 
-    public Int add(Int a, Int b) {
+    pub Int Add(Int a, Int b) {
         Int res = a + b;
         return res;
     }
+
+    pub Int AddMembers() {
+        return x + y;
+    }
 }
 
-fun main() {
+fun Add(Int a, Int b) {
+    Int c = a + b;
+}
 
+fun Main() {
+    Vec2 a = new Vec2();
 }

@@ -2,7 +2,7 @@
 // Copyright (c) 2025, TeddouX (https://github.com/TeddouX/)
 #pragma once
 #include <string>
-#include <variant>
+#include <memory>
 
 #include "ncsc.hpp"
 #include "value_type.hpp"
@@ -13,12 +13,12 @@ namespace NCSC
 struct NCSC_API Value {
     ValueType ty;
     union {
-        int8_t i8; 
-        int16_t i16; 
+        int8_t  i8;
+        int16_t i16;
         int32_t i32; 
         int64_t i64;
         
-        uint8_t ui8; 
+        uint8_t  ui8; 
         uint16_t ui16;
         uint32_t ui32;
         uint64_t ui64;
@@ -56,7 +56,7 @@ struct NCSC_API Value {
     Value operator ==(const Value &other);
     Value operator !=(const Value &other);
 
-    operator std::string();
+    operator std::string() const;
 
     template <typename T>
     void setProperty(const T &val, ValueType valTy) {

@@ -30,6 +30,7 @@ private:
     std::vector<Error> syntaxErrors_;
 
     void createSyntaxError(const ErrInfo &info, const Token &tok);
+    bool tryEscapeSyntaxError(int startingLvl = 0);
 
     Token &consume();
     Token &peek(int amount = 1);

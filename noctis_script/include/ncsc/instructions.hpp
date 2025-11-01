@@ -42,7 +42,7 @@ enum class Instruction : Byte {
     JMP,            // JMP 123 ; set the PC to the operand
     JMPFALSE,       // JMPFALSE 123 ; if the last value on the stack is false or equals to zero, set the PC to the operand
 
-    LOADREF,         // LOADREF ; Pushes a value of a reference on the stack
+    LOADREF,        // LOADREF ; Pushes a value of a reference on the stack
     SETREF,         // SETREF ; Pops a reference and a value 
 
     TYCAST,         // TYCAST b ; pops the last value on the stack and changes it type to b 
@@ -51,13 +51,18 @@ enum class Instruction : Byte {
     RETVOID,        // RETVOID ; returns to the previous callframe on the callstack and removes locals and temporaries
 
     CALLSCRFUN,     // CALLSCRFUN 0 ; calls script function at index 0
+    CALLMETHOD,     // CALLMETHOD 0 ; calls method at index 0
     CLGLBLCPPFUN,   // CLGLBLCPPFUN 0 ; calls a global function registered in the ScriptContext at index 0
+
+    NEW,            // NEW 0 ; creates object of type 0
 
     LABEL,          // Temporary instruction to indicate the location of a jump
 };
 
 // Instruction -> (name & operand size)
 const std::unordered_map<Instruction, std::pair<const char *, size_t>> INSTR_INFO = {
+    { Instruction::NOOP,            {"NOOP",           0} },
+
     { Instruction::PUSH,            {"PUSH",           sizeof(DWord)} },
     { Instruction::POP,             {"POP",            0} },
     { Instruction::DUP,             {"DUP",            0} },
@@ -72,6 +77,7 @@ const std::unordered_map<Instruction, std::pair<const char *, size_t>> INSTR_INF
     { Instruction::LOADMEMBER_REF,  {"LOADMEMBER_REF", sizeof(DWord)} },
 
     { Instruction::CALLSCRFUN,      {"CALLSCRFUN",     sizeof(DWord)} },
+    { Instruction::CALLMETHOD,      {"CALLMETHOD",     sizeof(DWord)} },
     { Instruction::CLGLBLCPPFUN,    {"CLGLBLCPPFUN",   sizeof(DWord)} },
     
     { Instruction::ADD,             {"ADD",            0} },
@@ -100,9 +106,9 @@ const std::unordered_map<Instruction, std::pair<const char *, size_t>> INSTR_INF
     { Instruction::RET,             {"RET",            0} },
     { Instruction::RETVOID,         {"RETVOID",        0} },
 
-    { Instruction::LABEL,           {"LABEL",          sizeof(QWord)} },
+    { Instruction::NEW,             {"NEW",            sizeof(DWord)} },
 
-    { Instruction::NOOP,            {"NOOP",           0} },
+    { Instruction::LABEL,           {"LABEL",          sizeof(QWord)} },
 };
 
 size_t NCSC_API getInstructionSize(const std::vector<Byte> &bytes, size_t off);

@@ -52,7 +52,7 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    std::shared_ptr<NCSC::ScriptContext> scriptCtx = NCSC::ScriptContext::create();
+    auto scriptCtx = NCSC::ScriptContext::create();
     scriptCtx->registerGlobalFunction("printHello", printHello);
     scriptCtx->registerGlobalFunction("add", add);
     scriptCtx->registerGlobalFunction("add4", add4);
@@ -76,11 +76,11 @@ int main() {
         for (const auto &method : obj.getAllMethods()) {
             std::string argsStr;
             for (auto ty : method.paramTypes)
-                argsStr += NCSC::valueTypeToString(ty) + ", ";
+                argsStr += scriptCtx->getTypeName(ty) + ", ";
 
             std::println("{} method {} {}({}), reqStackSize: {}, numLocals: {}:\n{}", 
                 method.isPublic ? "public" : "private", 
-                NCSC::valueTypeToString(method.returnTy),
+                scriptCtx->getTypeName(method.returnTy),
                 method.name,
                 argsStr,
                 method.requiredStackSize,
@@ -89,7 +89,7 @@ int main() {
         }
     }
 
-    const NCSC::ScriptFunction *fun = script->getFunction("main");
+    const NCSC::ScriptFunction *fun = script->getFunction("Main");
     if (fun) {
         NCSC::VM vm(script);
         if (!vm.computeGlobals()) {

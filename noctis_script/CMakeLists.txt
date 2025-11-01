@@ -41,6 +41,7 @@ set(NCSC_SOURCES
     "src/scope.cpp"
     "src/script_context.cpp"
     "src/script_node.cpp"
+    "src/script_object.cpp"
     "src/script_source.cpp"
     "src/token.cpp"
     "src/value_type.cpp"

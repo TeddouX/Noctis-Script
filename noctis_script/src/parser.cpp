@@ -32,19 +32,27 @@ ASTNode Parser::parseAll() {
         
         // int, float, ...
         if (isDataType(currTok.type)) {
-            if (isVariableDeclaration())
+            if (isVariableDeclaration()) {
                 root.addChild(parseVariableDeclaration());
-            else if (isFunction())
+                if (hasSyntaxError_) tryEscapeSyntaxError();
+            }
+            else if (isFunction()) {
                 root.addChild(parseFunction());
+                if (hasSyntaxError_) tryEscapeSyntaxError();
+            }
             else {
                 consume();
                 createSyntaxError(EXPECTED_VARDECL_OR_FUNC_DEF, currTok);
             }
         }
-        else if (currTok.type == TokenType::FUN_KWD)
+        else if (currTok.type == TokenType::FUN_KWD) {
             root.addChild(parseFunction());
-        else if (currTok.type == TokenType::OBJ_KWD)
+            if (hasSyntaxError_) tryEscapeSyntaxError();
+        }
+        else if (currTok.type == TokenType::OBJ_KWD) {
             root.addChild(parseObject());
+            if (hasSyntaxError_) tryEscapeSyntaxError();
+        }
         else if (currTok.type == TokenType::END_OF_FILE) 
             break;
         // Extra semicolons can be ignored
@@ -69,6 +77,40 @@ void Parser::createSyntaxError(const ErrInfo &info, const Token &tok) {
     Error err(info, src_);
     err.setLocation(tok.line, tok.col, tok.col + tok.getLength());
     syntaxErrors_.push_back(err);
+}
+
+bool Parser::tryEscapeSyntaxError(int startingLvl) {
+    for (int i = 0;; i++) {
+        Token &t = peek(0);
+        if (t.type == TokenType::SEMICOLON && startingLvl == 0) {
+            // The comma isn't in an unsafe nested block so 
+            // its safe to break out of the loop
+            consume();
+            break;
+        }
+        else if (t.type == TokenType::CURLY_BRACE_OPEN) {
+            consume();
+            startingLvl++;
+        }
+        else if (t.type == TokenType::CURLY_BRACE_CLOSE) {
+            // End of nested block. The bracket will get handled 
+            // in the next iteration of the outer for loop
+            startingLvl--;
+            if (startingLvl == 0)
+                break;
+
+            consume();
+        }
+        else if (t.type == TokenType::END_OF_FILE) {
+            createSyntaxError(UNEXPECTED_EOF, t);
+            return false;
+        }
+        else
+            consume();
+    }
+    
+    hasSyntaxError_ = false;
+    return true;
 }
 
 Token &Parser::consume() {
@@ -132,10 +174,7 @@ bool Parser::isVariableDeclaration(bool isMember) {
     // Declaration can stop at a semicolon or it has an equal
     // int a;
     // int a = (...)
-    if (t.type == TokenType::SEMICOLON || t.type == TokenType::EQUAL)
-        return true;
-    else
-        return false;
+    return t.type == TokenType::SEMICOLON || t.type == TokenType::EQUAL;
 }
 
 bool Parser::isFunction(bool isMethod) {
@@ -146,8 +185,10 @@ bool Parser::isFunction(bool isMethod) {
 
     if (!isDataType(t.type) && t.type != TokenType::FUN_KWD)
         return false;
+    else if (!isMethod || t.type != TokenType::ID) // Allow constructors
+        size++;
 
-    t = peek(++size);
+    t = peek(size);
     if (t.type != TokenType::ID)
         return false;
 
@@ -332,13 +373,14 @@ ASTNode Parser::parseFunction(bool isMethod) {
     }
 
     Token &t1 = peek(0);
-    if (isDataType(t1.type)) 
+    // Don't parse a constructor's name as a type
+    if (isDataType(t1.type) && t1.type != TokenType::ID)
         node.addChild(parseType()); 
     else if (t1.type == TokenType::FUN_KWD) {
         consume();
         node.addChild(parseToken(t1));
-    } 
-    else {
+    }
+    else if (!isMethod) {
         createSyntaxError(EXPECTED_A_DATA_TYPE_OR_FUN, t1);
         return node;
     }
@@ -403,41 +445,7 @@ ASTNode Parser::parseStatementBlock() {
         else
             node.addChild(parseStatement());
 
-        // Try to recover from syntax errors
-        if (hasSyntaxError_) {
-            // Try exitting the problematic line or block of code
-            int level = 0;
-            for (int i = 0;; i++) {
-                t1 = peek(0);
-                if (t1.type == TokenType::SEMICOLON && level == 0) {
-                    // The comma isn't in an unsafe nested block so 
-                    // its safe to break out of the loop
-                    consume();
-                    break;
-                }
-                else if (t1.type == TokenType::CURLY_BRACE_OPEN) {
-                    consume();
-                    level++;
-                }
-                else if (t1.type == TokenType::CURLY_BRACE_CLOSE) {
-                    // End of nested block. The bracket will get handled 
-                    // in the next iteration of the outer for loop
-                    if (level == 0)
-                        break;
-
-                    consume();
-                    level--;
-                }
-                else if (t1.type == TokenType::END_OF_FILE) {
-                    createSyntaxError(UNEXPECTED_EOF, t1);
-                    return node;
-                }
-                else
-                    consume();
-            }
-            
-            hasSyntaxError_ = false;
-        }
+        CHECK_SYNTAX_ERROR;
     }
 
     return node;
@@ -609,14 +617,18 @@ ASTNode Parser::parseObject() {
         if (t.type == TokenType::CURLY_BRACE_CLOSE) {
             consume();
             break;
-        } else if (isVariableDeclaration(true)) {
+        } 
+        else if (isVariableDeclaration(true)) {
             node.addChild(parseVariableDeclaration(true)); CHECK_SYNTAX_ERROR;   
-        } else if (isFunction(true)) {
+        } 
+        else if (isFunction(true)) {
             node.addChild(parseFunction(true)); CHECK_SYNTAX_ERROR;
-        } else {
+        } 
+        else {
             consume();
             createSyntaxError(EXPECTED_VARDECL_OR_FUNC_DEF, t);
-            return node;
+            if (!tryEscapeSyntaxError()) return node;
+            consume(); // Consume remaining closing curly brace
         }
     }
 

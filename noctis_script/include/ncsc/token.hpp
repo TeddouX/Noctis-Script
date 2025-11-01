@@ -163,8 +163,8 @@ const std::unordered_map<std::string, TokenType> tokensStringToTok = {
     { "if",         TokenType::IF_KWD },
     { "else",       TokenType::ELSE_KWD },
     { "obj",        TokenType::OBJ_KWD, },
-    { "public",     TokenType::PUBLIC_KWD, },
-    { "private",    TokenType::PRIVATE_KWD, },
+    { "pub",        TokenType::PUBLIC_KWD, },
+    { "priv",       TokenType::PRIVATE_KWD, },
     { "new",        TokenType::NEW_KWD, },
 };
 
