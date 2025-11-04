@@ -14,7 +14,7 @@ namespace NCSC
 
 class NCSC_API Lexer {
 public:
-    Lexer(std::shared_ptr<ScriptSource> source)
+    explicit Lexer(std::shared_ptr<ScriptSource> source)
         : source_(source->getString()) {}
 
     std::vector<Token> tokenizeAll();

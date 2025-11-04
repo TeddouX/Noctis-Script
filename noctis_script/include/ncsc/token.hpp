@@ -82,7 +82,7 @@ enum class TokenType : uint8_t {
 struct NCSC_API Token {
     TokenType type;
     std::string val;
-    uint32_t line, col;
+    uint32_t line = 0, col = 0;
 
     Token() : type(TokenType::INVALID) {}
 

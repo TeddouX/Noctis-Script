@@ -13,7 +13,11 @@ namespace NCSC
     
 struct ScriptFunction : public Function {
     std::vector<Byte> bytecode;
+    // Locals + Parameters
     DWord  numLocals = 0;
+    
+    // Required stack size to run the function in the VM
+    // not counting locals
     size_t requiredStackSize = 0;
 };
 

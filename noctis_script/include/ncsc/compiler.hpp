@@ -18,7 +18,7 @@ namespace NCSC
 
 class NCSC_API Compiler {
 public:
-    Compiler(std::shared_ptr<ScriptContext> ctx, std::shared_ptr<ScriptSource> src = nullptr)
+    explicit Compiler(std::shared_ptr<ScriptContext> ctx, std::shared_ptr<ScriptSource> src = nullptr)
         : ctx_(ctx), src_(src) {};
 
     static std::string disassemble(const std::vector<Byte> &bc);
@@ -32,9 +32,9 @@ public:
 private:
     std::shared_ptr<ScriptContext> ctx_;
     std::shared_ptr<ScriptSource> src_;
-    Script *currScript_;
-    ScriptFunction *currFunction_;
-    ScriptObject *currObject_;
+    Script *currScript_ = nullptr;
+    ScriptFunction *currFunction_ = nullptr;
+    ScriptObject *currObject_ = nullptr;
 
     std::vector<Byte> tempCompiledBytecode_;
 
@@ -46,6 +46,8 @@ private:
 
     QWord tmpLabelNum_ = 0;
 
+    ValueType lastTypeOnStack_ = ValueType::INVALID;
+
     void enterNewScope();
     void exitScope();
 
@@ -53,7 +55,7 @@ private:
 
     void createCompileError(const ErrInfo &info, const ASTNode &node);
 
-    size_t computeRequiredStackSize(std::vector<Byte> &bc);
+    size_t computeRequiredStackSize(const std::vector<Byte> &bc);
     // Computes maximum number of local variables of the scope
     size_t computeMaxLocals(const Scope *scope);
 
@@ -71,8 +73,6 @@ private:
 
     // Patch bytecode
     void patchBytecode(size_t location, Instruction instr, const std::vector<Byte> &operandBytes);
-
-    size_t getLastByteInsertedLoc() const { return tempCompiledBytecode_.size() - 1; }
 
     template <typename T>
     requires std::is_integral_v<T> 
@@ -131,22 +131,25 @@ private:
     void compileVariableDeclaration(const ASTNode &varDecl, bool global = false, bool member = false);
     void compileConstantPush(const ASTNode &constant, ValueType expectedType);
     void compileOperator(const ASTNode &op);
-    void compileExpression(const ASTNode &expr, ValueType expectedType = ValueType::INVALID);
+    void compileExpression(const ASTNode &expr, ValueType expectedType = ValueType::VOID);
     void recursivelyCompileExpression(const ASTNode &exprChild, ValueType expectedType);
-    // shouldBeModifiable: true if it should be, false if you don't care
-    void compileExpressionTerm(const ASTNode &exprTerm, ValueType expectedType = ValueType::INVALID);
+    void compileExpressionTerm(const ASTNode &exprTerm, ValueType expectedType = ValueType::VOID);
     void compileStatementBlock(const ASTNode &stmtBlock);
-    void compileFunctionCall(const ASTNode &funCall, bool shouldReturnVal);
+    void compileFunctionCall(const ASTNode &funCall, ValueType expectedType);
     void compileReturn(const ASTNode &ret);
-    void compileVariableAccess(const ASTNode &varAccess, ValueType expectedType = ValueType::INVALID);
+    void compileVariableAccess(const ASTNode &varAccess, ValueType expectedType = ValueType::VOID);
     bool compileArguments(const ASTNode &argsNode, const Function *fun);
     void compileIfStatement(const ASTNode &ifStmt, int nestedCount = 1);
     void compileJmpBcPatch(size_t patchLoc, Instruction jmpInstr, size_t jmpLoc);
-    void compileAssignment(const ASTNode &assignment, ValueType expectedType = ValueType::INVALID);
+    void compileAssignment(const ASTNode &assignment, ValueType expectedType = ValueType::VOID);
     void compileExpressionPreOp(const ASTNode &preOp, const ASTNode &operand, ValueType expectedTy);
     void compileExpressionValue(const ASTNode &exprVal, ValueType expectedTy);
     void compileExpressionPostOp(const ASTNode &postOp, const ASTNode &operand, ValueType expectedTy);
     void compileConstructCall(const ASTNode &constructCall, ValueType expectedTy);
+
+    bool checkOperandIsModifiableAndNumeric(const ASTNode &operand);
+
+    ValueType getExpressionTermType(const ASTNode &exprTerm);
 
     inline static ErrInfo CANT_FIND_FUNCTION_NAMED      { "Compilation error", "C", 0,  "Can't find function named '{}'" };
     inline static ErrInfo CANT_FIND_VAR_NAMED           { "Compilation error", "C", 1,  "Can't find variable named '{}'" };

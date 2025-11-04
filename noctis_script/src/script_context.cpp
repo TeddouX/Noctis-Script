@@ -10,7 +10,7 @@ std::shared_ptr<ScriptContext> ScriptContext::create() {
 }
 
 const GlobalCPPFunctionRepr *ScriptContext::getGlobalFunction(DWord idx) const {
-    if (idx > globalCPPFunctions_.size())
+    if (idx >= globalCPPFunctions_.size())
         return nullptr;
     return &globalCPPFunctions_[idx];
 }

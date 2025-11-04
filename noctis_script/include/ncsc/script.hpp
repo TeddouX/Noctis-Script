@@ -16,7 +16,7 @@ namespace NCSC
 struct GlobalVar : public Variable {
     // Global's bytecode shoudld get ran before executing any functions
     std::vector<Byte> bytecode;
-    size_t requiredStackSize;
+    size_t requiredStackSize = 0;
 };
 
 class NCSC_API Script {
@@ -24,7 +24,7 @@ public:
     Script() = default;
 
     std::shared_ptr<ScriptContext> ctx;
-    DWord numGlobalVariables;
+    DWord numGlobalVariables = 0;
     
     GETTERS_SETTERS_FOR_NAMED_VECTOR(Function, functions_, ScriptFunction)
     GETTERS_SETTERS_FOR_NAMED_VECTOR(GlobalVariable, globalVars_, GlobalVar)

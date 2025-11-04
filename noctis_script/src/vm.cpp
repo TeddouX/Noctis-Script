@@ -273,25 +273,25 @@ void VM::executeNext() {
             ip += 1 + sizeof(DWord);
 
             const ScriptFunction *fun = script_->getFunction(idx);
-            sp_ -= fun->numParams - 1;
+            sp_ -= fun->numParams;
 
             prepareScriptFunction(fun);
 
             break;
         }
         INSTR(CALLMETHOD): {
-            Value obj = pop();
-            if (!obj.isObject())
-                return;
+            ip += 1;
 
-            DWord objIdx = (DWord)clearMask(obj.ty, ValueType::OBJ_MASK);
-            DWord methodIdx = readWord<DWord>(bytecode, ip + 1);
+            DWord objIdx = readWord<DWord>(bytecode, ip);
+            ip += sizeof(DWord);
+
+            DWord methodIdx = readWord<DWord>(bytecode, ip);
+            ip += sizeof(DWord);
+            
             ScriptObject *scriptObj = script_->getObject(objIdx);
             const ScriptFunction *method = scriptObj->getMethod(methodIdx);
 
-            ip += 1 + sizeof(DWord);
-
-            sp_ -= method->numParams - 1;
+            sp_ -= method->numParams;
             prepareScriptFunction(method);
 
             break;
@@ -305,7 +305,7 @@ void VM::executeNext() {
             // Build vector of arguments from the top n values on the stack
             auto spIt = stack_.begin() + sp_;
             std::vector<Value> args(spIt - fun->numParams, spIt);
-            sp_ -= fun->numParams + 1;
+            sp_ -= fun->numParams;
 
             // Call function and push the result, if one exists
             Value ret = script_->ctx->callGlobalFunction(idx, args);
@@ -364,8 +364,8 @@ void VM::executeNext() {
             break;
     }
 
-    std::println("Instr: {} SP: {}", INSTR_INFO.at(instr).first, sp_);
-    std::println("Stack: {}", getStackStrRepr());
+    // std::println("Instr: {} SP: {}", INSTR_INFO.at(instr).first, sp_);
+    // std::println("Stack: {}", getStackStrRepr());
     // std::println("Globals: {}", getStackString(globalVariables_));
     // std::println();
 
@@ -380,7 +380,8 @@ void VM::prepareScriptFunction(const ScriptFunction *fun) {
         .bp = sp_,
         .ip = 0,
         .sp = sp_ + fun->numLocals,
-        .stackSize = callStack_.back().stackSize + fun->requiredStackSize + fun->numLocals,
+        // Parameters are already on the stack so no
+        .stackSize = callStack_.back().stackSize + fun->requiredStackSize + fun->numLocals - fun->numParams,
     };
 
     callStack_.back().sp = sp_;

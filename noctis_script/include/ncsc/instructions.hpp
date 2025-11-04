@@ -77,7 +77,7 @@ const std::unordered_map<Instruction, std::pair<const char *, size_t>> INSTR_INF
     { Instruction::LOADMEMBER_REF,  {"LOADMEMBER_REF", sizeof(DWord)} },
 
     { Instruction::CALLSCRFUN,      {"CALLSCRFUN",     sizeof(DWord)} },
-    { Instruction::CALLMETHOD,      {"CALLMETHOD",     sizeof(DWord)} },
+    { Instruction::CALLMETHOD,      {"CALLMETHOD",     sizeof(QWord)} /* DWord -> Object idx + DWord -> Method idx */  },
     { Instruction::CLGLBLCPPFUN,    {"CLGLBLCPPFUN",   sizeof(DWord)} },
     
     { Instruction::ADD,             {"ADD",            0} },

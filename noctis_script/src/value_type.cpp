@@ -63,7 +63,6 @@ ValueType promoteType(ValueType from, ValueType to) {
     int rankTo   = getRank(to);
 
     ValueType higher = (rankFrom > rankTo) ? from : to;
-    ValueType lower  = (rankFrom > rankTo) ? to : from;
 
     // If higher is unsigned, result is unsigned
     if (isUnsigned(higher))

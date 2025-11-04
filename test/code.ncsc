@@ -4,14 +4,7 @@ obj Vec2 {
 
     priv Vec2() {
         x = 10;
-    }
-
-    Int AddButPriv(Int a, Int b) {
-        return a + b;
-    }
-
-    priv Int AddButPrivWithKw(Int a, Int b) {
-        return a + b;
+        y = 100;
     }
 
     pub Int Add(Int a, Int b) {

@@ -88,9 +88,6 @@ static size_t setValuePropFromBytes(const std::vector<Byte> &bytes, ValueType ty
         case ValueType::UINT8:                                                          \
             val.b = castTo<uint8_t>() op other.castTo<uint8_t>();                       \
             break;                                                                      \
-        case ValueType::BOOL:                                                           \
-            val.b = castTo<bool>() op other.castTo<bool>();                             \
-            break;                                                                      \
         default:                                                                        \
             val.ty = ValueType::INVALID;                                                \
             break;                                                                      \

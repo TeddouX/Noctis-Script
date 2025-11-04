@@ -9,11 +9,6 @@
 #include <fstream>
 #include <chrono>
 
-#ifdef _WIN32
-    #include <windows.h>
-    #include <clocale>
-#endif
-
 void printHello(int i) {
     std::println("Hello from CPP! {}", i);
 }
@@ -66,11 +61,26 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    for (const auto &var : script->getAllGlobalVariables())
-        std::println("global {}:\n{}", var.name, NCSC::Compiler::disassemble(var.bytecode));
+    for (const auto &var : script->getAllGlobalVariables()) {
+        std::println("global {} {}:\n{}", 
+            scriptCtx->getTypeName(var.type), 
+            var.name, 
+            NCSC::Compiler::disassemble(var.bytecode));
+    }
     
-    for (const auto &fun : script->getAllFunctions())
-        std::println("fun {}:\n{}", fun.name, NCSC::Compiler::disassemble(fun.bytecode));
+    for (const auto &fun : script->getAllFunctions()) {
+        std::string argsStr;
+        for (auto ty : fun.paramTypes)
+            argsStr += scriptCtx->getTypeName(ty) + ", ";
+
+        std::println("fun {} {}({}), reqStackSize: {}, numLocals: {}:\n{}", 
+            scriptCtx->getTypeName(fun.returnTy),
+            fun.name,
+            argsStr,
+            fun.requiredStackSize,
+            fun.numLocals,
+            NCSC::Compiler::disassemble(fun.bytecode));
+    }
 
     for (auto &obj : script->getAllObjects()) {
         for (const auto &method : obj.getAllMethods()) {

@@ -23,7 +23,7 @@ struct CallFrame {
 
 class NCSC_API VM {
 public:
-    VM(std::shared_ptr<Script> script);
+    explicit VM(std::shared_ptr<Script> script);
 
     bool computeGlobals();
 

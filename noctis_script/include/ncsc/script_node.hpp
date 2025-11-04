@@ -39,7 +39,7 @@ enum class ASTNodeType : uint8_t {
 
 struct NCSC_API ASTNode {
 public:
-    ASTNode(ASTNodeType type)
+    explicit ASTNode(ASTNodeType type)
         : type_(type) {}
     
     uint32_t line = 0, col = 0, colEnd = 0;

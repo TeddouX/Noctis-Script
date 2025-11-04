@@ -23,7 +23,7 @@ public:
     const std::string &getString() const { return string_; }
 
 private:
-    ScriptSource(const std::string &source);
+    explicit ScriptSource(const std::string &source);
 
     std::vector<std::pair<size_t, size_t>> lines_;
     std::string string_;

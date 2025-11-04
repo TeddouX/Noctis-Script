@@ -80,7 +80,7 @@ bool Optimizer::constantFolding(std::vector<Byte> &bc, size_t &idx) {
     Value res;
     switch (op) {
         // Regular binops
-        case Instruction::ADD:   res = a +  b;  break;
+        case Instruction::ADD:   res = a +  b; break;
         case Instruction::SUB:   res = a -  b; break;
         case Instruction::MUL:   res = a *  b; break;
         case Instruction::DIV:   res = a /  b; break;
@@ -91,6 +91,7 @@ bool Optimizer::constantFolding(std::vector<Byte> &bc, size_t &idx) {
         case Instruction::CMPGE: res = a >= b; break;
         case Instruction::CMPEQ: res = a != b; break;
         case Instruction::CMPNE: res = a == b; break;
+        default:                 res = a;      break;
     }
 
     std::vector<Byte> bytes;

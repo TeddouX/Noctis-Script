@@ -125,7 +125,7 @@ Token &Parser::consume() {
 }
 
 Token &Parser::peek(int amount) {
-    if (idx_ + amount > tokens_.size()) {
+    if (idx_ + amount >= tokens_.size()) {
         std::cerr << "Unexpected end of tokens" << std::endl;
         exit(-1);
     }
@@ -150,6 +150,8 @@ int Parser::getOperatorPrecedence(const Token &tok) {
         case TokenType::DOUBLE_EQUAL:
         case TokenType::NOT_EQUAL:
             return 4;
+
+        default: break;
     }
 
     createSyntaxError(EXPECTED_AN_OPERATOR, tok);

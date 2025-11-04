@@ -20,9 +20,9 @@ class ScriptObject {
 public:
     ScriptObject() = default;
     
-    DWord numMembers;
+    DWord numMembers = 0;
     std::string name;
-    ValueType type;
+    ValueType type = ValueType::INVALID;
 
     Method *getConstructor();
     DWord   getConstructorIdx() const;

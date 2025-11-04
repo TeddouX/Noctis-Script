@@ -33,7 +33,7 @@ enum class ValueType : DWord {
 };
 
 const std::unordered_map<ValueType, std::string> BUILTIN_VTYPES_NAMES = {
-    { ValueType::VOID,    "Void"    },
+    { ValueType::VOID,    "void"    },
     { ValueType::INT8,    "Int8"    },
     { ValueType::INT16,   "Int16"   },
     { ValueType::INT32,   "Int32"   },

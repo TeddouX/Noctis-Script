@@ -93,8 +93,9 @@ inline void makeBytes(const T &val, std::vector<Byte> &bytes, size_t off = 0) {
 #define GETTERS_SETTERS_FOR_NAMED_VECTOR(name, vec, ty)                                             \
     bool has##name(const std::string &name) { return get##name##Idx(name) != NCSC_INVALID_IDX; }    \
     void add##name(const ty& name) { vec.push_back(name); }                                         \
+    ty &emplace##name(const ty& name) { return vec.emplace_back(name); }                            \
     ty *get##name(DWord idx) {                                                                      \
-        if (idx > vec.size())                                                                       \
+        if (idx >= vec.size())                                                                      \
             return nullptr;                                                                         \
         return &vec[idx];                                                                           \
     }                                                                                               \
