@@ -7,27 +7,6 @@
 namespace NCSC
 {
 
-static std::string getStackString(const std::deque<Value> &stack) {
-    if (stack.empty())
-        return "empty";
-
-    std::ostringstream oss;
-    for (auto &val : stack) {
-        if (hasMask(val.ty, ValueType::OBJ_MASK)) {
-            std::string str = "{";
-            for (auto &member : *val.obj)
-                str += member.operator std::string() + ", ";
-            
-            str += "}, ";
-            oss << str;
-        }
-        else
-            oss << val.operator std::string() << ", ";
-    }
-    return oss.str();
-}
-
-
 VM::VM(std::shared_ptr<Script> script)
     : script_(script),
       ctx_(script->ctx)
@@ -249,6 +228,10 @@ void VM::executeNext() {
             Value val = pop();
             Value ref = pop();
 
+            if (!hasMask(ref.ty, ValueType::REF_MASK)) {
+                error(std::string(TRYED_SETTING_VAL_OF_INVALID_REF));
+                break;
+            }
             *ref.ref = val;
 
             END_INSTR(1);
@@ -364,9 +347,12 @@ void VM::executeNext() {
             break;
     }
 
-    // std::println("Instr: {} SP: {}", INSTR_INFO.at(instr).first, sp_);
+    // std::println("Instr: {} SP: {} BP: {}", 
+    //     INSTR_INFO.at(instr).first, 
+    //     sp_, 
+    //     callStack_.empty() ? 0 : callStack_.back().bp);
     // std::println("Stack: {}", getStackStrRepr());
-    // std::println("Globals: {}", getStackString(globalVariables_));
+    // std::println("Globals: {}", getStackStrRepr(globalVariables_));
     // std::println();
 
 #undef INSTR
@@ -461,7 +447,25 @@ bool VM::execute() {
 }
 
 std::string VM::getStackStrRepr() const {
-    return getStackString(stack_);
+    if (stack_.empty())
+        return "Stack is empty";
+
+    std::string res = "[ ";
+    for (size_t i = 0; i < stack_.size(); i++) {
+        const Value &val = stack_[i];
+    
+        if (i >= sp_)
+            res += "invalid";
+        else
+            res += val.getStrRepr(ctx_.get());
+
+        // Don't add a comma to the last value
+        if (i < stack_.size() - 1)
+            res += ", ";
+    }
+    res += " ]";
+
+    return res;
 }
 
 Value VM::pop() {

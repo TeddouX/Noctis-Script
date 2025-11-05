@@ -50,6 +50,8 @@ private:
 
     void enterNewScope();
     void exitScope();
+    // Clear scopes and set currScope_ to nullptr
+    void resetScopes();
 
     void finalizeBc(std::vector<Byte> &bc);
 
@@ -104,9 +106,9 @@ private:
 
     struct SymbolSearchRes {
         union {
-            const ScriptObject *obj;
-            const Function *fun;
-            const Variable *var;
+            ScriptObject *obj;
+            Function *fun;
+            Variable *var;
         };
         DWord idx = NCSC_INVALID_IDX;
         ValueType foundType = ValueType::INVALID;
@@ -138,10 +140,10 @@ private:
     void compileFunctionCall(const ASTNode &funCall, ValueType expectedType);
     void compileReturn(const ASTNode &ret);
     void compileVariableAccess(const ASTNode &varAccess, ValueType expectedType = ValueType::VOID);
-    bool compileArguments(const ASTNode &argsNode, const Function *fun);
+    bool compileArguments(const ASTNode &argsNode, const Function *fun, bool isMethod = false);
     void compileIfStatement(const ASTNode &ifStmt, int nestedCount = 1);
     void compileJmpBcPatch(size_t patchLoc, Instruction jmpInstr, size_t jmpLoc);
-    void compileAssignment(const ASTNode &assignment, ValueType expectedType = ValueType::VOID);
+    void compileAssignment(const ASTNode &assignment);
     void compileExpressionPreOp(const ASTNode &preOp, const ASTNode &operand, ValueType expectedTy);
     void compileExpressionValue(const ASTNode &exprVal, ValueType expectedTy);
     void compileExpressionPostOp(const ASTNode &postOp, const ASTNode &operand, ValueType expectedTy);
@@ -157,13 +159,11 @@ private:
     inline static ErrInfo FUNCTION_SHOULD_RET_VAL       { "Compilation error", "C", 3,  "Function '{}' should return a value" };
     inline static ErrInfo FUNCTION_SHOULDNT_RET_VAL     { "Compilation error", "C", 4,  "Function '{}' has a return type of void, so it shouldn't return anything" };
     inline static ErrInfo EXPECTED_TYPE_INSTEAD_GOT     { "Compilation error", "C", 5,  "Expected type '{}', instead got '{}'" };
-    inline static ErrInfo EXPECTED_NUM_ARGS_INSTEAD_GOT { "Compilation error", "C", 6,  "Expected {} arguments for function {} instead got {}" };
+    inline static ErrInfo EXPECTED_NUM_ARGS_INSTEAD_GOT { "Compilation error", "C", 6,  "Expected {} arguments, instead got {}" };
     inline static ErrInfo EXPECTED_NON_FLOATING_POINT   { "Compilation error", "C", 7,  "Unexpected floating point number '{}'" };
     inline static ErrInfo CANT_PROMOTE_TY_TO            { "Compilation error", "C", 8,  "Unable to convert type {} to {}" };
     inline static ErrInfo NUMBER_IS_TOO_BIG_FOR_TY      { "Compilation error", "C", 9,  "Number is too big for an {}" };
     inline static ErrInfo NUMBER_IS_TOO_SMALL_FOR_TY    { "Compilation error", "C", 10, "Number is too small for an {}" };
-    inline static ErrInfo VAR_ALREADY_EXISTS            { "Compilation error", "C", 11, "Another variable with name '{}' already exists" };
-    inline static ErrInfo FUNC_ALREADY_EXISTS           { "Compilation error", "C", 12, "Another function with name '{}' already exists" };
     inline static ErrInfo EXP_MODIFIABLE_VALUE          { "Compilation error", "C", 13, "Expected a modifiable value" };
     inline static ErrInfo EXPECTED_AN_ID                { "Compilation error", "C", 14, "Expected an identifier" };
     inline static ErrInfo EXPECTED_NUMERIC_TYPE         { "Compilation error", "C", 15, "Expected a numeric type, instead got {}" };
@@ -173,6 +173,7 @@ private:
     inline static ErrInfo NOT_A_FUNCTION                { "Compilation error", "C", 19, "Not a function" };
     inline static ErrInfo NOT_AN_OBJ                    { "Compilation error", "C", 20, "Not a constructible object" };
     inline static ErrInfo CONSTRUCTOR_SHOULDNT_RET      { "Compilation error", "C", 21, "The compiler shouldn't return" };
+    inline static ErrInfo SYMBOL_ALREADY_EXISTS         { "Compilation error", "C", 22, "This symbol was already defined somewhere else" };
 };
 
 } // namespace NCSC

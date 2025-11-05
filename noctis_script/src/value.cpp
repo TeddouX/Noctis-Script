@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 // Copyright (c) 2025, TeddouX (https://github.com/TeddouX/)
 #include <ncsc/value.hpp>
+#include <ncsc/script_context.hpp>
 #include <bit>
 #include <format>
 
@@ -123,9 +124,31 @@ Value Value::operator /(const Value &other) {
     return Value{ .ty = ValueType::FLOAT64, .f64 = castTo<float64_t>() / other.castTo<float64_t>() };
 }
 
-Value::operator std::string() const {
+std::string Value::getStrRepr(const ScriptContext *ctx) const {
     if (hasMask(ty, ValueType::REF_MASK))
         return std::format("ref 0x{:X}", (intptr_t)ref);
+    else if (hasMask(ty, ValueType::OBJ_MASK)) {
+        std::string res;
+        if (ctx)
+            res = ctx->getTypeName(ty);
+        res += "{ ";
+
+        for (size_t i = 0; i < obj->size(); i++) {
+            const Value &val = obj->at(i);
+
+            if (val.isObject() && ctx)
+                res += ctx->getTypeName(val.ty);
+
+            res += val.getStrRepr();
+
+            // Don't add a comma to the last value
+            if (i < obj->size() - 1)
+                res += ", ";
+        }
+        res += " }";
+
+        return res;
+    }
 
     switch (ty) {
         case ValueType::INVALID: return "invalid";

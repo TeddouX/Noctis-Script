@@ -10,6 +10,8 @@
 namespace NCSC
 {
 
+class ScriptContext;
+
 struct NCSC_API Value {
     ValueType ty;
     union {
@@ -56,7 +58,7 @@ struct NCSC_API Value {
     Value operator ==(const Value &other);
     Value operator !=(const Value &other);
 
-    operator std::string() const;
+    std::string getStrRepr(const ScriptContext *ctx = nullptr) const;
 
     template <typename T>
     void setProperty(const T &val, ValueType valTy) {

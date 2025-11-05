@@ -36,8 +36,8 @@ public:
         globalCPPFunctions_.push_back(glblFun);
     }
 
-    const GlobalCPPFunctionRepr *getGlobalFunction(DWord idx) const;
-    const GlobalCPPFunctionRepr *getGlobalFunction(const std::string &name) const;
+    GlobalCPPFunctionRepr *getGlobalFunction(DWord idx);
+    GlobalCPPFunctionRepr *getGlobalFunction(const std::string &name);
     DWord getGlobalFunctionIdx(const std::string &name) const;
     
     Value callGlobalFunction(DWord idx, const std::vector<Value> &args);

@@ -9,14 +9,14 @@ std::shared_ptr<ScriptContext> ScriptContext::create() {
     return std::shared_ptr<ScriptContext>(new ScriptContext());
 }
 
-const GlobalCPPFunctionRepr *ScriptContext::getGlobalFunction(DWord idx) const {
+GlobalCPPFunctionRepr *ScriptContext::getGlobalFunction(DWord idx) {
     if (idx >= globalCPPFunctions_.size())
         return nullptr;
     return &globalCPPFunctions_[idx];
 }
 
-const GlobalCPPFunctionRepr *ScriptContext::getGlobalFunction(const std::string &name) const {
-    for (const auto &fun : globalCPPFunctions_)
+GlobalCPPFunctionRepr *ScriptContext::getGlobalFunction(const std::string &name) {
+    for (auto &fun : globalCPPFunctions_)
         if (fun.name == name)
             return &fun;
     return nullptr;

@@ -8,7 +8,9 @@
 namespace NCSC
 {
 
-enum class ValueType : DWord {
+typedef Word VTypeWord;
+
+enum class ValueType : VTypeWord {
     INVALID,
 
     VOID,
@@ -28,8 +30,8 @@ enum class ValueType : DWord {
 
     BOOL,
 
-    REF_MASK = 1 << 29,
-    OBJ_MASK = 1 << 30,
+    REF_MASK = (VTypeWord)1 << 14,
+    OBJ_MASK = (VTypeWord)1 << 15,
 };
 
 const std::unordered_map<ValueType, std::string> BUILTIN_VTYPES_NAMES = {

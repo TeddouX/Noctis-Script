@@ -151,6 +151,7 @@ private:
     inline static constexpr std::string_view INVALID_OR_CORRUPTED_BC            = "Execution error E5: Encounterd invalid or corrupted bytecode";
     inline static constexpr std::string_view CANT_INC_OR_DEC_NON_NUM            = "Execution error E6: Can't increment or decrement non numeric type";
     inline static constexpr std::string_view CANT_INVERT_NON_BOOLEAN            = "Execution error E7: Can't invert a non boolean type";
+    inline static constexpr std::string_view TRYED_SETTING_VAL_OF_INVALID_REF   = "Execution error E8: Tried setting the value of an invalid reference";
 };
  
 } // namespace NCSC

@@ -1,10 +1,18 @@
+obj TestObj {
+    pub Int i = 10;
+
+    TestObj(Int newI, Int newB, Int newC) { i = newI; }
+}
+
 obj Vec2 {
     pub Int x = 0;
     pub Int y = 0;
 
+    TestObj test = new TestObj(10, 10, 10);
+
     priv Vec2() {
-        x = 10;
-        y = 100;
+        //x = 10;
+        //y = 100;
     }
 
     pub Int Add(Int a, Int b) {
@@ -23,4 +31,7 @@ fun Add(Int a, Int b) {
 
 fun Main() {
     Vec2 a = new Vec2();
+    TestObj b = new TestObj(10, 10, 10);
+    TestObj c = new TestObj(10, 10, 10);
+    TestObj d = new TestObj(10, 10, 10);
 }
