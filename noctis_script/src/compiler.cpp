@@ -1357,6 +1357,13 @@ void Compiler::compileConstructCall(const ASTNode &constructCall, ValueType expe
         return;
     }
 
+    if (clearMask(expectedTy, ValueType::REF_MASK) != sres.foundType) {
+        createCompileError(CANT_PROMOTE_TY_TO.format(
+            ctx_->getTypeName(sres.foundType), 
+            ctx_->getTypeName(expectedTy)), constructCall);
+        return;
+    }
+
     DWord objIdx = sres.idx;
     emit(Instruction::NEW);
     emit(objIdx);

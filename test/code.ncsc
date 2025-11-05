@@ -31,7 +31,7 @@ fun Add(Int a, Int b) {
 
 fun Main() {
     Vec2 a = new Vec2();
-    TestObj b = new TestObj(10, 10, 10);
+    Vec2 b = new TestObj(10, 10, 10);
     TestObj c = new TestObj(10, 10, 10);
     TestObj d = new TestObj(10, 10, 10);
 }
