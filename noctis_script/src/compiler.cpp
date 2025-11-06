@@ -13,13 +13,6 @@
 namespace NCSC
 {
 
-template <typename T>
-static T getInstrOperand(const std::vector<Byte>& bc, size_t& i) {
-    T val = readWord<T>(bc, i);
-    i += sizeof(T);
-    return val;
-}
-
 std::string Compiler::disassemble(const std::vector<Byte>& bc) {
     std::ostringstream oss;
 
@@ -60,9 +53,9 @@ std::string Compiler::disassemble(const std::vector<Byte>& bc) {
         else if (info.second > 0) {
             oss << " ";
             switch (info.second) {
-                case 2: oss << getInstrOperand<Word>(bc, i); break;
-                case 4: oss << getInstrOperand<DWord>(bc, i); break;
-                case 8: oss << getInstrOperand<QWord>(bc, i); break;
+                case 2: oss << readWord<Word>(bc, i);  i += sizeof(Word);  break;
+                case 4: oss << readWord<DWord>(bc, i); i += sizeof(DWord); break;
+                case 8: oss << readWord<QWord>(bc, i); i += sizeof(QWord); break;
                 default: oss << "(invalid size)";
             }
         }
