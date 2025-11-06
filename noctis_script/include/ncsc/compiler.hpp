@@ -46,8 +46,6 @@ private:
 
     QWord tmpLabelNum_ = 0;
 
-    ValueType lastTypeOnStack_ = ValueType::INVALID;
-
     void enterNewScope();
     void exitScope();
     // Clear scopes and set currScope_ to nullptr
@@ -146,11 +144,12 @@ private:
     void compileAssignment(const ASTNode &assignment);
     void compileExpressionPreOp(const ASTNode &preOp, const ASTNode &operand, ValueType expectedTy);
     void compileExpressionValue(const ASTNode &exprVal, ValueType expectedTy);
-    void compileExpressionPostOp(const ASTNode &postOp, const ASTNode &operand, ValueType expectedTy);
     void compileConstructCall(const ASTNode &constructCall, ValueType expectedTy);
 
-    bool checkOperandIsModifiableAndNumeric(const ASTNode &operand);
+    bool checkVTypeIsNumricAndModifiable(ValueType vtype, const ASTNode &errNode);
 
+    // Naively try to find the type of an expression term
+    // Won't create a compileError if one is encountered
     ValueType getExpressionTermType(const ASTNode &exprTerm);
 
     inline static ErrInfo CANT_FIND_FUNCTION_NAMED      { "Compilation error", "C", 0,  "Can't find function named '{}'" };
@@ -174,6 +173,9 @@ private:
     inline static ErrInfo NOT_AN_OBJ                    { "Compilation error", "C", 20, "Not a constructible object" };
     inline static ErrInfo CONSTRUCTOR_SHOULDNT_RET      { "Compilation error", "C", 21, "The compiler shouldn't return" };
     inline static ErrInfo SYMBOL_ALREADY_EXISTS         { "Compilation error", "C", 22, "This symbol was already defined somewhere else" };
+    inline static ErrInfo TY_IS_NOT_AN_OBJECT           { "Compilation error", "C", 23, "Type {} is not an object" };
+    inline static ErrInfo NOT_A_MEMBER                  { "Compilation error", "C", 24, "Not a member variable of {}" };
+    inline static ErrInfo MEMBER_NOT_PUB                { "Compilation error", "C", 24, "Inaccessible because it isn't marked as public" };
 };
 
 } // namespace NCSC

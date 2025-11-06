@@ -443,7 +443,7 @@ size_t Compiler::computeMaxLocals(const Scope *scope) {
 void Compiler::resolveJumps(std::vector<Byte> &bc) {
     std::unordered_map<QWord, size_t> jmpLocations;
 
-    for (QWord i = 0; i < tempCompiledBytecode_.size();) {
+    for (QWord i = 0; i < bc.size();) {
         Instruction instr = static_cast<Instruction>(bc[i]);
         
         switch (instr) {
@@ -480,20 +480,6 @@ void Compiler::resolveJumps(std::vector<Byte> &bc) {
 }
 
 Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, ScriptObject *obj) {
-    // Local variable
-    if (currScope_) {
-        DWord varIdx = currScope_->getLocalVarIdx(name);
-        if (varIdx != NCSC_INVALID_IDX) {
-            Variable *var = currScope_->getLocalVar(varIdx); 
-            return SymbolSearchRes{
-                .var = var,
-                .idx = varIdx,
-                .foundType = var->type,
-                .ty = SymbolSearchRes::LOCAL_VAR,
-            };
-        }
-    }
-
     // Search for members or methods in the object
     if (obj) {        
         DWord memberIdx = obj->getMemberIdx(name);
@@ -516,7 +502,23 @@ Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, Script
                 .foundType = method->returnTy,
                 .ty = SymbolSearchRes::METHOD,
             };
-        } 
+        }
+
+        return SymbolSearchRes{ .ty = SymbolSearchRes::INVALID };
+    }
+
+    // Local variable
+    if (currScope_) {
+        DWord varIdx = currScope_->getLocalVarIdx(name);
+        if (varIdx != NCSC_INVALID_IDX) {
+            Variable *var = currScope_->getLocalVar(varIdx); 
+            return SymbolSearchRes{
+                .var = var,
+                .idx = varIdx,
+                .foundType = var->type,
+                .ty = SymbolSearchRes::LOCAL_VAR,
+            };
+        }
     }
 
     // Script object or function
@@ -850,9 +852,6 @@ void Compiler::compileConstantPush(const ASTNode &constant, ValueType expectedTy
                 makeValueBytes(std::bit_cast<uint64_t>(val), ValueType::FLOAT64, bytes, 0);
                 emit(Instruction::PUSH);
                 emit(bytes);
-
-                lastTypeOnStack_ = ValueType::FLOAT64;
-                
                 break;
             }
             default:
@@ -870,12 +869,7 @@ void Compiler::compileConstantPush(const ASTNode &constant, ValueType expectedTy
             // and the VM will be able to use it as a float
             case ValueType::FLOAT32:
             case ValueType::VOID:
-            case ValueType::INT32:   
-                emitIntConstant<int32_t>(constTokVal, constant, ValueType::INT32);
-                // Only relevent to put it here because if expected type != ValueType::VOID 
-                // the caller already knows what it wants
-                lastTypeOnStack_ = ValueType::INT32;
-                break;
+            case ValueType::INT32:   emitIntConstant<int32_t>(constTokVal, constant, ValueType::INT32);   break;
             
             case ValueType::FLOAT64:
             case ValueType::INT64:   emitIntConstant<int64_t>(constTokVal, constant, ValueType::INT64);   break;
@@ -885,9 +879,13 @@ void Compiler::compileConstantPush(const ASTNode &constant, ValueType expectedTy
             case ValueType::UINT32:  emitIntConstant<uint32_t>(constTokVal, constant, ValueType::UINT32); break;
             case ValueType::UINT64:  emitIntConstant<uint64_t>(constTokVal, constant, ValueType::UINT64); break;
 
-            default: 
-                std::printf("%s\n", ctx_->getTypeName(expectedType).c_str());
-                assert(0);
+            default: {
+                createCompileError(EXPECTED_TYPE_INSTEAD_GOT.format(
+                    ctx_->getTypeName(expectedType), 
+                    ctx_->getTypeName(ValueType::INT32)), constant); 
+            
+                return;
+            } 
         }
     } else if (constTokTy == TokenType::TRUE_KWD || constTokTy == TokenType::FALSE_KWD) {
         if (expectedType != ValueType::BOOL) {
@@ -904,7 +902,7 @@ void Compiler::compileConstantPush(const ASTNode &constant, ValueType expectedTy
     }
 }
 
-void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expectedType) {
+void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expectedTy) {
     assert(exprTerm.type() == ASTNodeType::EXPRESSION_TERM);
 
     size_t exprValueIdx = SIZE_MAX;
@@ -919,7 +917,7 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
         // Parsing error
         return;
 
-    const auto &exprValue = exprTerm.child(exprValueIdx);
+    ASTNode exprValue = exprTerm.child(exprValueIdx);
 
     // Pre-ops and post-ops will push the required value on the stack
     // If an expression term has none (constant, ...), pushing the value is necessary
@@ -928,30 +926,178 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
     size_t childIdx = 0;
     for (const auto &child : exprTerm.children()) {
         if (child.type() == ASTNodeType::EXPRESSION_PREOP) {
-            compileExpressionPreOp(child, exprValue, expectedType);
+            compileExpressionPreOp(child, exprValue, expectedTy);
             childIdx++;
             hasValOnStack = true;
         } else 
             break;
     }
 
+    // Error while parsing
     if (exprTerm.child(childIdx).type() != ASTNodeType::EXPRESSION_VALUE)
-        // Error while parsing
         return;
     childIdx++;
 
-    for (;;) {
-        if (childIdx >= exprTerm.numChildren())
-            break;
-        else {
-            compileExpressionPostOp(exprTerm.child(childIdx), exprValue, expectedType);
-            childIdx++;
-            hasValOnStack = true;
+    ValueType lastTypeOnStack = ValueType::INVALID;
+    for (; childIdx < exprTerm.numChildren(); childIdx++) {
+        const auto &postOp = exprTerm.child(childIdx);
+        const auto &postOpChild = postOp.child(0);
+        TokenType postOpTokTy = postOpChild.token()->type;
+        const std::string &postOpTokVal = postOpChild.token()->val;
+
+        switch (postOpTokTy) {
+            case TokenType::PLUS_PLUS: {
+                if (hasValOnStack && !checkVTypeIsNumricAndModifiable(lastTypeOnStack, exprValue))
+                    return;
+                else if (!hasValOnStack) {
+                    SymbolSearchRes sres = searchSymbol(exprValue.child(0).token()->val);
+                    if (sres.ty != SymbolSearchRes::GLOBAL_VAR 
+                    && sres.ty != SymbolSearchRes::LOCAL_VAR 
+                    && sres.ty != SymbolSearchRes::MEMBER_VAR 
+                    && checkVTypeIsNumricAndModifiable(sres.foundType, exprValue))
+                        return;
+
+                    // Load original value of the variable
+                    if (expectedTy != ValueType::VOID)
+                        compileExpressionValue(exprValue, expectedTy);
+                }
+                
+                if (!hasValOnStack)
+                    compileExpressionValue(exprValue, setMask(expectedTy, ValueType::REF_MASK));
+                
+                emit(Instruction::DUP);
+                emit(Instruction::LOADREF);
+                emit(Instruction::INC);
+                emit(Instruction::SETREF);
+
+                lastTypeOnStack = expectedTy;
+
+                break;
+            }
+            case TokenType::MINUS_MINUS: {
+                if (hasValOnStack && !checkVTypeIsNumricAndModifiable(lastTypeOnStack, exprValue))
+                    return;
+                else if (!hasValOnStack) {
+                    SymbolSearchRes sres = searchSymbol(exprValue.child(0).token()->val);
+                    if (sres.ty != SymbolSearchRes::GLOBAL_VAR 
+                    && sres.ty != SymbolSearchRes::LOCAL_VAR 
+                    && sres.ty != SymbolSearchRes::MEMBER_VAR 
+                    && checkVTypeIsNumricAndModifiable(sres.foundType, exprValue))
+                        return;
+
+                    if (expectedTy != ValueType::VOID)
+                        compileExpressionValue(exprValue, expectedTy);
+                }
+
+                if (!hasValOnStack)
+                    compileExpressionValue(exprValue, setMask(expectedTy, ValueType::REF_MASK));
+
+                emit(Instruction::DUP);
+                emit(Instruction::LOADREF);
+                emit(Instruction::DEC);
+                emit(Instruction::SETREF);
+
+                lastTypeOnStack = expectedTy;
+
+                break;
+            }
+
+            // Member access
+            case TokenType::ID: {
+                if (lastTypeOnStack != ValueType::INVALID 
+                && !hasMask(lastTypeOnStack, ValueType::OBJ_MASK)) {
+                    createCompileError(TY_IS_NOT_AN_OBJECT.format(ctx_->getTypeName(lastTypeOnStack)), exprValue);
+                    return;
+                }
+
+                // If another member was loaded previously 
+                // no need to load the previous one
+                if (!hasValOnStack) {
+                    // Can be of any type as long as the accessed member 
+                    // if of the same type as expectedTy
+                    compileExpressionValue(exprValue, ValueType::VOID);
+
+                    const auto& exprValueChild = exprValue.child(0);
+                    SymbolSearchRes sres;
+                    if (exprValueChild.type() == ASTNodeType::IDENTIFIER)
+                        sres = searchSymbol(exprValueChild.token()->val);
+                    else if (exprValueChild.type() == ASTNodeType::FUNCTION_CALL
+                          || exprValueChild.type() == ASTNodeType::CONSTRUCT_CALL)
+                        sres = searchSymbol(exprValueChild.child(0).token()->val);
+
+                    // Could happen if there is an error when compiling the expression value
+                    // if so, return because the error was already handled
+                    if (sres.ty == SymbolSearchRes::INVALID)
+                        return;
+
+                    lastTypeOnStack = sres.foundType; 
+                }
+
+                if (lastTypeOnStack == ValueType::INVALID)
+                    return;
+                
+                DWord objIdx = (VTypeWord)clearMask(lastTypeOnStack, ValueType::OBJ_MASK);
+                ScriptObject *obj = currScript_->getObject(objIdx);
+
+                // Search for the member in the object
+                SymbolSearchRes sres = searchSymbol(postOpTokVal, obj);
+                if (sres.ty != SymbolSearchRes::MEMBER_VAR) {
+                    createCompileError(NOT_A_MEMBER.format(obj->name), postOp);
+                    return;
+                }
+
+                MemberVariable *memberVar = static_cast<MemberVariable *>(sres.var);
+                if (!memberVar->isPublic) {
+                    createCompileError(MEMBER_NOT_PUB, postOp);
+                    return;
+                }
+
+                bool isLastPostOp = childIdx + 1 >= exprTerm.numChildren();
+                if (isLastPostOp && !canPromoteType(memberVar->type, expectedTy)) {
+                    createCompileError(CANT_PROMOTE_TY_TO.format(
+                        ctx_->getTypeName(memberVar->type), 
+                        ctx_->getTypeName(expectedTy)), postOp);
+                    
+                    return;
+                }
+
+                bool wantRef = hasMask(expectedTy, ValueType::REF_MASK);
+                // Check next post-operator
+                if (!isLastPostOp) {
+                    const auto &nextPostOp = exprTerm.child(childIdx + 1);
+                    const auto &nextPostOpChild = nextPostOp.child(0);
+
+                    switch (nextPostOpChild.type()) {
+                        // Increments and decrements need references to the previous value
+                        case ASTNodeType::TOKEN:
+                            wantRef = true;
+                            break;
+
+                        case ASTNodeType::IDENTIFIER:
+                        case ASTNodeType::FUNCTION_CALL:
+                            wantRef = false;
+                            break;
+
+                        default: break;
+                    }
+                }
+                
+                emit(wantRef ? Instruction::LOADMEMBER_REF : Instruction::LOADMEMBER);
+                emit(sres.idx);
+                
+                hasValOnStack = true;
+                exprValue = postOpChild;
+                lastTypeOnStack = wantRef ? setMask(memberVar->type, ValueType::REF_MASK) : memberVar->type;
+
+                break;
+            }
+            
+            default: break;
         }
     }
 
     if (!hasValOnStack)
-        compileExpressionValue(exprValue, expectedType);
+        compileExpressionValue(exprValue, expectedTy);
 }
 
 void Compiler::compileStatementBlock(const ASTNode &stmtBlock) {
@@ -1098,8 +1244,6 @@ void Compiler::compileVariableAccess(const ASTNode &varAccess, ValueType expecte
 
     DWord idx = sres.idx;
     emit(idx);
-
-    lastTypeOnStack_ = varType;
 }
 
 bool Compiler::compileArguments(const ASTNode &argsNode, const Function *fun, bool isMethod) {
@@ -1189,13 +1333,7 @@ void Compiler::compileAssignment(const ASTNode &assignment) {
 
     // Load a reference to the variable
     compileExpressionTerm(varTerm, setMask(ValueType::VOID, ValueType::REF_MASK));
-    
-    // Set the expected type to that of the loaded variable
-    ValueType expectedType = lastTypeOnStack_;
 
-    // Compile expression
-    compileExpression(assignment.child(2), expectedType);
-    
     TokenType opTokTy = assignment.child(1).token()->type;
     // If its an =, the variable's value doesn't need to 
     // be on the stack for the binary operation
@@ -1205,6 +1343,11 @@ void Compiler::compileAssignment(const ASTNode &assignment) {
         emit(Instruction::DUP);
         emit(Instruction::LOADREF);
     }
+
+    // Set the expected type to that of the loaded variable
+    ValueType expectedType = getExpressionTermType(varTerm);
+    // Compile expression
+    compileExpression(assignment.child(2), expectedType);
 
     switch (opTokTy) {
         case TokenType::PLUS_EQUAL:  emit(Instruction::ADD); break;
@@ -1223,7 +1366,11 @@ void Compiler::compileExpressionPreOp(const ASTNode &preOp, const ASTNode &opera
     TokenType preopTy = preOp.token()->type;
     switch (preopTy) {
         case TokenType::PLUS_PLUS: {
-            if (!checkOperandIsModifiableAndNumeric(operand))
+            SymbolSearchRes sres = searchSymbol(operand.child(0).token()->val);
+            if (sres.ty != SymbolSearchRes::GLOBAL_VAR 
+             && sres.ty != SymbolSearchRes::LOCAL_VAR 
+             && sres.ty != SymbolSearchRes::MEMBER_VAR 
+             && checkVTypeIsNumricAndModifiable(sres.foundType, operand))
                 return;
 
             compileExpressionValue(operand, setMask(expectedTy, ValueType::REF_MASK));
@@ -1243,7 +1390,11 @@ void Compiler::compileExpressionPreOp(const ASTNode &preOp, const ASTNode &opera
             break;
         }
         case TokenType::MINUS_MINUS: {
-            if (!checkOperandIsModifiableAndNumeric(operand))
+            SymbolSearchRes sres = searchSymbol(operand.child(0).token()->val);
+            if (sres.ty != SymbolSearchRes::GLOBAL_VAR 
+             && sres.ty != SymbolSearchRes::LOCAL_VAR 
+             && sres.ty != SymbolSearchRes::MEMBER_VAR 
+             && !checkVTypeIsNumricAndModifiable(sres.foundType, operand))
                 return;
 
             compileExpressionValue(operand, setMask(expectedTy, ValueType::REF_MASK));
@@ -1272,53 +1423,6 @@ void Compiler::compileExpressionPreOp(const ASTNode &preOp, const ASTNode &opera
             break;
         }
 
-        default: break;
-    }
-}
-
-void Compiler::compileExpressionPostOp(const ASTNode &postOp, const ASTNode &operand, ValueType expectedTy) {
-    assert(postOp.type() == ASTNodeType::EXPRESSION_POSTOP);
-
-    TokenType postOpTy = postOp.token()->type;
-    switch (postOpTy) {
-        case TokenType::PLUS_PLUS: {
-            if (!checkOperandIsModifiableAndNumeric(operand))
-                return;
-
-            // Here the last value on the stack is the value before the increment
-            if (expectedTy != ValueType::VOID)
-                compileExpressionValue(operand, expectedTy);
-            
-            compileExpressionValue(operand, setMask(expectedTy, ValueType::REF_MASK));
-            emit(Instruction::DUP);
-            emit(Instruction::LOADREF);
-            emit(Instruction::INC);
-            emit(Instruction::SETREF);
-
-            break;
-        }
-        case TokenType::MINUS_MINUS: {
-            if (!checkOperandIsModifiableAndNumeric(operand))
-                return;
-
-            if (expectedTy != ValueType::VOID)
-                compileExpressionValue(operand, expectedTy);
-            
-            compileExpressionValue(operand, setMask(expectedTy, ValueType::REF_MASK));
-            emit(Instruction::DUP);
-            emit(Instruction::LOADREF);
-            emit(Instruction::DEC);
-            emit(Instruction::SETREF);
-
-            break;
-        }
-
-        // Member access
-        case TokenType::ID: {
-            compileExpressionValue(operand, expectedTy);
-            break;
-        }
-        
         default: break;
     }
 }
@@ -1375,35 +1479,108 @@ void Compiler::compileConstructCall(const ASTNode &constructCall, ValueType expe
     emit(Instruction::CALLMETHOD);
     emit(objIdx);
     emit(constructorIdx);
-
-    lastTypeOnStack_ = sres.foundType;
-}
-
-bool Compiler::checkOperandIsModifiableAndNumeric(const ASTNode &operand) {
-    assert(operand.type() == ASTNodeType::EXPRESSION_VALUE);
-
-    auto sres = searchSymbol(operand.child(0).token()->val);
-    if (sres.ty != SymbolSearchRes::LOCAL_VAR && sres.ty != SymbolSearchRes::GLOBAL_VAR
-        && !hasMask(sres.foundType, ValueType::REF_MASK)) {
-        createCompileError(EXP_MODIFIABLE_VALUE, operand);
-        return false;
-    }
-    if (!isNumeric(clearMask(sres.foundType, ValueType::REF_MASK))) {
-        createCompileError(EXPECTED_NUMERIC_TYPE.format(ctx_->getTypeName(sres.foundType)), operand);
-        return false;
-    }
-
-    return true;
 }
 
 ValueType Compiler::getExpressionTermType(const ASTNode &exprTerm) {
     assert(exprTerm.type() == ASTNodeType::EXPRESSION_TERM);
 
-    // TODO: Finish this to replace the lastTypeOnStack_ member because it is not intuitive
-    // TODO: Finish this to replace the lastTypeOnStack_ member because it is not intuitive
+    ValueType res = ValueType::VOID;
 
-    return ValueType::VOID;
+    for (const auto &child : exprTerm.children()) {
+        if (child.type() == ASTNodeType::EXPRESSION_PREOP)
+            continue;
+
+        if (child.type() == ASTNodeType::EXPRESSION_VALUE) {
+            const auto &exprValue = child.child(0);
+            switch (exprValue.type()) {
+                case ASTNodeType::IDENTIFIER: {
+                    const std::string &idTokVal = exprValue.token()->val;
+                    SymbolSearchRes sres = searchSymbol(idTokVal);
+
+                    if (sres.ty != SymbolSearchRes::GLOBAL_VAR 
+                     && sres.ty != SymbolSearchRes::LOCAL_VAR 
+                     && sres.ty != SymbolSearchRes::MEMBER_VAR)
+                        return ValueType::VOID;
+
+                    res = sres.foundType;
+
+                    break;
+                }
+
+                case ASTNodeType::FUNCTION_CALL: {
+                    const std::string &funcName = exprValue.child(0).token()->val;
+                    SymbolSearchRes sres = searchSymbol(funcName);
+
+                    if (sres.ty != SymbolSearchRes::CPP_FUNCTION 
+                     && sres.ty != SymbolSearchRes::FUNCTION) 
+                        return ValueType::VOID;
+                    
+                    res = sres.foundType;
+
+                    break;
+                }
+
+                case ASTNodeType::CONSTANT: {
+                    TokenType constTokTy = exprValue.token()->type;
+
+                    if (constTokTy == TokenType::INT_CONSTANT)
+                        res = ValueType::INT32;
+                    else if (constTokTy == TokenType::FLOAT_CONSTANT)
+                        res = ValueType::FLOAT64;
+                    
+                    break;
+                }
+
+                case ASTNodeType::CONSTRUCT_CALL: {
+                    const std::string &objName = exprValue.child(0).token()->val;
+                    SymbolSearchRes sres = searchSymbol(objName);
+
+                    if (sres.ty != SymbolSearchRes::OBJECT)
+                        return ValueType::VOID;
+
+                    res = sres.foundType;
+
+                    break;
+                }
+            }
+        }
+        else if (child.type() == ASTNodeType::EXPRESSION_POSTOP) {
+            const auto &postOp = child.child(0);
+            if (postOp.type() == ASTNodeType::IDENTIFIER) {
+                if (!hasMask(res, ValueType::OBJ_MASK))
+                    return res;
+
+                DWord objIdx = (VTypeWord)clearMask(res, ValueType::OBJ_MASK);
+                ScriptObject *obj = currScript_->getObject(objIdx);
+
+                const std::string &memberName = postOp.token()->val;
+                SymbolSearchRes sres = searchSymbol(memberName, obj);
+
+                if (sres.ty != SymbolSearchRes::MEMBER_VAR)
+                    return ValueType::VOID;
+
+                res = sres.foundType;
+            }
+
+            // TODO: Function calls
+        }
+    }
+
+    return res;
 }
 
+bool Compiler::checkVTypeIsNumricAndModifiable(ValueType vtype, const ASTNode &errNode) {
+    if (!isNumeric(clearMask(vtype, ValueType::REF_MASK))) {
+        createCompileError(EXPECTED_NUMERIC_TYPE.format(ctx_->getTypeName(vtype)), errNode);
+        return false;
+    }
+
+    if (!hasMask(vtype, ValueType::REF_MASK)) {
+        createCompileError(EXP_MODIFIABLE_VALUE, errNode);
+        return false;
+    }
+
+    return true;
+}
 
 } // namespace NCSC

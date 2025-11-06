@@ -18,7 +18,6 @@ enum class ASTNodeType : uint8_t {
     EXPRESSION,
     EXPRESSION_TERM,
     FUNCTION_CALL,
-    // SIMPLE_STATEMENT,
     RETURN_STMT,
     BINOP,
     CONSTANT,

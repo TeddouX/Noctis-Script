@@ -1,14 +1,14 @@
 obj TestObj {
-    pub Int i = 10;
+    pub Int i = 0;
 
-    TestObj(Int newI, Int newB, Int newC) { i = newI; }
+    TestObj(Int newI, Int newB, Int newC) {}
 }
 
 obj Vec2 {
     pub Int x = 0;
     pub Int y = 0;
 
-    TestObj test = new TestObj(10, 10, 10);
+    pub TestObj test = new TestObj(10, 10, 10);
 
     priv Vec2() {
         //x = 10;
@@ -31,7 +31,14 @@ fun Add(Int a, Int b) {
 
 fun Main() {
     Vec2 a = new Vec2();
-    Vec2 b = new TestObj(10, 10, 10);
+    Vec2 b = new Vec2();
+    
     TestObj c = new TestObj(10, 10, 10);
     TestObj d = new TestObj(10, 10, 10);
+
+    a.test.i = 2;
+    a.test.i *= 123;
+
+    printHello(a.x);
+    printHello(a.test.i);
 }

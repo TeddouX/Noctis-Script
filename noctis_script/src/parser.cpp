@@ -34,11 +34,11 @@ ASTNode Parser::parseAll() {
         if (isDataType(currTok.type)) {
             if (isVariableDeclaration()) {
                 root.addChild(parseVariableDeclaration());
-                if (hasSyntaxError_) tryEscapeSyntaxError();
+                // if (hasSyntaxError_) tryEscapeSyntaxError();
             }
             else if (isFunction()) {
                 root.addChild(parseFunction());
-                if (hasSyntaxError_) tryEscapeSyntaxError();
+                // if (hasSyntaxError_) tryEscapeSyntaxError();
             }
             else {
                 consume();
@@ -47,11 +47,11 @@ ASTNode Parser::parseAll() {
         }
         else if (currTok.type == TokenType::FUN_KWD) {
             root.addChild(parseFunction());
-            if (hasSyntaxError_) tryEscapeSyntaxError();
+            // if (hasSyntaxError_) tryEscapeSyntaxError();
         }
         else if (currTok.type == TokenType::OBJ_KWD) {
             root.addChild(parseObject());
-            if (hasSyntaxError_) tryEscapeSyntaxError();
+            // if (hasSyntaxError_) tryEscapeSyntaxError();
         }
         else if (currTok.type == TokenType::END_OF_FILE) 
             break;
@@ -447,7 +447,8 @@ ASTNode Parser::parseStatementBlock() {
         else
             node.addChild(parseStatement());
 
-        CHECK_SYNTAX_ERROR;
+        if (hasSyntaxError_ && !tryEscapeSyntaxError()) 
+            return node;
     }
 
     return node;
@@ -730,9 +731,8 @@ ASTNode Parser::parseExpressionPostOp() {
         } else {
             node.addChild(parseIdentifier()); CHECK_SYNTAX_ERROR;
         }
-    } else {
-        node.setToken(&t);
-    }
+    } else
+        node.addChild(parseToken(t));
 
     return node;
 }

@@ -499,7 +499,10 @@ void VM::push(const Value &val) {
 
 void VM::error(const std::string &mess) {
     hasError_ = true;
-    lastError_ = mess;
+
+    const CallFrame &lastFrame = callStack_.back();
+    std::string location = std::format(" (in function '{}', bytecode location: {})", currFun_->name, lastFrame.ip);
+    lastError_ = mess + location;
 }
 
 
