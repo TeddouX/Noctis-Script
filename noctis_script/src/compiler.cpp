@@ -947,14 +947,21 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
 
         switch (postOpTokTy) {
             case TokenType::PLUS_PLUS: {
+                // Caller expected a reference but an increment can't load that
+                if (hasMask(expectedTy, ValueType::REF_MASK)) {
+                    createCompileError(EXP_MODIFIABLE_VALUE, exprTerm);
+                    return;
+                }
+
                 if (hasValOnStack && !checkVTypeIsNumricAndModifiable(lastTypeOnStack, exprValue))
                     return;
                 else if (!hasValOnStack) {
+                    // Search for the operand
                     SymbolSearchRes sres = searchSymbol(exprValue.child(0).token()->val);
                     if (sres.ty != SymbolSearchRes::GLOBAL_VAR 
                     && sres.ty != SymbolSearchRes::LOCAL_VAR 
                     && sres.ty != SymbolSearchRes::MEMBER_VAR 
-                    && checkVTypeIsNumricAndModifiable(sres.foundType, exprValue))
+                    && !checkVTypeIsNumricAndModifiable(sres.foundType, exprValue))
                         return;
 
                     // Load original value of the variable
@@ -975,6 +982,11 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
                 break;
             }
             case TokenType::MINUS_MINUS: {
+                if (hasMask(expectedTy, ValueType::REF_MASK)) {
+                    createCompileError(EXP_MODIFIABLE_VALUE, exprTerm);
+                    return;
+                }
+
                 if (hasValOnStack && !checkVTypeIsNumricAndModifiable(lastTypeOnStack, exprValue))
                     return;
                 else if (!hasValOnStack) {
@@ -1345,9 +1357,9 @@ void Compiler::compileAssignment(const ASTNode &assignment) {
     }
 
     // Set the expected type to that of the loaded variable
-    ValueType expectedType = getExpressionTermType(varTerm);
+    ValueType varTermType = getExpressionTermType(varTerm);
     // Compile expression
-    compileExpression(assignment.child(2), expectedType);
+    compileExpression(assignment.child(2), varTermType);
 
     switch (opTokTy) {
         case TokenType::PLUS_EQUAL:  emit(Instruction::ADD); break;
@@ -1561,6 +1573,9 @@ ValueType Compiler::getExpressionTermType(const ASTNode &exprTerm) {
 
                 res = sres.foundType;
             }
+            // Post-incs and post-decs push a reference
+            else if (postOp.type() == ASTNodeType::TOKEN)
+                res = clearMask(res, ValueType::REF_MASK);
 
             // TODO: Function calls
         }
