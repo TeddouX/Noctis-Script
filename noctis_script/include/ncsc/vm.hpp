@@ -104,6 +104,7 @@ private:
     void executeNext();
 
     void prepareScriptFunction(const ScriptFunction *fun);
+    // void recursiveInit()
 
     template <typename T>
     bool setArgument(const T &arg, size_t &idx) {

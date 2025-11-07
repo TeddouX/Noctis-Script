@@ -95,6 +95,14 @@ inline ValueType makeObjectType(DWord objIdx) {
     return setMask(static_cast<ValueType>(objIdx), ValueType::OBJ_MASK);
 }
 
+inline bool isRef(ValueType v) {
+    return hasMask(v, ValueType::REF_MASK);
+}
+
+inline bool isObject(ValueType v) {
+    return hasMask(v, ValueType::OBJ_MASK);
+}
+
 inline constexpr size_t getValueTypeSize(ValueType ty) {
     switch (ty) {
         case ValueType::INVALID:

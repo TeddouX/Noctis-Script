@@ -228,11 +228,18 @@ void VM::executeNext() {
             Value val = pop();
             Value ref = pop();
 
-            if (!hasMask(ref.ty, ValueType::REF_MASK)) {
-                error(std::string(TRYED_SETTING_VAL_OF_INVALID_REF));
-                break;
+            if (isObject(ref.ty) && isObject(val.ty)
+             && ref.ty == val.ty) {
+                // Order is reversed for setting objects
+                *ref.obj = *val.obj;
             }
-            *ref.ref = val;
+            else {
+                if (!hasMask(ref.ty, ValueType::REF_MASK)) {
+                    error(std::string(TRYED_SETTING_VAL_OF_INVALID_REF));
+                    break;
+                }
+                *ref.ref = val;
+            }
 
             END_INSTR(1);
         }
@@ -351,7 +358,7 @@ void VM::executeNext() {
     //     INSTR_INFO.at(instr).first, 
     //     sp_, 
     //     callStack_.empty() ? 0 : callStack_.back().bp);
-    // std::println("Stack: {}", getStackStrRepr());
+    std::println("Stack: {}", getStackStrRepr());
     // std::println("Globals: {}", getStackStrRepr(globalVariables_));
     // std::println();
 

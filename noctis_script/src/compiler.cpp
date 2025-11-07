@@ -1042,14 +1042,23 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
             }
 
             bool isLastPostOp = childIdx + 1 >= exprTerm.numChildren();
-            if (isLastPostOp && !canPromoteType(method->returnTy, expectedTy)) {
-                createCompileError(CANT_PROMOTE_TY_TO.format(
-                    ctx_->getTypeName(method->returnTy), 
-                    ctx_->getTypeName(expectedTy)), postOp);
-                
-                return;
-            }
+            if (isLastPostOp) {
+                if (!canPromoteType(method->returnTy, expectedTy)) {
+                    createCompileError(CANT_PROMOTE_TY_TO.format(
+                        ctx_->getTypeName(method->returnTy), 
+                        ctx_->getTypeName(expectedTy)), postOp);
+                    
+                    return;
+                }
 
+                if (hasMask(expectedTy, ValueType::REF_MASK) 
+                && !hasMask(method->returnTy, ValueType::REF_MASK)
+                // Objects are references
+                && !hasMask(method->returnTy, ValueType::OBJ_MASK)) {
+                    createCompileError(EXP_MODIFIABLE_VALUE, postOp);
+                    return;
+                }
+            }
             compileArguments(postOpChild.child(1), method, true);
 
             emit(Instruction::CALLMETHOD);
@@ -1102,7 +1111,7 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
                     return;
                 }
 
-                bool wantRef = hasMask(expectedTy, ValueType::REF_MASK);
+                bool wantRef = isRef(expectedTy);
                 // Check next post-operator
                 if (!isLastPostOp) {
                     const auto &nextPostOp = exprTerm.child(childIdx + 1);
@@ -1272,14 +1281,14 @@ void Compiler::compileVariableAccess(const ASTNode &varAccess, ValueType expecte
     if (sres.ty == SymbolSearchRes::LOCAL_VAR)
         // Variables that are not primitives don't need to be loaded as a reference
         // because objects technically are references    
-        emit(wantRef /*&& isPrimitive(varType)*/ ? Instruction::LOADLOCAL_REF : Instruction::LOADLOCAL);
+        emit(wantRef ? Instruction::LOADLOCAL_REF : Instruction::LOADLOCAL);
     else if (sres.ty == SymbolSearchRes::GLOBAL_VAR) 
-        emit(wantRef /*&& isPrimitive(varType)*/ ? Instruction::LOADGLOBAL_REF : Instruction::LOADGLOBAL);
+        emit(wantRef ? Instruction::LOADGLOBAL_REF : Instruction::LOADGLOBAL);
     else if (sres.ty == SymbolSearchRes::MEMBER_VAR) {
         emit(Instruction::LOADLOCAL);
         emit((DWord)0); // 'this'
 
-        emit(wantRef /*&& isPrimitive(varType)*/ ? Instruction::LOADMEMBER_REF : Instruction::LOADMEMBER);
+        emit(wantRef ? Instruction::LOADMEMBER_REF : Instruction::LOADMEMBER);
     }
     else return;
 
@@ -1600,12 +1609,18 @@ ValueType Compiler::getExpressionTermType(const ASTNode &exprTerm) {
         }
         else if (child.type() == ASTNodeType::EXPRESSION_POSTOP) {
             const auto &postOp = child.child(0);
-            if (postOp.type() == ASTNodeType::IDENTIFIER) {
+
+            auto getObj = [&]() -> ScriptObject * {
                 if (!hasMask(res, ValueType::OBJ_MASK))
-                    return res;
+                    return nullptr;
 
                 DWord objIdx = (VTypeWord)clearMask(res, ValueType::OBJ_MASK);
-                ScriptObject *obj = currScript_->getObject(objIdx);
+                return currScript_->getObject(objIdx);
+            };
+
+            if (postOp.type() == ASTNodeType::IDENTIFIER) {
+                ScriptObject *obj = getObj();
+                if (!obj) return ValueType::VOID;
 
                 const std::string &memberName = postOp.token()->val;
                 SymbolSearchRes sres = searchSymbol(memberName, obj);
@@ -1615,11 +1630,21 @@ ValueType Compiler::getExpressionTermType(const ASTNode &exprTerm) {
 
                 res = sres.foundType;
             }
+            else if (postOp.type() == ASTNodeType::FUNCTION_CALL) {
+                ScriptObject *obj = getObj();
+                if (!obj) return ValueType::VOID;
+
+                const std::string &methodName = postOp.child(0).token()->val;
+                SymbolSearchRes sres = searchSymbol(methodName, obj);
+
+                if (sres.ty != SymbolSearchRes::METHOD)
+                    return ValueType::VOID;
+
+                res = sres.foundType;
+            }
             // Post-incs and post-decs push a reference
             else if (postOp.type() == ASTNodeType::TOKEN)
                 res = clearMask(res, ValueType::REF_MASK);
-
-            // TODO: Function calls
         }
     }
 

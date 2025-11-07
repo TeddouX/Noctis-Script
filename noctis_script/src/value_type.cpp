@@ -42,9 +42,12 @@ bool canPromoteType(ValueType from, ValueType to) {
     int rankFrom = getRank(from);
     int rankTo = getRank(from);
 
-    return clearMask(to, ValueType::REF_MASK) == ValueType::VOID // Any type can convert to void 
-        || rankFrom != -1 && rankTo != -1
-        && (getRank(from) <= getRank(to));
+    // Any type can convert to void 
+    bool toIsVoid = clearMask(to, ValueType::REF_MASK) == ValueType::VOID;
+    bool areValid = rankFrom != -1 && rankTo != -1;
+    bool smallerEqual = getRank(from) <= getRank(to);
+
+    return toIsVoid || (areValid && smallerEqual);
 }
 
 ValueType promoteType(ValueType from, ValueType to) {
