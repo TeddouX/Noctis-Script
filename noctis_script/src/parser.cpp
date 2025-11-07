@@ -187,10 +187,13 @@ bool Parser::isFunction(bool isMethod) {
 
     if (!isDataType(t.type) && t.type != TokenType::FUN_KWD)
         return false;
-    else if (!isMethod || t.type != TokenType::ID) // Allow constructors
-        size++;
+    
+    size++;
 
     t = peek(size);
+    // Allow constructors
+    if (isMethod && t.type == TokenType::PARENTHESIS_OPEN)
+        return true;
     if (t.type != TokenType::ID)
         return false;
 
@@ -375,19 +378,27 @@ ASTNode Parser::parseFunction(bool isMethod) {
     }
 
     Token &t1 = peek(0);
-    // Don't parse a constructor's name as a type
-    if (isDataType(t1.type) && t1.type != TokenType::ID)
+    if (isDataType(t1.type))
         node.addChild(parseType()); 
     else if (t1.type == TokenType::FUN_KWD) {
         consume();
         node.addChild(parseToken(t1));
     }
-    else if (!isMethod) {
+    else {
         createSyntaxError(EXPECTED_A_DATA_TYPE_OR_FUN, t1);
         return node;
     }
-
-    node.addChild(parseIdentifier()); CHECK_SYNTAX_ERROR;
+    
+    if (isMethod) {
+        Token &t2 = peek(0);
+        // Allow constructors by not throwing an error
+        // if the next token isn't an identifier
+        if (t2.type != TokenType::PARENTHESIS_OPEN) {
+            node.addChild(parseIdentifier()); CHECK_SYNTAX_ERROR;
+        }
+    } else {
+        node.addChild(parseIdentifier()); CHECK_SYNTAX_ERROR;
+    }
 
     t = consume();
     if (t.type != TokenType::PARENTHESIS_OPEN) {

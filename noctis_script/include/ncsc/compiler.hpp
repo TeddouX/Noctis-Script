@@ -175,7 +175,8 @@ private:
     inline static ErrInfo SYMBOL_ALREADY_EXISTS         { "Compilation error", "C", 22, "This symbol was already defined somewhere else" };
     inline static ErrInfo TY_IS_NOT_AN_OBJECT           { "Compilation error", "C", 23, "Type {} is not an object" };
     inline static ErrInfo NOT_A_MEMBER                  { "Compilation error", "C", 24, "Not a member variable of {}" };
-    inline static ErrInfo MEMBER_NOT_PUB                { "Compilation error", "C", 25, "Inaccessible because it isn't marked as public" };
+    inline static ErrInfo INACESSIBLE_BC_NOT_PUB        { "Compilation error", "C", 25, "Inaccessible because it isn't marked as public" };
+    inline static ErrInfo NOT_A_METHOD                  { "Compilation error", "C", 26, "Not a method of {}" };
 };
 
 } // namespace NCSC

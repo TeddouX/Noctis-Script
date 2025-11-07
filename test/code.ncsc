@@ -23,6 +23,8 @@ obj Vec2 {
     pub Int AddMembers() {
         return x + y;
     }
+
+    pub TestObj GetTest() { return test; }
 }
 
 fun Add(Int a, Int b) {
@@ -30,19 +32,18 @@ fun Add(Int a, Int b) {
 }
 
 fun Main() {
-    Int u = -11;
-
     Vec2 a = new Vec2();
     Vec2 b = new Vec2();
 
     TestObj c = new TestObj(10, 10, 10);
     TestObj d = new TestObj(10, 10, 10);
 
-    a.x++;
+    a.x = 10;
+    a.y = 23;
 
     a.test.i = 2;
     a.test.i *= 123;
 
-    printHello(a.x);
-    printHello(a.test.i);
+    printHello(a.AddMembers());
+    // printHello(a.test.i);
 }

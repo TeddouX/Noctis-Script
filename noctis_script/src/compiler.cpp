@@ -223,7 +223,7 @@ void Compiler::compileFunction(const ASTNode &funcDecl, bool method) {
     if (method && firstChild.type() == ASTNodeType::TOKEN)
         reTyNodeIdx = 1;
 
-    if (funcDecl.child(reTyNodeIdx).type() == ASTNodeType::IDENTIFIER)
+    if (method && funcDecl.child(reTyNodeIdx).token()->val == currObject_->name)
         // Constructor don't have a return type specified
         reTyNodeIdx -= 1;
 
@@ -932,114 +932,134 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
     childIdx++;
 
     ValueType lastTypeOnStack = ValueType::INVALID;
+
+    // local helper for ++ / --
+    auto doIncDec = [&](TokenType op) -> bool {
+        // Caller expected a reference but an increment can't load that
+        if (hasMask(expectedTy, ValueType::REF_MASK)) {
+            createCompileError(EXP_MODIFIABLE_VALUE, exprTerm);
+            return false;
+        }
+
+        if (hasValOnStack && !checkVTypeIsNumricAndModifiable(lastTypeOnStack, exprValue))
+            return false;
+        else if (!hasValOnStack) {
+            // Search for the operand
+            SymbolSearchRes sres = searchSymbol(exprValue.child(0).token()->val);
+            if (sres.ty != SymbolSearchRes::GLOBAL_VAR 
+            && sres.ty != SymbolSearchRes::LOCAL_VAR 
+            && sres.ty != SymbolSearchRes::MEMBER_VAR 
+            && !checkVTypeIsNumricAndModifiable(sres.foundType, exprValue))
+                return false;
+
+            // Load original value of the variable
+            if (expectedTy != ValueType::VOID)
+                compileExpressionValue(exprValue, expectedTy);
+        }
+        
+        if (!hasValOnStack)
+            compileExpressionValue(exprValue, setMask(expectedTy, ValueType::REF_MASK));
+        
+        emit(Instruction::DUP);
+        emit(Instruction::LOADREF);
+        emit(Instruction::INC);
+        emit(Instruction::SETREF);
+
+        lastTypeOnStack = expectedTy;
+
+        return true;
+    };
+
+    // - Checks if the last value on the stack is an object
+    // - If the last value is invalid, calls compileExpressionValue(exprValue, ValueType::VOID);
+    // and sets lastTypeOnStack accordingly
+    auto checkLastValIsObj = [&]() -> bool {
+        if (hasValOnStack && !hasMask(lastTypeOnStack, ValueType::OBJ_MASK)) {
+            createCompileError(TY_IS_NOT_AN_OBJECT.format(ctx_->getTypeName(lastTypeOnStack)), exprValue);
+            return false;
+        }
+
+        if (!hasValOnStack) {
+            compileExpressionValue(exprValue, ValueType::VOID);
+
+            const auto& exprValueChild = exprValue.child(0);
+            SymbolSearchRes sres;
+            if (exprValueChild.type() == ASTNodeType::IDENTIFIER)
+                sres = searchSymbol(exprValueChild.token()->val);
+            else if (exprValueChild.type() == ASTNodeType::FUNCTION_CALL
+                    || exprValueChild.type() == ASTNodeType::CONSTRUCT_CALL)
+                sres = searchSymbol(exprValueChild.child(0).token()->val);
+            
+            if (sres.ty == SymbolSearchRes::INVALID)
+                return false;
+
+            lastTypeOnStack = sres.foundType; 
+        }
+        
+        return lastTypeOnStack != ValueType::INVALID;
+    };
+
     for (; childIdx < exprTerm.numChildren(); childIdx++) {
         const auto &postOp = exprTerm.child(childIdx);
         const auto &postOpChild = postOp.child(0);
+
+        // Method call
+        if (postOpChild.type() == ASTNodeType::FUNCTION_CALL) {
+            if (!checkLastValIsObj()) return;
+
+            DWord objIdx = (VTypeWord)clearMask(lastTypeOnStack, ValueType::OBJ_MASK);
+            ScriptObject *obj = currScript_->getObject(objIdx);
+
+            // Search for the member in the object
+            const std::string &methodName = postOpChild.child(0).token()->val;
+            SymbolSearchRes sres = searchSymbol(methodName, obj);
+            if (sres.ty != SymbolSearchRes::METHOD) {
+                createCompileError(NOT_A_METHOD.format(obj->name), postOp);
+                return;
+            }
+
+            Method *method = static_cast<Method *>(sres.fun);
+            if (!method->isPublic) {
+                createCompileError(INACESSIBLE_BC_NOT_PUB, postOp);
+                return;
+            }
+
+            bool isLastPostOp = childIdx + 1 >= exprTerm.numChildren();
+            if (isLastPostOp && !canPromoteType(method->returnTy, expectedTy)) {
+                createCompileError(CANT_PROMOTE_TY_TO.format(
+                    ctx_->getTypeName(method->returnTy), 
+                    ctx_->getTypeName(expectedTy)), postOp);
+                
+                return;
+            }
+
+            compileArguments(postOpChild.child(1), method, true);
+
+            emit(Instruction::CALLMETHOD);
+            emit(objIdx);
+            emit(sres.idx);
+
+            exprValue = postOpChild;
+            lastTypeOnStack = method->returnTy;
+            hasValOnStack = true;
+            
+            continue;
+        }
+
         TokenType postOpTokTy = postOpChild.token()->type;
         const std::string &postOpTokVal = postOpChild.token()->val;
 
         switch (postOpTokTy) {
-            case TokenType::PLUS_PLUS: {
-                // Caller expected a reference but an increment can't load that
-                if (hasMask(expectedTy, ValueType::REF_MASK)) {
-                    createCompileError(EXP_MODIFIABLE_VALUE, exprTerm);
-                    return;
-                }
-
-                if (hasValOnStack && !checkVTypeIsNumricAndModifiable(lastTypeOnStack, exprValue))
-                    return;
-                else if (!hasValOnStack) {
-                    // Search for the operand
-                    SymbolSearchRes sres = searchSymbol(exprValue.child(0).token()->val);
-                    if (sres.ty != SymbolSearchRes::GLOBAL_VAR 
-                    && sres.ty != SymbolSearchRes::LOCAL_VAR 
-                    && sres.ty != SymbolSearchRes::MEMBER_VAR 
-                    && !checkVTypeIsNumricAndModifiable(sres.foundType, exprValue))
-                        return;
-
-                    // Load original value of the variable
-                    if (expectedTy != ValueType::VOID)
-                        compileExpressionValue(exprValue, expectedTy);
-                }
-                
-                if (!hasValOnStack)
-                    compileExpressionValue(exprValue, setMask(expectedTy, ValueType::REF_MASK));
-                
-                emit(Instruction::DUP);
-                emit(Instruction::LOADREF);
-                emit(Instruction::INC);
-                emit(Instruction::SETREF);
-
-                lastTypeOnStack = expectedTy;
-
+            case TokenType::PLUS_PLUS:
+                if (!doIncDec(TokenType::PLUS_PLUS)) return;
                 break;
-            }
-            case TokenType::MINUS_MINUS: {
-                if (hasMask(expectedTy, ValueType::REF_MASK)) {
-                    createCompileError(EXP_MODIFIABLE_VALUE, exprTerm);
-                    return;
-                }
-
-                if (hasValOnStack && !checkVTypeIsNumricAndModifiable(lastTypeOnStack, exprValue))
-                    return;
-                else if (!hasValOnStack) {
-                    SymbolSearchRes sres = searchSymbol(exprValue.child(0).token()->val);
-                    if (sres.ty != SymbolSearchRes::GLOBAL_VAR 
-                    && sres.ty != SymbolSearchRes::LOCAL_VAR 
-                    && sres.ty != SymbolSearchRes::MEMBER_VAR 
-                    && checkVTypeIsNumricAndModifiable(sres.foundType, exprValue))
-                        return;
-
-                    if (expectedTy != ValueType::VOID)
-                        compileExpressionValue(exprValue, expectedTy);
-                }
-
-                if (!hasValOnStack)
-                    compileExpressionValue(exprValue, setMask(expectedTy, ValueType::REF_MASK));
-
-                emit(Instruction::DUP);
-                emit(Instruction::LOADREF);
-                emit(Instruction::DEC);
-                emit(Instruction::SETREF);
-
-                lastTypeOnStack = expectedTy;
-
+            case TokenType::MINUS_MINUS:
+                if (!doIncDec(TokenType::MINUS_MINUS)) return;
                 break;
-            }
 
             // Member access
             case TokenType::ID: {
-                if (lastTypeOnStack != ValueType::INVALID 
-                && !hasMask(lastTypeOnStack, ValueType::OBJ_MASK)) {
-                    createCompileError(TY_IS_NOT_AN_OBJECT.format(ctx_->getTypeName(lastTypeOnStack)), exprValue);
-                    return;
-                }
-
-                // If another member was loaded previously 
-                // no need to load the previous one
-                if (!hasValOnStack) {
-                    // Can be of any type as long as the accessed member 
-                    // if of the same type as expectedTy
-                    compileExpressionValue(exprValue, ValueType::VOID);
-
-                    const auto& exprValueChild = exprValue.child(0);
-                    SymbolSearchRes sres;
-                    if (exprValueChild.type() == ASTNodeType::IDENTIFIER)
-                        sres = searchSymbol(exprValueChild.token()->val);
-                    else if (exprValueChild.type() == ASTNodeType::FUNCTION_CALL
-                          || exprValueChild.type() == ASTNodeType::CONSTRUCT_CALL)
-                        sres = searchSymbol(exprValueChild.child(0).token()->val);
-
-                    // Could happen if there is an error when compiling the expression value
-                    // if so, return because the error was already handled
-                    if (sres.ty == SymbolSearchRes::INVALID)
-                        return;
-
-                    lastTypeOnStack = sres.foundType; 
-                }
-
-                if (lastTypeOnStack == ValueType::INVALID)
-                    return;
+                if (!checkLastValIsObj()) return;
                 
                 DWord objIdx = (VTypeWord)clearMask(lastTypeOnStack, ValueType::OBJ_MASK);
                 ScriptObject *obj = currScript_->getObject(objIdx);
@@ -1053,7 +1073,7 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
 
                 MemberVariable *memberVar = static_cast<MemberVariable *>(sres.var);
                 if (!memberVar->isPublic) {
-                    createCompileError(MEMBER_NOT_PUB, postOp);
+                    createCompileError(INACESSIBLE_BC_NOT_PUB, postOp);
                     return;
                 }
 
