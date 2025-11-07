@@ -797,20 +797,28 @@ void Compiler::recursivelyCompileExpression(const ASTNode &exprChild, ValueType 
     if (exprChild.type() == ASTNodeType::BINOP) {
         recursivelyCompileExpression(exprChild.child(1), expectedType);
         recursivelyCompileExpression(exprChild.child(0), expectedType);
-        compileOperator(exprChild);
+        compileOperator(exprChild, expectedType);
     } else if (exprChild.type() == ASTNodeType::EXPRESSION_TERM) {
         compileExpressionTerm(exprChild, expectedType);
     }
 }
 
-void Compiler::compileOperator(const ASTNode &binop) {
-    assert(binop.type() == ASTNodeType::BINOP);
+void Compiler::compileOperator(const ASTNode &op, ValueType expectedType) {
+    assert(op.type() == ASTNodeType::BINOP);
 
-    switch (binop.token()->type) {
+    switch (op.token()->type) {
         case TokenType::PLUS:             emit(Instruction::ADD);   return;
         case TokenType::MINUS:            emit(Instruction::SUB);   return;
         case TokenType::STAR:             emit(Instruction::MUL);   return;
-        case TokenType::SLASH:            emit(Instruction::DIV);   return;
+        case TokenType::SLASH: {
+            if (!canPromoteType(ValueType::FLOAT64, expectedType)) {
+                createCompileError(DIV_ALWAYS_RETS_A_F64.format(ctx_->getTypeName(expectedType)), op);
+                return;
+            }
+
+            emit(Instruction::DIV);
+            return;
+        }
 
         case TokenType::STRICTLY_SMALLER: emit(Instruction::CMPST); return;
         case TokenType::SMALLER_EQUAL:    emit(Instruction::CMPSE); return;
@@ -897,6 +905,13 @@ void Compiler::compileConstantPush(const ASTNode &constant, ValueType expectedTy
 
 void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expectedTy) {
     assert(exprTerm.type() == ASTNodeType::EXPRESSION_TERM);
+
+    // Compile expressions inside parentheses
+    const auto& firstChild = exprTerm.child(0);
+    if (firstChild.child(0).type() == ASTNodeType::EXPRESSION) {
+        compileExpression(firstChild.child(0), expectedTy);
+        return;
+    }
 
     size_t exprValueIdx = SIZE_MAX;
     for (size_t i = 0; i < exprTerm.numChildren(); i++) {

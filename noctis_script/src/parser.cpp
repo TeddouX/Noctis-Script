@@ -305,6 +305,7 @@ ASTNode Parser::parseExpression() {
 
     // Assure operator precedence
     while (node.numChildren() > 1) {
+        int depth = 0;
         int highestPre = 0;
         int highestPreIdx = 0;
         for (int i = 1; i < node.numChildren(); i += 2) {
@@ -711,6 +712,16 @@ ASTNode Parser::parseExpressionValue() {
     }
     else if (t.type == TokenType::NEW_KWD) {
         node.addChild(parseConstructCall()); CHECK_SYNTAX_ERROR;
+    }
+    else if (t.type == TokenType::PARENTHESIS_OPEN) {
+        consume();
+        node.addChild(parseExpression()); CHECK_SYNTAX_ERROR;
+
+        Token &t1 = consume();
+        if (t1.type != TokenType::PARENTHESIS_CLOSE) {
+            createSyntaxError(EXPECTED_TOKEN.format('('), t1);
+            return node;
+        }
     }
     else {
         consume();

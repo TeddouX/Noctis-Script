@@ -130,7 +130,7 @@ private:
     void compileObject(const ASTNode &obj);
     void compileVariableDeclaration(const ASTNode &varDecl, bool global = false, bool member = false);
     void compileConstantPush(const ASTNode &constant, ValueType expectedType);
-    void compileOperator(const ASTNode &op);
+    void compileOperator(const ASTNode &op, ValueType expectedType);
     void compileExpression(const ASTNode &expr, ValueType expectedType = ValueType::VOID);
     void recursivelyCompileExpression(const ASTNode &exprChild, ValueType expectedType);
     void compileExpressionTerm(const ASTNode &exprTerm, ValueType expectedType = ValueType::VOID);
@@ -177,6 +177,7 @@ private:
     inline static ErrInfo NOT_A_MEMBER                  { "Compilation error", "C", 24, "Not a member variable of {}" };
     inline static ErrInfo INACESSIBLE_BC_NOT_PUB        { "Compilation error", "C", 25, "Inaccessible because it isn't marked as public" };
     inline static ErrInfo NOT_A_METHOD                  { "Compilation error", "C", 26, "Not a method of {}" };
+    inline static ErrInfo DIV_ALWAYS_RETS_A_F64         { "Compilation error", "C", 27, "Division always results in a 'Float64', which can't be converted to '{}'" };
 };
 
 } // namespace NCSC
