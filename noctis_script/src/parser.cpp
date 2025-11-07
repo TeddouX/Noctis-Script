@@ -682,7 +682,7 @@ ASTNode Parser::parseArgList() {
             Token &t3 = consume();
             if (t3.type == TokenType::COMMA)
                 continue;
-            else if (t3.type == TokenType::PARENTHESIS_CLOSE) 
+            else if (t3.type == TokenType::PARENTHESIS_CLOSE)
                 break;
             else {
                 createSyntaxError(EXPECTED_TOKEN_OR_TOKEN.format(',', ')'), t3);

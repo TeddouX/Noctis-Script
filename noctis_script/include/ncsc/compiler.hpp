@@ -178,6 +178,7 @@ private:
     inline static ErrInfo INACESSIBLE_BC_NOT_PUB        { "Compilation error", "C", 25, "Inaccessible because it isn't marked as public" };
     inline static ErrInfo NOT_A_METHOD                  { "Compilation error", "C", 26, "Not a method of {}" };
     inline static ErrInfo DIV_ALWAYS_RETS_A_F64         { "Compilation error", "C", 27, "Division always results in a 'Float64', which can't be converted to '{}'" };
+    inline static ErrInfo NOT_A_CTOR                    { "Compilation error", "C", 28, "Not a constructor of {}" };
 };
 
 } // namespace NCSC

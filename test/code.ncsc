@@ -1,7 +1,7 @@
 obj TestObj {
     pub Int i = 0;
 
-    TestObj(Int newI, Int newB, Int newC) {}
+    pub TestObj(Int newI, Int newB, Int newC) {}
 }
 
 obj Vec2 {
@@ -35,7 +35,15 @@ fun Add(Int a, Int b) {
     Int c = a + b;
 }
 
+fun Recursive(Int num) {
+    if (num < 10) {
+        Recursive(++num);
+    }
+}
+
 fun Main() {
+    Recursive(0);
+
     //Vec2 a = new Vec2();
     //Vec2 b = new Vec2();
 

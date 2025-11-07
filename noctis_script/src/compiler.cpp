@@ -147,6 +147,7 @@ void Compiler::exitScope() {
 void Compiler::resetScopes() {
     scopes_.clear();
     currScope_ = nullptr;
+    nextScopeIdx_ = 0;
 }
 
 void Compiler::finalizeBc(std::vector<Byte> &bc) {
@@ -908,7 +909,7 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
 
     // Compile expressions inside parentheses
     const auto& firstChild = exprTerm.child(0);
-    if (firstChild.child(0).type() == ASTNodeType::EXPRESSION) {
+    if (firstChild.hasChildren() && firstChild.child(0).type() == ASTNodeType::EXPRESSION) {
         compileExpression(firstChild.child(0), expectedTy);
         return;
     }
@@ -1259,7 +1260,7 @@ void Compiler::compileVariableAccess(const ASTNode &varAccess, ValueType expecte
     ValueType varType = sres.var->type;
     // If expected type is INVALID, the expression this variable access is in can be of any type
     // so type checking is useless
-    if (!canPromoteType(varType, expectedType)) {
+    if (!canPromoteType(varType, clearMask(expectedType, ValueType::REF_MASK))) {
         createCompileError(CANT_PROMOTE_TY_TO.format(
             ctx_->getTypeName(varType), 
             ctx_->getTypeName(expectedType)), varAccess);
@@ -1512,8 +1513,21 @@ void Compiler::compileConstructCall(const ASTNode &constructCall, ValueType expe
     emit(Instruction::NEW);
     emit(objIdx);
 
-    DWord constructorIdx = sres.obj->getConstructorIdx();
-    const ScriptFunction *constructor = sres.obj->getMethod(constructorIdx);
+    ScriptObject *obj = sres.obj;
+    DWord constructorIdx = obj->getConstructorIdx();
+    const Method *constructor = obj->getMethod(constructorIdx);
+
+    if (!constructor) {
+        createCompileError(NOT_A_CTOR.format(obj->name), constructCall);
+        return;
+    }
+
+    bool canAccessPriv = currObject_ && currObject_->name == obj->name;
+    if (!constructor->isPublic && !canAccessPriv) {
+        createCompileError(INACESSIBLE_BC_NOT_PUB, constructCall);
+        return;
+    }
+
     compileArguments(constructCall.child(1), constructor, true);
 
     emit(Instruction::CALLMETHOD);

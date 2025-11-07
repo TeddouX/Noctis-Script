@@ -31,7 +31,7 @@ int main() {
 
     std::string fileContents = buf.str();
 
-    std::println("{}", fileContents);
+    // std::println("{}", fileContents);
 
     auto src = NCSC::ScriptSource::fromSource(fileContents);
     src->filePath = filePath;
@@ -39,7 +39,7 @@ int main() {
     auto tokens = NCSC::Lexer(src).tokenizeAll();
     NCSC::Parser parser(tokens, src);
     auto rootNode = parser.parseAll();
-    std::println("{}", rootNode.getStrRepr());
+    // std::println("{}", rootNode.getStrRepr());
     if (parser.hasErrors()) {
         for (auto error : parser.getErrors()) 
             std::println("{}", error.getErrorMessage());
@@ -88,9 +88,10 @@ int main() {
             for (auto ty : method.paramTypes)
                 argsStr += scriptCtx->getTypeName(ty) + ", ";
 
-            std::println("{} method {} {}({}), reqStackSize: {}, numLocals: {}:\n{}", 
+            std::println("{} method {} {}.{}({}), reqStackSize: {}, numLocals: {}:\n{}", 
                 method.isPublic ? "public" : "private", 
                 scriptCtx->getTypeName(method.returnTy),
+                obj.name,
                 method.name,
                 argsStr,
                 method.requiredStackSize,
