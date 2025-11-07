@@ -75,7 +75,7 @@ private:
     void patchBytecode(size_t location, Instruction instr, const std::vector<Byte> &operandBytes);
 
     template <typename T>
-    requires std::is_integral_v<T> 
+    requires(std::is_integral_v<T>) 
     void emitIntConstant(const std::string &valStr, const ASTNode &constant, ValueType vtype) {
         using IntermediateTy_ = std::conditional_t<std::is_signed_v<T>, int64_t, uint64_t>;
         IntermediateTy_ intermediate{};

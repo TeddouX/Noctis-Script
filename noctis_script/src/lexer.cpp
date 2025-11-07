@@ -86,7 +86,14 @@ std::unique_ptr<Token> Lexer::getCurrent() {
 
     // 1234 or 123.456 or .1 or 1.
     // Also tokenizes .
-    if (std::isdigit(currChar) || currChar == '.') {
+    if (std::isdigit(currChar) 
+    ||  currChar == '.'
+    // Check for negative numbers
+    // -11 -11.45
+    || (currChar == '-' 
+    &&  currIdx_ + 1 < source_.length() 
+    &&  isdigit(source_[currIdx_ + 1]))) 
+    {
         bool hasPoint = false;
         bool hasDigits = false;
         
@@ -94,7 +101,7 @@ std::unique_ptr<Token> Lexer::getCurrent() {
             hasDigits = true;
         else if (currChar == '.') 
             hasPoint = true;
-        
+
         int len = 1;
         while (currIdx_ + len < source_.length()) {
             char charAt = source_.at(currIdx_ + len);
