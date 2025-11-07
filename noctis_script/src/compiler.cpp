@@ -978,7 +978,8 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
         
         emit(Instruction::DUP);
         emit(Instruction::LOADREF);
-        emit(Instruction::INC);
+        if (op == TokenType::PLUS_PLUS) emit(Instruction::INC);
+        else                            emit(Instruction::DEC);
         emit(Instruction::SETREF);
 
         lastTypeOnStack = expectedTy;
@@ -1063,8 +1064,6 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
         }
 
         TokenType postOpTokTy = postOpChild.token()->type;
-        const std::string &postOpTokVal = postOpChild.token()->val;
-
         switch (postOpTokTy) {
             case TokenType::PLUS_PLUS:
                 if (!doIncDec(TokenType::PLUS_PLUS)) return;
@@ -1080,6 +1079,7 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
                 DWord objIdx = (VTypeWord)clearMask(lastTypeOnStack, ValueType::OBJ_MASK);
                 ScriptObject *obj = currScript_->getObject(objIdx);
 
+                const std::string &postOpTokVal = postOpChild.token()->val;
                 // Search for the member in the object
                 SymbolSearchRes sres = searchSymbol(postOpTokVal, obj);
                 if (sres.ty != SymbolSearchRes::MEMBER_VAR) {
