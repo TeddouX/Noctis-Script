@@ -1,0 +1,45 @@
+fun TestSuccess() {
+    Int a = 1;
+    Float b = 1.2;
+    Bool c = true;
+    Bool d = 1 == 1;
+}
+
+// Expected 'type' instead 'got'
+fun TestFailC5_1() {
+    Float b = true;
+}
+
+// Expected 'type' instead 'got'
+fun TestFailC5_2() {
+    Int a = 1.2;
+}
+
+// Number too big
+fun TestFailC9() {
+    Int32 a = 2147483648;
+}
+
+// Number too small
+fun TestFailC10() {
+    UInt32 b = -1;
+}
+
+// Symbol already defined
+fun TestFailC22_1() {
+    Int a = 1;
+    Int a = 2;
+}
+
+// Test function
+fun ccc() {}
+
+// Symbol already defined
+fun TestFailC22_2() {
+    Int ccc = 1;
+}
+
+// Division always returns Float64
+fun TestFailC27() {
+    Int a = 1 / 2;
+}

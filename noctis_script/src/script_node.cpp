@@ -48,8 +48,10 @@ std::string ASTNode::getStrRepr() const {
         for (int i = 0; i < depth; ++i) oss << "|  ";
         oss << getNodeTypeStrRepr(node.type_);
 
-        if (node.token_) oss << " (" << node.token_->getStrRepr() << ")" << "\n";
-        else             oss << "\n";
+        if (node.token_.isValid()) 
+            oss << " (" << node.token_.getStrRepr() << ")" << "\n";
+        else
+            oss << "\n";
 
         // Push children in reverse order so the first one is processed first
         for (int i = node.children_.size() - 1; i >= 0; --i)
@@ -61,17 +63,29 @@ std::string ASTNode::getStrRepr() const {
 
 void ASTNode::setPos(const Token &tok) {
     line = tok.line;
+    lineEnd = tok.line;
+    
     col = tok.col;
     colEnd = col + tok.getLength();
 }
 
-void ASTNode::updatePos() {
-    if (!token_)
+void ASTNode::updatePos(const Token &tok) {
+    if (!tok.isValid())
         return;
 
-    line = token_->line;
-    col = token_->col;
-    colEnd = col + token_->getLength();
+    if (!hasPosBeenUpdated_) {
+        line = tok.line;
+        col = tok.col;
+    }
+
+    lineEnd = std::max(tok.line, lineEnd);
+    colEnd = std::max(tok.col + static_cast<uint32_t>(tok.getLength()), colEnd);
+
+    hasPosBeenUpdated_ = true;
+}
+
+void ASTNode::updatePos() {
+    updatePos(token_);
 }
 
 void ASTNode::addChild(const ASTNode &child) {
@@ -79,10 +93,12 @@ void ASTNode::addChild(const ASTNode &child) {
     if (children_.empty()) {
         // First child added
         line = child.line;
+        lineEnd = child.lineEnd;
+
         col = child.col;
         colEnd = child.colEnd;
     } else {
-        line = std::max(line, child.line);
+        lineEnd = std::max(lineEnd, child.lineEnd);
         colEnd = std::max(colEnd, child.colEnd);
     }
    

@@ -214,7 +214,7 @@ bool Parser::isFunctionCall() {
 ASTNode Parser::parseToken(Token &tok) {
     ASTNode node(ASTNodeType::TOKEN);
 
-    node.setToken(&tok);
+    node.setToken(tok);
     node.updatePos();
     return node;
 }
@@ -251,7 +251,7 @@ ASTNode Parser::parseType() {
         return node;
     }
 
-    node.setToken(&t);
+    node.setToken(t);
     node.updatePos();
     return node;
 }
@@ -265,7 +265,7 @@ ASTNode Parser::parseIdentifier() {
         return node;
     }
 
-    node.setToken(&t);
+    node.setToken(t);
     node.updatePos();
     return node;
 }
@@ -286,7 +286,7 @@ ASTNode Parser::parseExpression() {
             complexExpr = true;
             
             ASTNode binOp(ASTNodeType::BINOP);
-            binOp.setToken(&t1);
+            binOp.setToken(t1);
             binOp.updatePos();
             node.addChild(binOp);
         }
@@ -309,8 +309,8 @@ ASTNode Parser::parseExpression() {
         int highestPre = 0;
         int highestPreIdx = 0;
         for (int i = 1; i < node.numChildren(); i += 2) {
-            const Token *tok = node.child(i).token();
-            int opPre = getOperatorPrecedence(*tok); CHECK_SYNTAX_ERROR;
+            const Token &tok = node.child(i).token();
+            int opPre = getOperatorPrecedence(tok); CHECK_SYNTAX_ERROR;
             highestPreIdx = (opPre > highestPre) ? i : highestPreIdx;
             highestPre = std::max(highestPre, opPre);
         }
@@ -364,7 +364,7 @@ ASTNode Parser::parseConstant() {
         return node;
     }
 
-    node.setToken(&t);
+    node.setToken(t);
     node.updatePos();
     return node;
 }
@@ -444,23 +444,28 @@ ASTNode Parser::parseStatementBlock() {
         return node;
     }
 
+    node.updatePos(t);
+
     for (;;) {
         Token t1 = peek(0);
         if (isVariableDeclaration())
             node.addChild(parseVariableDeclaration());
         else if (t1.type == TokenType::CURLY_BRACE_CLOSE) {
             consume();
-            return node;
+
+            node.updatePos(t1);
+
+            break;
         } 
         else if (t1.type == TokenType::END_OF_FILE) {
             createSyntaxError(UNEXPECTED_EOF, t1);
-            return node;
+            break;
         } 
         else
             node.addChild(parseStatement());
 
         if (hasSyntaxError_ && !tryEscapeSyntaxError()) 
-            return node;
+            break;
     }
 
     return node;
@@ -604,7 +609,7 @@ ASTNode Parser::parseAssignmentOperator(bool allowCompoundOps) {
         return node;
     }
 
-    node.setToken(&t);
+    node.setToken(t);
     node.updatePos();
 
     return node;
@@ -735,7 +740,7 @@ ASTNode Parser::parseExpressionPreOp() {
     ASTNode node(ASTNodeType::EXPRESSION_PREOP);
 
     Token &t = consume();
-    node.setToken(&t);
+    node.setToken(t);
     node.updatePos();
 
     return node;

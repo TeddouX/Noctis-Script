@@ -35,25 +35,25 @@
 #include <string>
 
 #if defined(_MSC_VER)
-    // Disable warning from using STD library 
-    // member variables in classes    
-    #pragma warning(disable : 4251)
+    // Disable warning from using STL members in classes    
+#   pragma warning(disable : 4251)
 #endif
 
 #if defined(_WIN32) || defined(_WIN64)
-    #ifdef NCSC_BUILD
-        #define NCSC_API __declspec(dllexport)
-    #else
-        #define NCSC_API __declspec(dllimport)
-    #endif
+#   ifdef NCSC_BUILD
+#       define NCSC_API __declspec(dllexport)
+#   else
+#       define NCSC_API __declspec(dllimport)
+#   endif
 #else
-    #define NCSC_API
+#   define NCSC_API
 #endif
 
+
+#if !defined(NCSC_USE_UNSAFE_WORD_READING)
 // Faster but may cause problems if unaligned
-#define NCSC_USE_UNSAFE_WORD_READING false
-// I recommend always setting this to true
-#define NCSC_ALWAYS_OPTIMIZE         true
+#   define NCSC_USE_UNSAFE_WORD_READING false
+#endif
 
 namespace NCSC 
 {

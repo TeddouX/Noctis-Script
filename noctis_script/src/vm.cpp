@@ -28,11 +28,6 @@ void VM::executeNext() {
 
 #define INSTR(x) case NCSC::Instruction::x
 #define END_INSTR(numBytes) ip += numBytes; break
-#define OP_INSTR(op) \
-    Value a = pop(); \
-    Value b = pop(); \
-    push(a op b);    \
-    END_INSTR(1)     \
 
     Instruction instr = static_cast<Instruction>(bytecode[ip]);
     switch (instr) {
@@ -122,6 +117,12 @@ void VM::executeNext() {
             END_INSTR(sizeof(DWord) + 1);
         }
 
+#define OP_INSTR(op) \
+    Value a = pop(); \
+    Value b = pop(); \
+    push(a op b);    \
+    END_INSTR(1)     \
+
         INSTR(ADD): { OP_INSTR(+); }
         INSTR(SUB): { OP_INSTR(-); }
         INSTR(MUL): { OP_INSTR(*); }
@@ -133,6 +134,8 @@ void VM::executeNext() {
         INSTR(CMPGE): { OP_INSTR(>=); }
         INSTR(CMPEQ): { OP_INSTR(==); }
         INSTR(CMPNE): { OP_INSTR(!=); }
+
+#undef OP_INSTR
 
         INSTR(INC): {
             Value a = pop();
@@ -358,13 +361,12 @@ void VM::executeNext() {
     //     INSTR_INFO.at(instr).first, 
     //     sp_, 
     //     callStack_.empty() ? 0 : callStack_.back().bp);
-    std::println("Stack: {}", getStackStrRepr());
+    // std::println("Stack: {}", getStackStrRepr());
     // std::println("Globals: {}", getStackStrRepr(globalVariables_));
     // std::println();
 
 #undef INSTR
 #undef END_INSTR
-#undef OP_INSTR
 }
 
 void VM::prepareScriptFunction(const ScriptFunction *fun) {

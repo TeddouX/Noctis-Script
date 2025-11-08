@@ -10,7 +10,7 @@
 #include <chrono>
 
 void printHello(int i) {
-    std::println("Hello from CPP! {}", i);
+    std::println("Hello from NoctisScript! The number is: {}", i);
 }
 
 int add(int a, int b) {

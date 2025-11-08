@@ -91,6 +91,7 @@ struct NCSC_API Token {
 
     std::string getStrRepr() const;
     size_t getLength() const;
+    bool isValid() const { return type != TokenType::INVALID; }
 };
 
 const std::unordered_map<std::string, TokenType> tokensStringToTok = {

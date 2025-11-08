@@ -1,0 +1,159 @@
+// SPDX-License-Identifier: BSD-2-Clause
+// Copyright (c) 2025, TeddouX (https://github.com/TeddouX/)
+#include <gtest/gtest.h>
+#include <ncsc/compiler.hpp>
+#include <ncsc/lexer.hpp>
+#include <ncsc/parser.hpp>
+
+#include <fstream>
+#include <expected>
+
+using namespace NCSC;
+
+const std::string SCRIPTS_FOLDER_PATH = "noctis_script/tests/scripts/";
+const auto scriptCtx = ScriptContext::create();
+Compiler compiler(scriptCtx);
+
+enum class CheckErrorsStatus {
+    OK,
+    FAILED_TO_OPEN,
+    HAS_ERROR_IN_CHECK_SUCCESS,  
+    ERROR_IS_NOT_THROWN,
+    SYNTAX_ERROR,
+};
+
+using CheckErrorsRes = std::pair<CheckErrorsStatus, std::string>;
+static CheckErrorsRes checkErrors(const std::string &name) {
+
+    // ---- Read file and compile the script
+    std::ifstream ifs;
+
+    std::stringstream buf;
+    std::filesystem::path filePath = std::filesystem::absolute(SCRIPTS_FOLDER_PATH + name + ".ncsc");
+    ifs.open(filePath);
+
+    if (!ifs.is_open())
+        return { CheckErrorsStatus::FAILED_TO_OPEN, filePath.string() };
+
+    buf << ifs.rdbuf();
+
+    std::string fileContents = buf.str();
+
+    auto src = ScriptSource::fromSource(fileContents);
+    src->filePath = filePath;
+
+    auto tokens = Lexer(src).tokenizeAll();
+    Parser parser(tokens, src);
+    ASTNode rootNode = parser.parseAll();
+    if (parser.hasErrors())
+        return { 
+            CheckErrorsStatus::SYNTAX_ERROR, 
+            parser.getErrors()[0].getErrorMessage(true) 
+        };
+
+    compiler.setSource(src);
+    compiler.compileScript(rootNode);
+    const std::vector<Error> &errors = compiler.getErrors();
+
+
+    // ---- Check if the errors are being thrown 
+    // ---- in the right locations
+    
+    // Line, col
+    using Location = std::pair<uint32_t, uint32_t>;
+    // Def start, Def end
+    using DefinitionRange = std::pair<Location, Location>;
+    
+    std::unordered_map<const std::string *, DefinitionRange> functionsDefs;
+    
+    for (const auto &child : rootNode.children()) {
+        if (child.type() == ASTNodeType::FUNCTION) {
+            Location start(child.line, child.col);
+            Location end(child.lineEnd, child.colEnd);
+
+            const std::string &funcName = child.child(1).token().val;
+
+            functionsDefs.emplace(&funcName, DefinitionRange{start, end});
+        }
+    }
+
+    auto isErrorInDefRange = [errors](DefinitionRange defRange, 
+                            const std::string &errPref = "", uint32_t num = 0) -> const Error * {
+        for (const auto &err : errors) {
+            // First check if the error is inside the definition range
+            if (err.getLine() > defRange.first.first && err.getLine() < defRange.second.first) {
+                // The caller expects and error        
+                if (!errPref.empty()) {
+                    if (err.getInfo().numPrefix == errPref && err.getInfo().num == num)
+                        return &err;
+                    continue;
+                }
+
+                // Else the caller is just checking for any error
+                return &err;
+            }
+        }
+
+        return nullptr;
+    };
+
+    for (const auto &[funcName, defRange] : functionsDefs) {
+        if (*funcName == "TestSuccess") {
+            if (auto err = isErrorInDefRange(defRange))
+                return { 
+                    CheckErrorsStatus::HAS_ERROR_IN_CHECK_SUCCESS, 
+                    err->getErrorMessage() 
+                };
+            
+            continue;
+        }
+
+        if (!funcName->starts_with("TestFail")) 
+            continue;
+
+        std::string funSuffix = funcName->substr(sizeof("TestFail" - 1));
+        std::string errPref;
+        std::string errNumStr;
+
+        for (char c : funSuffix) {
+            if (isalpha(c))
+                errPref += c;
+            else if (isdigit(c))
+                errNumStr += c;
+            else
+                break;
+        }
+
+        uint32_t errNum = strtoul(errNumStr.c_str(), nullptr, 0);
+        if (!isErrorInDefRange(defRange, errPref, errNum))
+            return {
+                CheckErrorsStatus::ERROR_IS_NOT_THROWN, 
+                std::format("Compilation error {}{} isn't throw in '{}'.", errPref, errNum, *funcName) 
+            };
+    }
+
+    return { CheckErrorsStatus::OK, "" };
+}
+
+static ::testing::AssertionResult CheckErrRes(const char *expr, const CheckErrorsRes &checkErrRes) {
+    switch (checkErrRes.first) {
+        case CheckErrorsStatus::OK: 
+            return ::testing::AssertionSuccess();
+        case CheckErrorsStatus::FAILED_TO_OPEN:
+            return ::testing::AssertionFailure() << "Failed to open file: " << checkErrRes.second;
+        case CheckErrorsStatus::HAS_ERROR_IN_CHECK_SUCCESS: 
+            return ::testing::AssertionFailure() << "Has error in check success: " << checkErrRes.second;
+        case CheckErrorsStatus::ERROR_IS_NOT_THROWN:
+            return ::testing::AssertionFailure() << checkErrRes.second << " isn't thrown.";
+        case CheckErrorsStatus::SYNTAX_ERROR:
+            return ::testing::AssertionFailure() << "Syntax error: " << checkErrRes.second;
+
+        default: return ::testing::AssertionFailure() << "Unhandled 'CheckErrorsStatus' enum literal.";
+    }
+}
+
+#define ASSERT_CHECK_ERR_RES_OK(filename) EXPECT_PRED_FORMAT1(CheckErrRes, checkErrors(filename))
+
+TEST(CompilerTests, VariableDeclaration) {
+    ASSERT_CHECK_ERR_RES_OK("variable_declaration_comp");
+}

@@ -27,7 +27,9 @@ public:
     std::unique_ptr<Script> compileScript(const ASTNode &root);
 
     bool hasErrors() { return !compileErrors_.empty(); }
-    const std::vector<Error> &getErrors() { return compileErrors_; }
+    const std::vector<Error> &getErrors() const { return compileErrors_; }
+
+    void setSource(const std::shared_ptr<ScriptSource> &src) { src_ = src; }
 
 private:
     std::shared_ptr<ScriptContext> ctx_;
@@ -82,8 +84,15 @@ private:
 
         if constexpr (std::is_signed_v<IntermediateTy_>)
             intermediate = std::strtoll(valStr.c_str(), nullptr, 0);
-        else
+        else {
+            // Number is negative
+            if (valStr[0] == '-') {
+                createCompileError(NUMBER_IS_TOO_SMALL_FOR_TY.format(ctx_->getTypeName(vtype)), constant);
+                return;
+            }
+            
             intermediate = std::strtoull(valStr.c_str(), nullptr, 0);
+        }
 
         if (intermediate < std::numeric_limits<T>::min()) {
             createCompileError(NUMBER_IS_TOO_SMALL_FOR_TY.format(ctx_->getTypeName(vtype)), constant);

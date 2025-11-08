@@ -41,12 +41,13 @@ public:
     explicit ASTNode(ASTNodeType type)
         : type_(type) {}
     
-    uint32_t line = 0, col = 0, colEnd = 0;
+    uint32_t line = 0, lineEnd = 0, col = 0, colEnd = 0;
 
     // Recursively iterate through its children
     std::string getStrRepr() const;
 
     void setPos(const Token &tok);
+    void updatePos(const Token &tok);
     void updatePos();
 
     bool hasChildren() const noexcept { return !children_.empty(); }
@@ -57,14 +58,15 @@ public:
     size_t numChildren() const { return children_.size(); }
 
     ASTNodeType type() const { return type_; }
-    const Token *token() const { return token_; }
-    void setToken(const Token *tok) { token_ = tok; }
-
-    friend class Parser;
+    const Token &token() const { return token_; }
+    void setToken(const Token &tok) { token_ = tok; }
 
 private:
+    friend class Parser;
+
+    bool hasPosBeenUpdated_ = false;
     ASTNodeType type_;
-    const Token *token_ = nullptr;
+    Token token_;
 
     std::vector<ASTNode> children_;
 

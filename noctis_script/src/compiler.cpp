@@ -151,13 +151,9 @@ void Compiler::resetScopes() {
 }
 
 void Compiler::finalizeBc(std::vector<Byte> &bc) {
-#if NCSC_ALWAYS_OPTIMIZE
     Optimizer::optimize(tempCompiledBytecode_);
-#endif
-
     resolveJumps(bc);
 }
-
 
 void Compiler::createCompileError(const ErrInfo &info, const ASTNode &node) {
     Error err(info, src_);
@@ -224,12 +220,12 @@ void Compiler::compileFunction(const ASTNode &funcDecl, bool method) {
     if (method && firstChild.type() == ASTNodeType::TOKEN)
         reTyNodeIdx = 1;
 
-    if (method && funcDecl.child(reTyNodeIdx).token()->val == currObject_->name)
+    if (method && funcDecl.child(reTyNodeIdx).token().val == currObject_->name)
         // Constructor don't have a return type specified
         reTyNodeIdx -= 1;
 
     const auto &funcDeclNameNode = funcDecl.child(reTyNodeIdx + 1);
-    std::string funcDeclName = funcDeclNameNode.token()->val;
+    std::string funcDeclName = funcDeclNameNode.token().val;
     if ((method && currObject_->getMethod(funcDeclName)) || currScript_->getFunction(funcDeclName)) {
         createCompileError(SYMBOL_ALREADY_EXISTS, funcDecl.child(1));
         return;
@@ -244,8 +240,8 @@ void Compiler::compileFunction(const ASTNode &funcDecl, bool method) {
         }
 
         Method me;
-        me.isPublic = firstChild.token() && 
-            firstChild.token()->type == TokenType::PUBLIC_KWD;
+        me.isPublic = firstChild.token().isValid() 
+                   && firstChild.token().type == TokenType::PUBLIC_KWD;
         me.numParams = 1;
 
         Variable thisVar;
@@ -293,7 +289,7 @@ void Compiler::compileFunction(const ASTNode &funcDecl, bool method) {
         
         // Arguments are treated as local variables
         Variable v;
-        v.name = paramsNode.child(++i).token()->val;
+        v.name = paramsNode.child(++i).token().val;
         v.type = ty;
 
         currScope_->addLocalVar(v);
@@ -581,8 +577,8 @@ Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, Script
 ValueType Compiler::valueTypeFromASTNode(const ASTNode &typeNode) {
     assert(typeNode.type() == ASTNodeType::TOKEN || typeNode.type() == ASTNodeType::DATA_TYPE);
     
-    const Token *tok = typeNode.token();
-    switch(tok->type) {
+    const Token &tok = typeNode.token();
+    switch(tok.type) {
         case TokenType::INT8_KWD:    return ValueType::INT8;
         case TokenType::INT16_KWD:   return ValueType::INT16;
         case TokenType::INT32_KWD:   return ValueType::INT32;
@@ -601,7 +597,7 @@ ValueType Compiler::valueTypeFromASTNode(const ASTNode &typeNode) {
         default: break;
     }
 
-    SymbolSearchRes sres = searchSymbol(tok->val);
+    SymbolSearchRes sres = searchSymbol(tok.val);
     if (sres.ty == SymbolSearchRes::OBJECT)
         return sres.foundType;
 
@@ -614,7 +610,7 @@ void Compiler::compileObject(const ASTNode &obj) {
     assert(obj.type() == ASTNodeType::OBJECT);
 
     ScriptObject scriptObj;
-    scriptObj.name = obj.child(0).token()->val;
+    scriptObj.name = obj.child(0).token().val;
     scriptObj.type = makeObjectType(currScript_->getObjectCount());
 
     auto &scriptObjRef = currScript_->emplaceObject(scriptObj);
@@ -724,7 +720,7 @@ void Compiler::compileVariableDeclaration(const ASTNode &varDecl, bool global, b
     }
 
     const ASTNode &varNameVal = varNameNode.child(0);
-    const std::string &varName = varNameVal.token()->val;
+    const std::string &varName = varNameVal.token().val;
 
     if (searchSymbol(varName).var) {
         createCompileError(SYMBOL_ALREADY_EXISTS, varNameNode);
@@ -744,8 +740,8 @@ void Compiler::compileVariableDeclaration(const ASTNode &varDecl, bool global, b
         MemberVariable mv;
         mv.name = varName;
         mv.type = varType;
-        mv.isPublic = firstChild.token() && 
-                      firstChild.token()->type == TokenType::PUBLIC_KWD;
+        mv.isPublic = firstChild.token().isValid() 
+                   && firstChild.token().type == TokenType::PUBLIC_KWD;
 
         currObject_->addMember(mv);
         currObject_->numMembers++;
@@ -771,7 +767,7 @@ void Compiler::compileExpression(const ASTNode &expr, ValueType expectedType) {
     ASTNode rootOp = expr.child(0);
     // Comparison ops will always be at the top of the binary tree
     // so if any of those is present, the expression returns a boolean
-    TokenType rootOpTy = rootOp.token()->type;
+    TokenType rootOpTy = rootOp.token().type;
     bool isComparisonOp = rootOpTy == TokenType::STRICTLY_SMALLER
        || rootOpTy == TokenType::SMALLER_EQUAL
        || rootOpTy == TokenType::STRICTLY_BIGGER
@@ -807,7 +803,7 @@ void Compiler::recursivelyCompileExpression(const ASTNode &exprChild, ValueType 
 void Compiler::compileOperator(const ASTNode &op, ValueType expectedType) {
     assert(op.type() == ASTNodeType::BINOP);
 
-    switch (op.token()->type) {
+    switch (op.token().type) {
         case TokenType::PLUS:             emit(Instruction::ADD);   return;
         case TokenType::MINUS:            emit(Instruction::SUB);   return;
         case TokenType::STAR:             emit(Instruction::MUL);   return;
@@ -835,8 +831,8 @@ void Compiler::compileOperator(const ASTNode &op, ValueType expectedType) {
 void Compiler::compileConstantPush(const ASTNode &constant, ValueType expectedType) {
     assert(constant.type() == ASTNodeType::CONSTANT);
 
-    TokenType constTokTy = constant.token()->type; 
-    const std::string &constTokVal = constant.token()->val;
+    TokenType constTokTy = constant.token().type; 
+    const std::string &constTokVal = constant.token().val;
     if (constTokTy == TokenType::FLOAT_CONSTANT) {
         switch(expectedType) {
             case ValueType::FLOAT32: {
@@ -857,7 +853,9 @@ void Compiler::compileConstantPush(const ASTNode &constant, ValueType expectedTy
                 break;
             }
             default:
-                createCompileError(EXPECTED_NON_FLOATING_POINT.format(constTokVal), constant);
+                createCompileError(EXPECTED_TYPE_INSTEAD_GOT.format(
+                    ctx_->getTypeName(expectedType), 
+                    ctx_->getTypeName(ValueType::FLOAT64)), constant);
                 return;
         }
     } else if (constTokTy == TokenType::INT_CONSTANT) {
@@ -891,7 +889,7 @@ void Compiler::compileConstantPush(const ASTNode &constant, ValueType expectedTy
         }
     } else if (constTokTy == TokenType::TRUE_KWD || constTokTy == TokenType::FALSE_KWD) {
         if (expectedType != ValueType::BOOL) {
-            createCompileError(CANT_PROMOTE_TY_TO.format( 
+            createCompileError(EXPECTED_TYPE_INSTEAD_GOT.format( 
                 ctx_->getTypeName(expectedType), 
                 ctx_->getTypeName(ValueType::BOOL)), constant);
             return;
@@ -961,7 +959,7 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
             return false;
         else if (!hasValOnStack) {
             // Search for the operand
-            SymbolSearchRes sres = searchSymbol(exprValue.child(0).token()->val);
+            SymbolSearchRes sres = searchSymbol(exprValue.child(0).token().val);
             if (sres.ty != SymbolSearchRes::GLOBAL_VAR 
             && sres.ty != SymbolSearchRes::LOCAL_VAR 
             && sres.ty != SymbolSearchRes::MEMBER_VAR 
@@ -1002,10 +1000,10 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
             const auto& exprValueChild = exprValue.child(0);
             SymbolSearchRes sres;
             if (exprValueChild.type() == ASTNodeType::IDENTIFIER)
-                sres = searchSymbol(exprValueChild.token()->val);
+                sres = searchSymbol(exprValueChild.token().val);
             else if (exprValueChild.type() == ASTNodeType::FUNCTION_CALL
                     || exprValueChild.type() == ASTNodeType::CONSTRUCT_CALL)
-                sres = searchSymbol(exprValueChild.child(0).token()->val);
+                sres = searchSymbol(exprValueChild.child(0).token().val);
             
             if (sres.ty == SymbolSearchRes::INVALID)
                 return false;
@@ -1028,7 +1026,7 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
             ScriptObject *obj = currScript_->getObject(objIdx);
 
             // Search for the member in the object
-            const std::string &methodName = postOpChild.child(0).token()->val;
+            const std::string &methodName = postOpChild.child(0).token().val;
             SymbolSearchRes sres = searchSymbol(methodName, obj);
             if (sres.ty != SymbolSearchRes::METHOD) {
                 createCompileError(NOT_A_METHOD.format(obj->name), postOp);
@@ -1072,7 +1070,7 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
             continue;
         }
 
-        TokenType postOpTokTy = postOpChild.token()->type;
+        TokenType postOpTokTy = postOpChild.token().type;
         switch (postOpTokTy) {
             case TokenType::PLUS_PLUS:
                 if (!doIncDec(TokenType::PLUS_PLUS)) return;
@@ -1088,7 +1086,7 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
                 DWord objIdx = (VTypeWord)clearMask(lastTypeOnStack, ValueType::OBJ_MASK);
                 ScriptObject *obj = currScript_->getObject(objIdx);
 
-                const std::string &postOpTokVal = postOpChild.token()->val;
+                const std::string &postOpTokVal = postOpChild.token().val;
                 // Search for the member in the object
                 SymbolSearchRes sres = searchSymbol(postOpTokVal, obj);
                 if (sres.ty != SymbolSearchRes::MEMBER_VAR) {
@@ -1180,7 +1178,7 @@ void Compiler::compileFunctionCall(const ASTNode &funCall, ValueType expectedTyp
     assert(funCall.type() == ASTNodeType::FUNCTION_CALL);
 
     const auto &funNameNode = funCall.child(0);
-    const std::string &funName = funNameNode.token()->val;
+    const std::string &funName = funNameNode.token().val;
     SymbolSearchRes sres = searchSymbol(funName);
 
     if (sres.ty == SymbolSearchRes::INVALID) {
@@ -1251,11 +1249,11 @@ void Compiler::compileReturn(const ASTNode &ret) {
 void Compiler::compileVariableAccess(const ASTNode &varAccess, ValueType expectedType) {
     assert(varAccess.type() == ASTNodeType::IDENTIFIER);
 
-    std::string varAccessName = varAccess.token()->val;
+    std::string varAccessName = varAccess.token().val;
     SymbolSearchRes sres = searchSymbol(varAccessName);
 
     if (sres.ty == SymbolSearchRes::INVALID) {
-        createCompileError(CANT_FIND_VAR_NAMED.format(varAccess.token()->val), varAccess);
+        createCompileError(CANT_FIND_VAR_NAMED.format(varAccess.token().val), varAccess);
         return;
     }
 
@@ -1267,8 +1265,6 @@ void Compiler::compileVariableAccess(const ASTNode &varAccess, ValueType expecte
     }
 
     ValueType varType = sres.var->type;
-    // If expected type is INVALID, the expression this variable access is in can be of any type
-    // so type checking is useless
     if (!canPromoteType(varType, clearMask(expectedType, ValueType::REF_MASK))) {
         createCompileError(CANT_PROMOTE_TY_TO.format(
             ctx_->getTypeName(varType), 
@@ -1384,7 +1380,7 @@ void Compiler::compileAssignment(const ASTNode &assignment) {
     // Load a reference to the variable
     compileExpressionTerm(varTerm, setMask(ValueType::VOID, ValueType::REF_MASK));
 
-    TokenType opTokTy = assignment.child(1).token()->type;
+    TokenType opTokTy = assignment.child(1).token().type;
     // If its an =, the variable's value doesn't need to 
     // be on the stack for the binary operation
     if (opTokTy != TokenType::EQUAL) {
@@ -1413,10 +1409,10 @@ void Compiler::compileAssignment(const ASTNode &assignment) {
 void Compiler::compileExpressionPreOp(const ASTNode &preOp, const ASTNode &operand, ValueType expectedTy) {
     assert(preOp.type() == ASTNodeType::EXPRESSION_PREOP);
 
-    TokenType preopTy = preOp.token()->type;
+    TokenType preopTy = preOp.token().type;
     switch (preopTy) {
         case TokenType::PLUS_PLUS: {
-            SymbolSearchRes sres = searchSymbol(operand.child(0).token()->val);
+            SymbolSearchRes sres = searchSymbol(operand.child(0).token().val);
             if (sres.ty != SymbolSearchRes::GLOBAL_VAR 
              && sres.ty != SymbolSearchRes::LOCAL_VAR 
              && sres.ty != SymbolSearchRes::MEMBER_VAR 
@@ -1440,7 +1436,7 @@ void Compiler::compileExpressionPreOp(const ASTNode &preOp, const ASTNode &opera
             break;
         }
         case TokenType::MINUS_MINUS: {
-            SymbolSearchRes sres = searchSymbol(operand.child(0).token()->val);
+            SymbolSearchRes sres = searchSymbol(operand.child(0).token().val);
             if (sres.ty != SymbolSearchRes::GLOBAL_VAR 
              && sres.ty != SymbolSearchRes::LOCAL_VAR 
              && sres.ty != SymbolSearchRes::MEMBER_VAR 
@@ -1504,7 +1500,7 @@ void Compiler::compileExpressionValue(const ASTNode &exprVal, ValueType expected
 void Compiler::compileConstructCall(const ASTNode &constructCall, ValueType expectedTy) {
     assert(constructCall.type() == ASTNodeType::CONSTRUCT_CALL);
 
-    const std::string &typeName = constructCall.child(0).token()->val;
+    const std::string &typeName = constructCall.child(0).token().val;
     SymbolSearchRes sres = searchSymbol(typeName);
     if (sres.ty != SymbolSearchRes::OBJECT) {
         createCompileError(NOT_AN_OBJ, constructCall);
@@ -1557,7 +1553,7 @@ ValueType Compiler::getExpressionTermType(const ASTNode &exprTerm) {
             const auto &exprValue = child.child(0);
             switch (exprValue.type()) {
                 case ASTNodeType::IDENTIFIER: {
-                    const std::string &idTokVal = exprValue.token()->val;
+                    const std::string &idTokVal = exprValue.token().val;
                     SymbolSearchRes sres = searchSymbol(idTokVal);
 
                     if (sres.ty != SymbolSearchRes::GLOBAL_VAR 
@@ -1571,7 +1567,7 @@ ValueType Compiler::getExpressionTermType(const ASTNode &exprTerm) {
                 }
 
                 case ASTNodeType::FUNCTION_CALL: {
-                    const std::string &funcName = exprValue.child(0).token()->val;
+                    const std::string &funcName = exprValue.child(0).token().val;
                     SymbolSearchRes sres = searchSymbol(funcName);
 
                     if (sres.ty != SymbolSearchRes::CPP_FUNCTION 
@@ -1584,7 +1580,7 @@ ValueType Compiler::getExpressionTermType(const ASTNode &exprTerm) {
                 }
 
                 case ASTNodeType::CONSTANT: {
-                    TokenType constTokTy = exprValue.token()->type;
+                    TokenType constTokTy = exprValue.token().type;
 
                     if (constTokTy == TokenType::INT_CONSTANT)
                         res = ValueType::INT32;
@@ -1595,7 +1591,7 @@ ValueType Compiler::getExpressionTermType(const ASTNode &exprTerm) {
                 }
 
                 case ASTNodeType::CONSTRUCT_CALL: {
-                    const std::string &objName = exprValue.child(0).token()->val;
+                    const std::string &objName = exprValue.child(0).token().val;
                     SymbolSearchRes sres = searchSymbol(objName);
 
                     if (sres.ty != SymbolSearchRes::OBJECT)
@@ -1622,7 +1618,7 @@ ValueType Compiler::getExpressionTermType(const ASTNode &exprTerm) {
                 ScriptObject *obj = getObj();
                 if (!obj) return ValueType::VOID;
 
-                const std::string &memberName = postOp.token()->val;
+                const std::string &memberName = postOp.token().val;
                 SymbolSearchRes sres = searchSymbol(memberName, obj);
 
                 if (sres.ty != SymbolSearchRes::MEMBER_VAR)
@@ -1634,7 +1630,7 @@ ValueType Compiler::getExpressionTermType(const ASTNode &exprTerm) {
                 ScriptObject *obj = getObj();
                 if (!obj) return ValueType::VOID;
 
-                const std::string &methodName = postOp.child(0).token()->val;
+                const std::string &methodName = postOp.child(0).token().val;
                 SymbolSearchRes sres = searchSymbol(methodName, obj);
 
                 if (sres.ty != SymbolSearchRes::METHOD)

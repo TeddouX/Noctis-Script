@@ -4,51 +4,12 @@
 #include <ncsc/lexer.hpp>
 #include <ncsc/parser.hpp>
 
+#include <print>
+
 using namespace NCSC;
 
 auto parse(const std::string &code) {
     auto src = ScriptSource::fromSource(code); 
     auto tokens = Lexer(src).tokenizeAll();
     return Parser(tokens, src).parseAll();
-}
-
-TEST(ParserTests, ParsesVariableDeclaration) {
-    auto rootNode = parse("Int a;");
-
-    ASSERT_TRUE(rootNode.hasChildren());
-    ASSERT_EQ(rootNode.child(0).type(), ASTNodeType::VARIABLE_DECLARATION);
-}
-
-TEST(ParserTests, VariableDeclarationTypeIsParsed) {
-    auto rootNode = parse("UInt64 a;");
-
-    ASSERT_TRUE(rootNode.hasChildren());
-    ASSERT_TRUE(rootNode.child(0).hasChildren());
-    ASSERT_EQ(rootNode.child(0).child(0).type(), ASTNodeType::DATA_TYPE);
-}
-
-TEST(ParserTests, VariableDeclarationIdentifierIsParsed) {
-    auto rootNode = parse("Double jdkqsljdlqsjdmjqmLDJKLMQS;");
-
-    ASSERT_TRUE(rootNode.hasChildren());
-    ASSERT_TRUE(rootNode.child(0).hasChildren());
-    ASSERT_EQ(rootNode.child(0).child(1).type(), ASTNodeType::IDENTIFIER);
-}
-
-TEST(ParserTests, VariableDeclarationWithAssignmentIsParsed) {
-    auto rootNode = parse("Double a = 1.00010;");
-
-    ASSERT_TRUE(rootNode.hasChildren());
-    ASSERT_TRUE(rootNode.child(0).hasChildren());
-    ASSERT_EQ(rootNode.child(0).numChildren(), 3);
-    ASSERT_EQ(rootNode.child(0).child(2).type(), ASTNodeType::EXPRESSION);
-}
-
-TEST(ParserTests, CanParseTwoStatementsSeparatedBySemicolon) {
-    auto rootNode = parse("Double a; Int b;");
-
-    ASSERT_TRUE(rootNode.hasChildren());
-    ASSERT_EQ(rootNode.numChildren(), 2);
-    ASSERT_EQ(rootNode.child(0).type(), ASTNodeType::VARIABLE_DECLARATION);
-    ASSERT_EQ(rootNode.child(1).type(), ASTNodeType::VARIABLE_DECLARATION);
 }

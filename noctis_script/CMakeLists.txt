@@ -77,10 +77,12 @@ FetchContent_MakeAvailable(googletest)
 enable_testing()
 
 add_executable(NCSCTests
+    tests/compiler_tests.cpp
     tests/lexer_tests.cpp
     tests/parser_tests.cpp
     tests/value_type_tests.cpp
 )
+
 target_link_libraries(NCSCTests
     NoctisScript
     GTest::gtest_main

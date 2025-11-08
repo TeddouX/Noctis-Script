@@ -1,33 +1,21 @@
 obj TestObj {
     pub Int i = 0;
 
-    pub TestObj(Int newI, Int newB, Int newC) {}
+    pub TestObj() {}
 }
 
 obj Vec2 {
     pub Int x = 0;
     pub Int y = 0;
 
-    pub TestObj test = new TestObj(10, 10, 10);
+    pub TestObj test = new TestObj();
 
     pub Vec2(Int x, Int y) {
         this.x = x;
         this.y = y;
     }
 
-    pub Int Add(Int a, Int b) {
-        Int res = a + b;
-        return res;
-    }
-
-    pub Int AddMembers() {
-        return x + y;
-    }
-
-    pub Int AddMembers1(Int i) {
-        return x + y + i;
-    }
-
+    pub Int AddMembers() { return x + y; }
     pub TestObj GetTest() { return test; }
 }
 
@@ -36,6 +24,8 @@ fun Add(Int a, Int b) {
 }
 
 fun Main() {
+    UInt32 b = -1;
+
     Vec2 v1 = new Vec2(10, 10);
     Vec2 v2 = v1;
     v2.x = 11;

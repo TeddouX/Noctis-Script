@@ -39,8 +39,9 @@ public:
     const ErrInfo &getInfo() const { return info_; }
     uint32_t getLine() const { return line_; }
 
-    std::vector<std::string> getErrorMessageLines(bool colored = true);
-    std::string getErrorMessage(bool colored = true);
+    std::vector<std::string> getErrorMessageLines(bool colored = true) const;
+    std::string getErrorMessage(bool colored = true) const;
+    std::string getErrorMessageUnformatted(bool colored = true) const;
 
 private:
     ErrInfo info_;

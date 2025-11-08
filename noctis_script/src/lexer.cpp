@@ -171,6 +171,8 @@ std::unique_ptr<Token> Lexer::getCurrent() {
         case '=': return matchOptional('=', TokenType::EQUAL, TokenType::DOUBLE_EQUAL);
         case '+':
             advance();
+            if (currIdx_ >= source_.size())
+                return createToken(TokenType::PLUS);
             switch (source_[currIdx_]) {
                 case '=': advance(); return createToken(TokenType::PLUS_EQUAL);
                 case '+': advance(); return createToken(TokenType::PLUS_PLUS);
@@ -178,6 +180,8 @@ std::unique_ptr<Token> Lexer::getCurrent() {
             }
         case '-':
             advance();
+            if (currIdx_ >= source_.size())
+                return createToken(TokenType::MINUS);
             switch (source_[currIdx_]) {
                 case '=': advance(); return createToken(TokenType::MINUS_EQUAL);
                 case '-': advance(); return createToken(TokenType::MINUS_MINUS);
@@ -211,7 +215,7 @@ std::unique_ptr<Token> Lexer::createToken(TokenType type, const std::string &val
 std::unique_ptr<Token> Lexer::matchOptional(char next, TokenType single, TokenType combined) {
     // Consume the first char
     advance();
-    if (source_.at(currIdx_) == next) {
+    if (currIdx_ < source_.size() && source_.at(currIdx_) == next) {
         advance();
         return createToken(combined);
     }

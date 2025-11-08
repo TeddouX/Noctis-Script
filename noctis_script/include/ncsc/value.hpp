@@ -117,7 +117,7 @@ template <typename T>
 inline void makeValueBytes(const T &val, ValueType ty, std::vector<Byte> &bytes, size_t off = 0) {
     // VM will reverse this order when pushind to the stack
     // ValueType bytes first
-    makeBytes(static_cast<DWord>(ty), bytes, off);
+    makeBytes(static_cast<VTypeWord>(ty), bytes, off);
     // val bytes last
     makeBytes(val, bytes, off + sizeof(ValueType));
 }

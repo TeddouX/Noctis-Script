@@ -30,17 +30,20 @@ void Error::setLocation(size_t line, size_t col, size_t colEnd) {
     colEnd_ = colEnd;
 }
 
-std::vector<std::string> Error::getErrorMessageLines(bool colored) {
-    assert(src_ != nullptr);
-
-    std::vector<std::string> lines;
-    
+std::string Error::getErrorMessageUnformatted(bool colored) const {
     std::string mess = std::format("{} {}{}: {}", info_.type, info_.numPrefix, info_.num, info_.mess);
     if (colored)
         // Red, Bold
         mess = formatColor(31, true, mess);
-    
-    lines.push_back(mess);
+
+    return mess;
+}
+
+std::vector<std::string> Error::getErrorMessageLines(bool colored) const {
+    assert(src_ != nullptr);
+
+    std::vector<std::string> lines;
+    lines.push_back(getErrorMessageUnformatted(colored));
     
     std::string srcLineNumber = std::to_string(line_) + " ";
     std::string srcLine = srcLineNumber + src_->getLine(line_);
@@ -75,7 +78,7 @@ std::vector<std::string> Error::getErrorMessageLines(bool colored) {
     return lines;
 }
 
-std::string Error::getErrorMessage(bool colored) {
+std::string Error::getErrorMessage(bool colored) const {
     std::string res;
     for (const auto &line : getErrorMessageLines(colored))
         res += line + '\n';
