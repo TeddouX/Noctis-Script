@@ -17,6 +17,10 @@ struct GlobalCPPFunctionRepr : public Function {
     std::function<Value (const std::vector<Value>&)> registryFun;
 };
 
+struct CPPObject : public Object {
+
+};
+
 // Context bridges the script and CPP
 class NCSC_API ScriptContext {
 public:

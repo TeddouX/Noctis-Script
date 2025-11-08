@@ -24,8 +24,6 @@ fun Add(Int a, Int b) {
 }
 
 fun Main() {
-    UInt32 b = -1;
-
     Vec2 v1 = new Vec2(10, 10);
     Vec2 v2 = v1;
     v2.x = 11;
