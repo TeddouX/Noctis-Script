@@ -12,7 +12,6 @@ using namespace NCSC;
 
 const std::string SCRIPTS_FOLDER_PATH = "noctis_script/tests/scripts/";
 const auto scriptCtx = ScriptContext::create();
-Compiler compiler(scriptCtx);
 
 enum class CheckErrorsStatus {
     OK,
@@ -51,7 +50,7 @@ static CheckErrorsRes checkErrors(const std::string &name) {
             parser.getErrors()[0].getErrorMessage(true) 
         };
 
-    compiler.setSource(src);
+    Compiler compiler(scriptCtx, src);
     compiler.compileScript(rootNode);
     const std::vector<Error> &errors = compiler.getErrors();
 
@@ -80,8 +79,18 @@ static CheckErrorsRes checkErrors(const std::string &name) {
     auto isErrorInDefRange = [errors](DefinitionRange defRange, 
                             const std::string &errPref = "", uint32_t num = 0) -> const Error * {
         for (const auto &err : errors) {
-            // First check if the error is inside the definition range
-            if (err.getLine() > defRange.first.first && err.getLine() < defRange.second.first) {
+            // Is the error on the same line as the definition's start?
+            bool errAfterRangeBegin = err.getLine() == defRange.first.first 
+                // If yes, compare columns
+                ? err.getCol() > defRange.first.second
+                // Else, compare lines 
+                : err.getLine() > defRange.first.first;
+
+            bool errBeforeRangeEnd = err.getLine() == defRange.second.first 
+                ? err.getCol() < defRange.second.second
+                : err.getLine() < defRange.second.first;
+
+            if (errAfterRangeBegin && errBeforeRangeEnd) {
                 // The caller expects and error        
                 if (!errPref.empty()) {
                     if (err.getInfo().numPrefix == errPref && err.getInfo().num == num)
@@ -140,13 +149,13 @@ static ::testing::AssertionResult CheckErrRes(const char *expr, const CheckError
         case CheckErrorsStatus::OK: 
             return ::testing::AssertionSuccess();
         case CheckErrorsStatus::FAILED_TO_OPEN:
-            return ::testing::AssertionFailure() << "Failed to open file: " << checkErrRes.second;
+            return ::testing::AssertionFailure() << std::format("{} failed. Failed to open file: {}", expr, checkErrRes.second);
         case CheckErrorsStatus::HAS_ERROR_IN_CHECK_SUCCESS: 
-            return ::testing::AssertionFailure() << "Has error in check success: " << checkErrRes.second;
+            return ::testing::AssertionFailure() << std::format("{} failed. Has error in check success: {}", expr, checkErrRes.second);
         case CheckErrorsStatus::ERROR_IS_NOT_THROWN:
-            return ::testing::AssertionFailure() << checkErrRes.second << " isn't thrown.";
+            return ::testing::AssertionFailure() << std::format("{} failed. {}", expr, checkErrRes.second);
         case CheckErrorsStatus::SYNTAX_ERROR:
-            return ::testing::AssertionFailure() << "Syntax error: " << checkErrRes.second;
+            return ::testing::AssertionFailure() << std::format("{} failed. Syntax error: {}", expr, checkErrRes.second);
 
         default: return ::testing::AssertionFailure() << "Unhandled 'CheckErrorsStatus' enum literal.";
     }
@@ -154,6 +163,10 @@ static ::testing::AssertionResult CheckErrRes(const char *expr, const CheckError
 
 #define ASSERT_CHECK_ERR_RES_OK(filename) EXPECT_PRED_FORMAT1(CheckErrRes, checkErrors(filename))
 
-TEST(CompilerTests, VariableDeclaration) {
-    ASSERT_CHECK_ERR_RES_OK("variable_declaration_comp");
+TEST(CompilerTests, Variables) {
+    ASSERT_CHECK_ERR_RES_OK("variables_compiler");
+}
+
+TEST(CompilerTests, Functions) {
+    ASSERT_CHECK_ERR_RES_OK("functions_compiler");
 }

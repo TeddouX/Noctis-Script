@@ -312,36 +312,38 @@ void Compiler::compileFunction(const ASTNode &funcDecl, bool method) {
 
     currFunction_->numLocals += computeMaxLocals(&scopes_.back()) - currFunction_->numParams;
 
-    if (!hasErrors()) {
-        if (isConstructor) {
-            if (currScope_->hasReturned) {
-                createCompileError(CONSTRUCTOR_SHOULDNT_RET, funcDeclNameNode);
-                return;
-            }
-
-            emit(Instruction::LOADLOCAL);
-            emit((DWord)0); // this
-
-            // Return 'this'
-            emit(Instruction::RET);
-        }
-        // For void functions, add a return at the end if none currently exists
-        else if (currFunction_->returnTy == ValueType::VOID && !currScope_->hasReturned) {
-            emit(Instruction::RETVOID);
-        }
-        // For non void functions, error if there is no return at the end
-        else if (currFunction_->returnTy != ValueType::VOID && !currScope_->hasReturned) {
-            createCompileError(FUNCTION_SHOULD_RET_VAL.format(currFunction_->name), statementBlock.lastChild());
+    if (isConstructor) {
+        if (currScope_->hasReturned) {
+            createCompileError(CONSTRUCTOR_SHOULDNT_RET, funcDeclNameNode);
             return;
         }
+
+        emit(Instruction::LOADLOCAL);
+        emit((DWord)0); // this
+
+        // Return 'this'
+        emit(Instruction::RET);
+    }
+    // For void functions, add a return at the end if none currently exists
+    else if (currFunction_->returnTy == ValueType::VOID && !currScope_->hasReturned) {
+        emit(Instruction::RETVOID);
+    }
+    // For non void functions, error if there is no return at the end
+    else if (currFunction_->returnTy != ValueType::VOID && !currScope_->hasReturned) {
+        createCompileError(FUNCTION_SHOULD_RET_VAL.format(currFunction_->name), funcDeclNameNode);
+        return;
+    }
+
+    if (!hasErrors()) {
+        finalizeBc(tempCompiledBytecode_);
 
         finalizeBc(tempCompiledBytecode_);
 
         currFunction_->requiredStackSize = computeRequiredStackSize(tempCompiledBytecode_);
         currFunction_->bytecode = tempCompiledBytecode_;
-        tempCompiledBytecode_.clear();
     }
-
+    
+    tempCompiledBytecode_.clear();
     currFunction_ = nullptr;
 }
 
@@ -1042,9 +1044,9 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
             bool isLastPostOp = childIdx + 1 >= exprTerm.numChildren();
             if (isLastPostOp) {
                 if (!canPromoteType(method->returnTy, expectedTy)) {
-                    createCompileError(CANT_PROMOTE_TY_TO.format(
-                        ctx_->getTypeName(method->returnTy), 
-                        ctx_->getTypeName(expectedTy)), postOp);
+                    createCompileError(EXPECTED_TYPE_INSTEAD_GOT.format(
+                        ctx_->getTypeName(expectedTy), 
+                        ctx_->getTypeName(method->returnTy)), postOp);
                     
                     return;
                 }
@@ -1102,9 +1104,9 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
 
                 bool isLastPostOp = childIdx + 1 >= exprTerm.numChildren();
                 if (isLastPostOp && !canPromoteType(memberVar->type, expectedTy)) {
-                    createCompileError(CANT_PROMOTE_TY_TO.format(
-                        ctx_->getTypeName(memberVar->type), 
-                        ctx_->getTypeName(expectedTy)), postOp);
+                    createCompileError(EXPECTED_TYPE_INSTEAD_GOT.format(
+                        ctx_->getTypeName(expectedTy), 
+                        ctx_->getTypeName(memberVar->type)), postOp);
                     
                     return;
                 }
@@ -1205,9 +1207,9 @@ void Compiler::compileFunctionCall(const ASTNode &funCall, ValueType expectedTyp
     }
 
     if (!canPromoteType(fun->returnTy, expectedType)) {
-        createCompileError(CANT_PROMOTE_TY_TO.format(
-            ctx_->getTypeName(fun->returnTy), 
-            ctx_->getTypeName(expectedType)), funCall);
+        createCompileError(EXPECTED_TYPE_INSTEAD_GOT.format(
+            ctx_->getTypeName(expectedType), 
+            ctx_->getTypeName(fun->returnTy)), funCall);
         return;
     }
 
@@ -1266,9 +1268,9 @@ void Compiler::compileVariableAccess(const ASTNode &varAccess, ValueType expecte
 
     ValueType varType = sres.var->type;
     if (!canPromoteType(varType, clearMask(expectedType, ValueType::REF_MASK))) {
-        createCompileError(CANT_PROMOTE_TY_TO.format(
-            ctx_->getTypeName(varType), 
-            ctx_->getTypeName(expectedType)), varAccess);
+        createCompileError(EXPECTED_TYPE_INSTEAD_GOT.format(
+            ctx_->getTypeName(expectedType), 
+            ctx_->getTypeName(varType)), varAccess);
         return;
     }
 
@@ -1508,7 +1510,7 @@ void Compiler::compileConstructCall(const ASTNode &constructCall, ValueType expe
     }
 
     if (clearMask(expectedTy, ValueType::REF_MASK) != sres.foundType) {
-        createCompileError(CANT_PROMOTE_TY_TO.format(
+        createCompileError(EXPECTED_TYPE_INSTEAD_GOT.format(
             ctx_->getTypeName(sres.foundType), 
             ctx_->getTypeName(expectedTy)), constructCall);
         return;

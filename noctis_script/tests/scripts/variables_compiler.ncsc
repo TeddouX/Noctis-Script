@@ -5,6 +5,11 @@ fun TestSuccess() {
     Bool d = 1 == 1;
 }
 
+// Can't find variable named
+fun TestFailC1() {
+    Float b = a;
+}
+
 // Expected 'type' instead 'got'
 fun TestFailC5_1() {
     Float b = true;
@@ -32,14 +37,26 @@ fun TestFailC22_1() {
 }
 
 // Test function
-fun ccc() {}
+fun TestFunction() {}
 
 // Symbol already defined
 fun TestFailC22_2() {
-    Int ccc = 1;
+    Int TestFunction = 1;
 }
 
 // Division always returns Float64
 fun TestFailC27() {
     Int a = 1 / 2;
+}
+
+// Not a variable
+fun TestFailC17_1() {
+    Int a = TestFunction;
+}
+
+obj TestObj {}
+
+// Not a variable
+fun TestFailC17_3() {
+    Int a = TestObj;
 }

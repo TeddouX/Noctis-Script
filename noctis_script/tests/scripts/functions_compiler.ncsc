@@ -1,0 +1,67 @@
+Int Add(Int a, Int b) {
+    return a + b;
+}
+
+Bool AreEqual(Float a, Float b) {
+    return a == b;
+}
+
+fun TestSuccess() {
+    Int a = Add(1, 3);
+    Bool b = AreEqual(1.2, 3.3);
+}
+
+// Can't find function named
+fun TestFailC0() {
+    FunctionThatDoesntExist();
+}
+
+fun VoidFunction() {}
+
+// Function a void return type but is still being used in an expression
+fun TestFailC2() {
+    Int a = VoidFunction() + 6;
+}
+
+// Function should return value
+Int TestFailC3() {
+    
+}
+
+// Function shouldn't return value
+fun TestFailC4() {
+    return 2;
+}
+
+// Expected n arguments instead got n
+fun TestFailC6_1() {
+    Add(1);
+}
+
+// Expected n arguments instead got n
+fun TestFailC6_2() {
+    Add(1, 1, 1);
+}
+
+// Unable to convert ty to ty
+fun TestFailC5_1() {
+    Int a = Add(1.1, 1);
+}
+
+// Unable to convert ty to ty
+fun TestFailC5_2() {
+    Bool a = Add(1, 1);
+}
+
+obj TestObj {}
+
+// Not a function
+fun TestFailC19_1() {
+    TestObj();
+}
+
+// Not a function
+fun TestFailC19_2() {
+    Int a = 1;
+    a();
+}
