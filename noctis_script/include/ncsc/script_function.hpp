@@ -11,7 +11,7 @@
 namespace NCSC
 {
     
-struct ScriptFunction : public Function {
+struct ScriptFunction : public virtual Function {
     std::vector<Byte> bytecode;
     // Locals + Parameters
     DWord  numLocals = 0;

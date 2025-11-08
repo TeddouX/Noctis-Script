@@ -9,28 +9,28 @@ std::shared_ptr<ScriptContext> ScriptContext::create() {
     return std::shared_ptr<ScriptContext>(new ScriptContext());
 }
 
-GlobalCPPFunctionRepr *ScriptContext::getGlobalFunction(DWord idx) {
-    if (idx >= globalCPPFunctions_.size())
+CPPFunction *ScriptContext::getGlobalFunction(DWord idx) {
+    if (idx >= cppFunctions_.size())
         return nullptr;
-    return &globalCPPFunctions_[idx];
+    return &cppFunctions_[idx];
 }
 
-GlobalCPPFunctionRepr *ScriptContext::getGlobalFunction(const std::string &name) {
-    for (auto &fun : globalCPPFunctions_)
+CPPFunction *ScriptContext::getGlobalFunction(const std::string &name) {
+    for (auto &fun : cppFunctions_)
         if (fun.name == name)
             return &fun;
     return nullptr;
 }
 
 DWord ScriptContext::getGlobalFunctionIdx(const std::string &name) const {
-    for (int i = 0; i < globalCPPFunctions_.size(); i++)
-        if (globalCPPFunctions_[i].name == name)
+    for (int i = 0; i < cppFunctions_.size(); i++)
+        if (cppFunctions_[i].name == name)
             return i;
     return -1;
 }
 
 Value ScriptContext::callGlobalFunction(DWord idx, const std::vector<Value> &args) {
-    GlobalCPPFunctionRepr &globalFun = globalCPPFunctions_[idx];
+    CPPFunction &globalFun = cppFunctions_[idx];
     return globalFun.registryFun(args);
 }
 

@@ -239,7 +239,7 @@ void Compiler::compileFunction(const ASTNode &funcDecl, bool method) {
             return;
         }
 
-        Method me;
+        ScriptMethod me;
         me.isPublic = firstChild.token().isValid() 
                    && firstChild.token().type == TokenType::PUBLIC_KWD;
         me.numParams = 1;
@@ -298,7 +298,7 @@ void Compiler::compileFunction(const ASTNode &funcDecl, bool method) {
 
     // Safe as long as no other functions are added after this
     if (method) {
-        auto &method = currObject_->emplaceMethod(*static_cast<Method *>(currFunction_));
+        auto &method = currObject_->emplaceMethod(*static_cast<const ScriptMethod *>(currFunction_));
         // Update currFunction_ to point to the newly added method
         currFunction_ = &method;
     } 
@@ -475,7 +475,7 @@ Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, Script
     // Search for members or methods in the object
     if (obj) {        
         DWord memberIdx = obj->getMemberIdx(name);
-        if (memberIdx != NCSC_INVALID_IDX) {
+        if (memberIdx != INVALID_IDX) {
             Variable *var = obj->getMember(memberIdx);
             return SymbolSearchRes{
                 .var = var,
@@ -486,7 +486,7 @@ Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, Script
         }
 
         DWord methodIdx = obj->getMethodIdx(name);
-        if (methodIdx != NCSC_INVALID_IDX) {
+        if (methodIdx != INVALID_IDX) {
             Function *method = obj->getMethod(methodIdx);
             return SymbolSearchRes{
                 .fun = method,
@@ -502,7 +502,7 @@ Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, Script
     // Local variable
     if (currScope_) {
         DWord varIdx = currScope_->getLocalVarIdx(name);
-        if (varIdx != NCSC_INVALID_IDX) {
+        if (varIdx != INVALID_IDX) {
             Variable *var = currScope_->getLocalVar(varIdx); 
             return SymbolSearchRes{
                 .var = var,
@@ -516,7 +516,7 @@ Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, Script
     // Script object or function
     if (currScript_) {
         DWord funIdx = currScript_->getFunctionIdx(name);
-        if (funIdx != NCSC_INVALID_IDX) {
+        if (funIdx != INVALID_IDX) {
             Function *fun = currScript_->getFunction(funIdx);
             return SymbolSearchRes{
                 .fun = fun,
@@ -527,7 +527,7 @@ Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, Script
         }
 
         DWord scriptObjIdx = currScript_->getObjectIdx(name);
-        if (scriptObjIdx != NCSC_INVALID_IDX) {
+        if (scriptObjIdx != INVALID_IDX) {
             ScriptObject *scriptObj = currScript_->getObject(scriptObjIdx);
             return SymbolSearchRes{
                 .obj = scriptObj,
@@ -540,7 +540,7 @@ Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, Script
 
     if (currObject_) {        
         DWord memberIdx = currObject_->getMemberIdx(name);
-        if (memberIdx != NCSC_INVALID_IDX) {
+        if (memberIdx != INVALID_IDX) {
             Variable *var = currObject_->getMember(memberIdx);
             return SymbolSearchRes{
                 .var = var,
@@ -551,7 +551,7 @@ Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, Script
         }
 
         DWord methodIdx = currObject_->getMethodIdx(name);
-        if (methodIdx != NCSC_INVALID_IDX) {
+        if (methodIdx != INVALID_IDX) {
             Function *method = currObject_->getMethod(methodIdx);
             return SymbolSearchRes{
                 .fun = method,
@@ -563,7 +563,7 @@ Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, Script
     }
 
     DWord cppFunIdx = ctx_->getGlobalFunctionIdx(name);
-    if (cppFunIdx != NCSC_INVALID_IDX) {
+    if (cppFunIdx != INVALID_IDX) {
         Function *cppFun = ctx_->getGlobalFunction(cppFunIdx); 
         return SymbolSearchRes{
             .fun = cppFun,
@@ -622,7 +622,7 @@ void Compiler::compileObject(const ASTNode &obj) {
     ctx_->addTypeName(currObject_->type, currObject_->name);
 
     // Member init method
-    Method membInit;
+    ScriptMethod membInit;
     membInit.name = "<membInit>";
     membInit.returnTy = ValueType::VOID;
     // 'this'
@@ -661,8 +661,8 @@ void Compiler::compileObject(const ASTNode &obj) {
     }
 
     DWord constructorIdx = currObject_->getConstructorIdx();
-    if (constructorIdx == NCSC_INVALID_IDX) {
-        Method defaultConstructor;
+    if (constructorIdx == INVALID_IDX) {
+        ScriptMethod defaultConstructor;
         defaultConstructor.isPublic = false;
         defaultConstructor.name = currObject_->name;
         defaultConstructor.numLocals = 0;
@@ -695,7 +695,7 @@ void Compiler::compileObject(const ASTNode &obj) {
     }
 
     // Optimize the member init method's bytecode
-    Method *membInitFinal = currObject_->getMethod(0);
+    ScriptMethod *membInitFinal = currObject_->getMethod(0);
     membInitFinal->bytecode.push_back(static_cast<Byte>(Instruction::RETVOID));
 
     finalizeBc(membInitFinal->bytecode);
@@ -739,7 +739,7 @@ void Compiler::compileVariableDeclaration(const ASTNode &varDecl, bool global, b
         currScript_->addGlobalVariable(gv);
         currScript_->numGlobalVariables++;
     } else if (member) {
-        MemberVariable mv;
+        Member mv;
         mv.name = varName;
         mv.type = varType;
         mv.isPublic = firstChild.token().isValid() 
@@ -1035,7 +1035,7 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
                 return;
             }
 
-            Method *method = static_cast<Method *>(sres.fun);
+            Method *method = dynamic_cast<Method *>(sres.fun);
             if (!method->isPublic) {
                 createCompileError(INACESSIBLE_BC_NOT_PUB, postOp);
                 return;
@@ -1096,7 +1096,7 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
                     return;
                 }
 
-                MemberVariable *memberVar = static_cast<MemberVariable *>(sres.var);
+                Member *memberVar = dynamic_cast<Member *>(sres.var);
                 if (!memberVar->isPublic) {
                     createCompileError(INACESSIBLE_BC_NOT_PUB, postOp);
                     return;

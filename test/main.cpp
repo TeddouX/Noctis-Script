@@ -1,122 +1,135 @@
 // The code below is not covered by the project's main license (BSD 2-Clause). 
 // It can be used freely without including the license.
-// #include <ncsc/lexer.hpp>
-// #include <ncsc/parser.hpp>
-// #include <ncsc/compiler.hpp>
-// #include <ncsc/script_context.hpp>
-// #include <ncsc/vm.hpp>
-// #include <print>
-// #include <fstream>
-// #include <chrono>
+#include <ncsc/lexer.hpp>
+#include <ncsc/parser.hpp>
+#include <ncsc/compiler.hpp>
+#include <ncsc/script_context.hpp>
+#include <ncsc/vm.hpp>
+#include <print>
+#include <fstream>
+#include <chrono>
 
-// void printHello(int i) {
-//     std::println("Hello from NoctisScript! The number is: {}", i);
-// }
+void printHello(int i) {
+    std::println("Hello from NoctisScript! The number is: {}", i);
+}
 
-// int add(int a, int b) {
-//     return a + b;
-// }
+int add(int a, int b) {
+    return a + b;
+}
 
-// int add4(int a, int b, int c, int d) {
-//     return a + b + c + d;
-// }
+int add4(int a, int b, int c, int d) {
+    return a + b + c + d;
+}
 
-// int main() {
-//     std::ifstream ifs;
+class Vec2 {
+public:
+    int x;
+    int y;
 
-//     std::stringstream buf;
-//     std::filesystem::path filePath = std::filesystem::absolute("test/code.ncsc");
-//     ifs.open(filePath);
-//     buf << ifs.rdbuf();
+    int addMembers() { return x + y; }
+};
 
-//     std::string fileContents = buf.str();
+int main() {
+    std::ifstream ifs;
 
-//     // std::println("{}", fileContents);
+    std::stringstream buf;
+    std::filesystem::path filePath = std::filesystem::absolute("test/code.ncsc");
+    ifs.open(filePath);
+    buf << ifs.rdbuf();
 
-//     auto src = NCSC::ScriptSource::fromSource(fileContents);
-//     src->filePath = filePath;
+    std::string fileContents = buf.str();
 
-//     auto tokens = NCSC::Lexer(src).tokenizeAll();
-//     NCSC::Parser parser(tokens, src);
-//     auto rootNode = parser.parseAll();
-//     // std::println("{}", rootNode.getStrRepr());
-//     if (parser.hasErrors()) {
-//         for (auto error : parser.getErrors()) 
-//             std::println("{}", error.getErrorMessage());
+    // std::println("{}", fileContents);
 
-//         exit(EXIT_FAILURE);
-//     }
+    auto src = NCSC::ScriptSource::fromSource(fileContents);
+    src->filePath = filePath;
 
-//     auto scriptCtx = NCSC::ScriptContext::create();
-//     scriptCtx->registerGlobalFunction("printHello", printHello);
-//     scriptCtx->registerGlobalFunction("add", add);
-//     scriptCtx->registerGlobalFunction("add4", add4);
+    auto tokens = NCSC::Lexer(src).tokenizeAll();
+    NCSC::Parser parser(tokens, src);
+    auto rootNode = parser.parseAll();
+    // std::println("{}", rootNode.getStrRepr());
+    if (parser.hasErrors()) {
+        for (auto error : parser.getErrors()) 
+            std::println("{}", error.getErrorMessage());
 
-//     NCSC::Compiler compiler(scriptCtx);
-//     std::shared_ptr<NCSC::Script> script = compiler.compileScript(src);
-//     if (compiler.hasErrors()) {
-//         for (auto error : compiler.getErrors())
-//             std::println("{}", error.getErrorMessage());
+        exit(EXIT_FAILURE);
+    }
 
-//         exit(EXIT_FAILURE);
-//     }
+    auto scriptCtx = NCSC::ScriptContext::create();
+    scriptCtx->registerGlobalFunction("printHello", printHello);
+    scriptCtx->registerGlobalFunction("add", add);
+    scriptCtx->registerGlobalFunction("add4", add4);
 
-//     for (const auto &var : script->getAllGlobalVariables()) {
-//         std::println("global {} {}:\n{}", 
-//             scriptCtx->getTypeName(var.type), 
-//             var.name, 
-//             NCSC::Compiler::disassemble(var.bytecode));
-//     }
+    scriptCtx->registerObject<Vec2>("Vec2");
+    scriptCtx->registerObjectMember("x", &Vec2::x);
+    scriptCtx->registerObjectMember("y", &Vec2::y);
+    scriptCtx->registerObjectMethod("AddMembers", &Vec2::addMembers);
+
+    NCSC::Compiler compiler(scriptCtx);
+    std::shared_ptr<NCSC::Script> script = compiler.compileScript(src);
+    if (compiler.hasErrors()) {
+        for (auto error : compiler.getErrors())
+            std::println("{}", error.getErrorMessage());
+
+        exit(EXIT_FAILURE);
+    }
+
+    for (const auto &var : script->getAllGlobalVariables()) {
+        std::println("global {} {}:\n{}", 
+            scriptCtx->getTypeName(var.type), 
+            var.name, 
+            NCSC::Compiler::disassemble(var.bytecode));
+    }
     
-//     for (const auto &fun : script->getAllFunctions()) {
-//         std::string argsStr;
-//         for (auto ty : fun.paramTypes)
-//             argsStr += scriptCtx->getTypeName(ty) + ", ";
+    for (const auto &fun : script->getAllFunctions()) {
+        std::string argsStr;
+        for (auto ty : fun.paramTypes)
+            argsStr += scriptCtx->getTypeName(ty) + ", ";
 
-//         std::println("fun {} {}({}), reqStackSize: {}, numLocals: {}:\n{}", 
-//             scriptCtx->getTypeName(fun.returnTy),
-//             fun.name,
-//             argsStr,
-//             fun.requiredStackSize,
-//             fun.numLocals,
-//             NCSC::Compiler::disassemble(fun.bytecode));
-//     }
+        std::println("fun {} {}({}), reqStackSize: {}, numLocals: {}:\n{}", 
+            scriptCtx->getTypeName(fun.returnTy),
+            fun.name,
+            argsStr,
+            fun.requiredStackSize,
+            fun.numLocals,
+            NCSC::Compiler::disassemble(fun.bytecode));
+    }
 
-//     for (auto &obj : script->getAllObjects()) {
-//         for (const auto &method : obj.getAllMethods()) {
-//             std::string argsStr;
-//             for (auto ty : method.paramTypes)
-//                 argsStr += scriptCtx->getTypeName(ty) + ", ";
+    for (auto &obj : script->getAllObjects()) {
+        for (const auto &method : obj.getAllMethods()) {
+            std::string argsStr;
+            for (auto ty : method.paramTypes)
+                argsStr += scriptCtx->getTypeName(ty) + ", ";
 
-//             std::println("{} method {} {}.{}({}), reqStackSize: {}, numLocals: {}:\n{}", 
-//                 method.isPublic ? "public" : "private", 
-//                 scriptCtx->getTypeName(method.returnTy),
-//                 obj.name,
-//                 method.name,
-//                 argsStr,
-//                 method.requiredStackSize,
-//                 method.numLocals,
-//                 NCSC::Compiler::disassemble(method.bytecode));
-//         }
-//     }
+            std::println("{} method {} {}.{}({}), reqStackSize: {}, numLocals: {}:\n{}", 
+                method.isPublic ? "public" : "private", 
+                scriptCtx->getTypeName(method.returnTy),
+                obj.name,
+                method.name,
+                argsStr,
+                method.requiredStackSize,
+                method.numLocals,
+                NCSC::Compiler::disassemble(method.bytecode));
+        }
+    }
 
-//     const NCSC::ScriptFunction *fun = script->getFunction("Main");
-//     if (fun) {
-//         NCSC::VM vm(script);
-//         if (!vm.computeGlobals()) {
-//             std::println("{}", vm.getLastError());
-//             exit(EXIT_FAILURE);
-//         }
+    const NCSC::ScriptFunction *fun = script->getFunction("Main");
+    if (fun) {
+        NCSC::VM vm(script);
+        if (!vm.computeGlobals()) {
+            std::println("{}", vm.getLastError());
+            exit(EXIT_FAILURE);
+        }
 
-//         vm.prepareFunction(fun);
+        vm.prepareFunction(fun);
 
-//         if (!vm.execute()) {
-//             std::println("{}", vm.getLastError());
-//             exit(EXIT_FAILURE);
-//         }
+        if (!vm.execute()) {
+            std::println("{}", vm.getLastError());
+            exit(EXIT_FAILURE);
+        }
         
-//         std::println("{}", vm.getStackStrRepr());
-//     }
+        std::println("{}", vm.getStackStrRepr());
+    }
 
-//     return 0;
-// }
+    return 0;
+}

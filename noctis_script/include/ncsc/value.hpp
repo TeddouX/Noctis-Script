@@ -32,6 +32,8 @@ struct NCSC_API Value {
 
         std::vector<Value> *obj;
         Value *ref;
+
+        void *cppObj;
     };
 
     // Reads the value at the end of the bytes array, 

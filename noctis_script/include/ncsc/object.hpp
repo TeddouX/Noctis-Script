@@ -1,19 +1,26 @@
 // SPDX-License-Identifier: BSD-2-Clause
 // Copyright (c) 2025, TeddouX (https://github.com/TeddouX/)
 #pragma once
-#include "ncsc.hpp"
-#include "function.hpp"
 #include "variable.hpp"
+#include "function.hpp"
 
 namespace NCSC
 {
+    
+struct Member : public virtual Variable {
+    bool isPublic = false;
+};
 
-struct MemberVariable : public Variable {
+struct Method : public virtual Function {
     bool isPublic = false;
 };
 
 struct Object {
-    std::vector<MemberVariable> members;
+    std::string name;
+    std::vector<Method> methods;
+    std::vector<Member> members;
+
+    virtual ~Object() = default;
 };
 
 } // namespace NCSC

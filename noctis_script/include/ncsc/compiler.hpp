@@ -117,7 +117,7 @@ private:
             Function *fun;
             Variable *var;
         };
-        DWord idx = NCSC_INVALID_IDX;
+        DWord idx = INVALID_IDX;
         ValueType foundType = ValueType::INVALID;
 
         enum {

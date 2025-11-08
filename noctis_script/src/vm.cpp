@@ -293,7 +293,7 @@ void VM::executeNext() {
         INSTR(CLGLBLCPPFUN): {
             DWord idx = readWord<DWord>(bytecode, ip + 1);
 
-            const GlobalCPPFunctionRepr *fun = script_->ctx->getGlobalFunction(idx);
+            const CPPFunction *fun = script_->ctx->getGlobalFunction(idx);
 
             // Build vector of arguments from the top n values on the stack
             auto spIt = stack_.begin() + sp_;

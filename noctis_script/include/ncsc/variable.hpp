@@ -10,6 +10,8 @@ namespace NCSC
 struct Variable {
     std::string name;
     ValueType type;
+
+    virtual ~Variable() = default;
 };
 
 } // namespace NCSC

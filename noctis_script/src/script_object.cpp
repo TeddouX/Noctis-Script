@@ -5,20 +5,20 @@
 namespace NCSC
 {
 
-Method *ScriptObject::getConstructor() {
-    for (auto &m : methods_) {
+ScriptMethod *ScriptObject::getConstructor() {
+    for (auto &m : methods) {
         if (m.name == name) 
-            return &m;
+            return static_cast<ScriptMethod *>(&m);
     }
     return nullptr;
 }
 
 DWord ScriptObject::getConstructorIdx() const {
-    for (DWord i = 0; i < methods_.size(); i++) {
-        if (methods_[i].name == name) 
+    for (DWord i = 0; i < methods.size(); i++) {
+        if (methods[i].name == name) 
             return i;
     }
-    return NCSC_INVALID_IDX;
+    return INVALID_IDX;
 }
     
 }

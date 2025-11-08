@@ -30,8 +30,9 @@ enum class ValueType : VTypeWord {
 
     BOOL,
 
-    REF_MASK = (VTypeWord)1 << 14,
-    OBJ_MASK = (VTypeWord)1 << 15,
+    REF_MASK     = (VTypeWord)1 << 13,
+    OBJ_MASK     = (VTypeWord)1 << 14,
+    CPP_OBJ_MASK = (VTypeWord)1 << 15,
 };
 
 const std::unordered_map<ValueType, std::string> BUILTIN_VTYPES_NAMES = {
@@ -100,6 +101,10 @@ inline bool isRef(ValueType v) {
 }
 
 inline bool isObject(ValueType v) {
+    return hasMask(v, ValueType::OBJ_MASK);
+}
+
+inline bool isCPPObject(ValueType v) {
     return hasMask(v, ValueType::OBJ_MASK);
 }
 

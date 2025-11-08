@@ -2,31 +2,30 @@
 // Copyright (c) 2025, TeddouX (https://github.com/TeddouX/)
 #pragma once
 #include "ncsc.hpp"
+#include "named_utils.hpp"
 #include "object.hpp"
+#include "script_function.hpp"
+#include "variable.hpp"
+
+#include <type_traits>
 
 namespace NCSC
 {
 
-struct ScriptMethod : public ScriptFunction {
-    bool isPublic = false;
-};
+struct ScriptMethod : public Method, public ScriptFunction {};
 
-class ScriptObject : private Object {
+class ScriptObject : public Object {
 public:
     ScriptObject() = default;
     
-    DWord numMembers = 0;
-    std::string name;
     ValueType type = ValueType::INVALID;
+    DWord numMembers = 0;
 
     ScriptMethod *getConstructor();
-    DWord   getConstructorIdx() const;
+    DWord         getConstructorIdx() const;
 
-    GETTERS_SETTERS_FOR_NAMED_VECTOR(Method, methods_, ScriptMethod)
-    GETTERS_SETTERS_FOR_NAMED_VECTOR(Member, members, MemberVariable)
-
-private:
-    std::vector<ScriptMethod> methods_;
+    GETTERS_SETTERS_FOR_NAMED_VECTOR_CASTS(Method, methods, ScriptMethod)
+    GETTERS_SETTERS_FOR_NAMED_VECTOR(Member, members, Member)
 };
 
 } // namespace NCSC

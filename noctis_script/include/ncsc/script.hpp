@@ -5,6 +5,7 @@
 #include "script_function.hpp"
 #include "script_context.hpp"
 #include "script_object.hpp"
+#include "named_utils.hpp"
 #include "variable.hpp"
 
 #include <vector>
