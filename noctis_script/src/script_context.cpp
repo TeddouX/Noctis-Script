@@ -29,12 +29,16 @@ Value ScriptContext::callObjectMethod(DWord objIdx, DWord methodIdx, const std::
     return method->registryFun(args);
 }
 
-Value ScriptContext::getObjectMember(DWord idx, const Value &object) {
+Value ScriptContext::getObjectMember(DWord idx, const Value &object, bool asRef) {
     if (!isCPPObject(object.ty))
         return Value{};
 
-    CPPObject *objPtr = static_cast<CPPObject *>(object.cppObj);
-    return objPtr->getMember(idx)->registryFun(object);
+    DWord objIdx = (VTypeWord)clearMask(object.ty, ValueType::CPP_OBJ_MASK);
+    CPPObject *cppObj = getCppObject(objIdx);
+    if (!cppObj) 
+        return Value{};
+
+    return cppObj->getMember(idx)->registryFun(object, asRef);
 }
 
 std::string ScriptContext::getTypeName(ValueType ty) const {

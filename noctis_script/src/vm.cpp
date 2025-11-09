@@ -7,6 +7,33 @@
 namespace NCSC
 {
 
+// Ignores everything and uses val.ty to cast cppRef.cppRef
+// Really unsafe, just pray to the gods of cpp that val is the same type as the reference
+static void setCPPRefVal(Value &cppRef, Value &val) {
+    if (!hasMask(cppRef.ty, ValueType::CPP_REF_MASK))
+        return;
+
+    switch (clearMask(cppRef.ty, ValueType::CPP_REF_MASK)) {
+        case ValueType::INT8:    *(int8_t *)cppRef.cppRef    = val.i8;   return;
+        case ValueType::INT16:   *(int16_t *)cppRef.cppRef   = val.i16;  return;
+        case ValueType::INT32:   *(int32_t *)cppRef.cppRef   = val.i32;  return;
+        case ValueType::INT64:   *(int64_t *)cppRef.cppRef   = val.i64;  return;
+
+        case ValueType::UINT8:   *(uint8_t *)cppRef.cppRef   = val.ui8;  return;
+        case ValueType::UINT16:  *(uint16_t *)cppRef.cppRef  = val.ui16; return;
+        case ValueType::UINT32:  *(uint32_t *)cppRef.cppRef  = val.ui32; return;
+        case ValueType::UINT64:  *(uint64_t *)cppRef.cppRef  = val.ui64; return;
+
+        case ValueType::FLOAT32: *(float32_t *)cppRef.cppRef = val.f32;  return;
+        case ValueType::FLOAT64: *(float64_t *)cppRef.cppRef = val.f64;  return;
+        
+        case ValueType::BOOL:    *(bool *)cppRef.cppRef      = val.b;    return;
+
+        default: break;
+    }
+}
+
+
 VM::VM(std::shared_ptr<Script> script)
     : script_(script),
       ctx_(script->ctx)
@@ -59,13 +86,8 @@ void VM::executeNext() {
         INSTR(LOADLOCAL_REF): {
             DWord idx = readWord<DWord>(bytecode, ip + 1);
             Value &local = stack_[bp + idx];
-            bool isRef = hasMask(local.ty, ValueType::REF_MASK);
-            Value localRef {
-                .ty = setMask(local.ty, ValueType::REF_MASK),
-                // Transfer references
-                .ref = isRef ? local.ref : &local,
-            };
-            push(localRef);
+            push(makeReference(local));
+
 
             END_INSTR(sizeof(DWord) + 1);
         }
@@ -78,41 +100,44 @@ void VM::executeNext() {
         INSTR(LOADGLOBAL_REF): {
             DWord idx = readWord<DWord>(bytecode, ip + 1);
             Value &global = globalVariables_[idx];
-            bool isRef = hasMask(global.ty, ValueType::REF_MASK);
-            Value globalRef {
-                .ty = setMask(global.ty, ValueType::REF_MASK),
-                .ref = isRef ? global.ref : &global,
-            };
-            push(globalRef);
+            
+            push(makeReference(global));
             
             END_INSTR(sizeof(DWord) + 1);
         }
         INSTR(LOADMEMBER): {
             DWord idx = readWord<DWord>(bytecode, ip + 1);
             Value obj = pop();
+            const ValueType objTy = obj.ty;
 
-            if (!obj.isObject())
+            if (!isObject(objTy)) {
+                error(std::string(TRYED_ACCESSING_MEMB_OF_INV_OB));
                 return;
+            }
             
-            push(obj.obj->at(idx));
+            if (isCPPObject(objTy))
+                push(ctx_->getObjectMember(idx, obj));
+            else
+                push(obj.obj->at(idx));
 
             END_INSTR(sizeof(DWord) + 1);
         }
         INSTR(LOADMEMBER_REF): {
             DWord idx = readWord<DWord>(bytecode, ip + 1);
             Value obj = pop();
+            const ValueType objTy = obj.ty;
 
-            if (!obj.isObject())
+            if (!isObject(objTy)) {
+                error(std::string(TRYED_ACCESSING_MEMB_OF_INV_OB));
                 return;
+            }
 
-            Value &member = obj.obj->at(idx);
-            bool isRef = hasMask(member.ty, ValueType::REF_MASK);
-            Value memberRef {
-                .ty = setMask(member.ty, ValueType::REF_MASK),
-                .ref = isRef ? member.ref : &member,
-            };
-
-            push(memberRef);
+            if (isCPPObject(objTy))
+                push(ctx_->getObjectMember(idx, obj, /*asRef*/true));
+            else {
+                Value &member = obj.obj->at(idx);
+                push(makeReference(member));
+            }
             
             END_INSTR(sizeof(DWord) + 1);
         }
@@ -218,12 +243,18 @@ void VM::executeNext() {
         
         INSTR(LOADREF): {
             Value valRef = pop();
-            if (!hasMask(valRef.ty, ValueType::REF_MASK)) {
+            ValueType valRefTy = valRef.ty;
+            if (isRef(valRefTy))
+                push(*valRef.ref);
+            else if (hasMask(valRefTy, ValueType::CPP_REF_MASK)) {
+                Value val{};
+                val.setProperty(valRef.cppRef, clearMask(valRefTy, ValueType::CPP_REF_MASK));
+                push(val);
+            }
+            else {
                 error(std::string(TRIED_ACCESSING_VAL_OF_INVALID_REF));
                 break;
             }
-            
-            push(*valRef.ref);
 
             END_INSTR(1);
         }
@@ -237,11 +268,14 @@ void VM::executeNext() {
                 *ref.obj = *val.obj;
             }
             else {
-                if (!hasMask(ref.ty, ValueType::REF_MASK)) {
+                if (isRef(ref.ty))
+                    *ref.ref = val;
+                else if (hasMask(ref.ty, ValueType::CPP_REF_MASK))
+                    setCPPRefVal(ref, val);
+                else {
                     error(std::string(TRYED_SETTING_VAL_OF_INVALID_REF));
                     break;
                 }
-                *ref.ref = val;
             }
 
             END_INSTR(1);
@@ -293,7 +327,7 @@ void VM::executeNext() {
         INSTR(CALLCPPFUN): {
             DWord idx = readWord<DWord>(bytecode, ip + 1);
 
-            const CPPFunction *fun = script_->ctx->getCppFunction(idx);
+            const CPPFunction *fun = ctx_->getCppFunction(idx);
 
             // Build vector of arguments from the top n values on the stack
             auto spIt = stack_.begin() + sp_;
@@ -301,9 +335,42 @@ void VM::executeNext() {
             sp_ -= fun->numParams;
 
             // Call function and push the result, if one exists
-            Value ret = script_->ctx->callCppFunction(idx, args);
+            Value ret = ctx_->callCppFunction(idx, args);
             if (fun->returnTy != ValueType::VOID)
                 push(ret);
+
+            END_INSTR(1 + sizeof(DWord));
+        }
+
+        INSTR(CALLCPPMETHOD): {
+            ip += 1;
+
+            DWord objIdx = readWord<DWord>(bytecode, ip);
+            ip += sizeof(DWord);
+
+            DWord methodIdx = readWord<DWord>(bytecode, ip);
+            ip += sizeof(DWord);
+
+            CPPObject *obj = ctx_->getCppObject(objIdx);
+            if (!obj) break;
+            const CPPMethod *method = obj->getMethod(methodIdx);
+            if (!method) break;
+
+            auto spIt = stack_.begin() + sp_;
+            std::vector<Value> args(spIt - method->numParams, spIt);
+            sp_ -= method->numParams;
+
+            Value ret = ctx_->callObjectMethod(objIdx, methodIdx, args);
+            if (method->returnTy != ValueType::VOID)
+                push(ret);
+
+            break;
+        }
+
+        INSTR(CPPNEW): {
+            DWord objIdx = readWord<DWord>(bytecode, ip + 1);
+            
+            push(ctx_->callObjectNew(objIdx));
 
             END_INSTR(1 + sizeof(DWord));
         }
@@ -386,6 +453,14 @@ void VM::prepareScriptFunction(const ScriptFunction *fun) {
 
     currFun_ = fun;
     callStack_.push_back(frame);
+}
+
+Value VM::makeReference(Value &val) {
+    bool isRef = NCSC::isRef(val.ty);
+    return Value {
+        .ty = setMask(val.ty, ValueType::REF_MASK),
+        .ref = isRef ? val.ref : &val,
+    };
 }
 
 void VM::prepareFunction(const ScriptFunction *fun) {

@@ -24,13 +24,18 @@ int add4(int a, int b, int c, int d) {
 class Vec3 {
 public:
     Vec3() = default;
-    Vec3(int x, int y, int z) noexcept : x(x), y(y), z(z) {}
+    Vec3(int x, int y, int z) noexcept : x(x), y(y), z(z) {
+        std::println("Vec3 got constructed!");
+    }
 
     int x = 0;
     int y = 0;
     int z = 0;
 
-    int addMembers() { return x + y + z; }
+    int addMembers() { 
+        std::println("Members got added!");
+        return x + y + z; 
+    }
 };
 
 int main() {
@@ -120,22 +125,22 @@ int main() {
     }
 
     const NCSC::ScriptFunction *fun = script->getFunction("Main");
-    // if (fun) {
-    //     NCSC::VM vm(script);
-    //     if (!vm.computeGlobals()) {
-    //         std::println("{}", vm.getLastError());
-    //         exit(EXIT_FAILURE);
-    //     }
+    if (fun) {
+        NCSC::VM vm(script);
+        if (!vm.computeGlobals()) {
+            std::println("{}", vm.getLastError());
+            exit(EXIT_FAILURE);
+        }
 
-    //     vm.prepareFunction(fun);
+        vm.prepareFunction(fun);
 
-    //     if (!vm.execute()) {
-    //         std::println("{}", vm.getLastError());
-    //         exit(EXIT_FAILURE);
-    //     }
+        if (!vm.execute()) {
+            std::println("{}", vm.getLastError());
+            exit(EXIT_FAILURE);
+        }
         
-    //     std::println("{}", vm.getStackStrRepr());
-    // }
+        std::println("{}", vm.getStackStrRepr());
+    }
 
     return 0;
 }

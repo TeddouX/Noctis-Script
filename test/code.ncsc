@@ -32,5 +32,10 @@ fun Main() {
 
     Vec3 v3 = new Vec3(10, 10, 10);
     printHello(v3.x);
-    printHello(v3.AddMembers());    
+
+    v3.x = 20;
+
+    printHello(v3.x);
+
+    printHello(v3.AddMembers()); 
 }

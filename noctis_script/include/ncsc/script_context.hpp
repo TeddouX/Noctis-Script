@@ -26,7 +26,7 @@ struct CPPMethod : public Method {
 };
 
 struct CPPMember : public Member {
-    std::function<Value (const Value &)> registryFun;
+    std::function<Value (const Value &, bool)> registryFun;
 };
 
 class CPPObject : public Object {
@@ -87,7 +87,7 @@ public:
     // INTERNAL
     Value callObjectMethod(DWord objIdx, DWord methodIdx, const std::vector<Value> &args);
     // INTERNAL
-    Value getObjectMember(DWord idx, const Value &object);
+    Value getObjectMember(DWord idx, const Value &object, bool asRef = false);
     
 
     std::string getTypeName(ValueType ty) const;
@@ -119,7 +119,7 @@ private:
     Value callCPPMethod(RetTy_ (Obj_::*method)(MethodArgs_...), const std::vector<Value> &args);
 
     template <typename Obj_, typename MemberTy_>
-    Value getCPPMember(MemberTy_ Obj_::*member, const Value &arg);
+    Value getCPPMember(MemberTy_ Obj_::*member, const Value &arg, bool ref);
 
 
     template <typename Obj_>
@@ -233,8 +233,8 @@ void ScriptContext::registerObjectMember(const std::string &name, MemberTy_ Obj_
     member.name = name;
     member.type = valueTypeFromCPPType<MemberTy_>();
     member.isPublic = isPublic;
-    member.registryFun = [this, memberPtr](const Value &obj) -> Value {
-        return this->getCPPMember(memberPtr, obj);
+    member.registryFun = [this, memberPtr](const Value &obj, bool ref) -> Value {
+        return this->getCPPMember(memberPtr, obj, ref);
     };
 
     obj->addMember(member);
@@ -291,13 +291,23 @@ Value ScriptContext::callCPPMethod(RetTy_ (Obj_::*method)(MethodArgs_...), const
 }
 
 template <typename Obj_, typename MemberTy_>
-Value ScriptContext::getCPPMember(MemberTy_ Obj_::*member, const Value &arg) {
+Value ScriptContext::getCPPMember(MemberTy_ Obj_::*member, const Value &arg, bool ref) {
     if (!isCPPObject(arg.ty))
         return Value{};
 
     Obj_ *objPtr = static_cast<Obj_ *>(arg.cppObj);
-    MemberTy_ memberVal = objPtr->*member;
-    return Value::fromLiteral(memberVal);
+
+    if (ref) {
+        MemberTy_ *memberVal = &(objPtr->*member);
+        return Value {
+            .ty = setMask(valueTypeFromLiteral<MemberTy_>(*memberVal), ValueType::CPP_REF_MASK),
+            .cppRef = memberVal, 
+        };
+    }
+    else {
+        MemberTy_ memberVal = objPtr->*member;
+        return Value::fromLiteral(memberVal);
+    }
 }
 
 template <typename Obj_>
