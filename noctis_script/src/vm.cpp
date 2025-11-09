@@ -290,7 +290,7 @@ void VM::executeNext() {
             break;
         }
 
-        INSTR(CLGLBLCPPFUN): {
+        INSTR(CALLCPPFUN): {
             DWord idx = readWord<DWord>(bytecode, ip + 1);
 
             const CPPFunction *fun = script_->ctx->getCppFunction(idx);

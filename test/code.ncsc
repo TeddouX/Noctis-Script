@@ -24,9 +24,13 @@ fun Add(Int a, Int b) {
 }
 
 fun Main() {
-    Vec2 v1 = new Vec2(10, 10);
-    Vec2 v2 = v1;
-    v2.x = 11;
+    // Vec2 v1 = new Vec2(10, 10);
+    // Vec2 v2 = v1;
+    // v2.x = 11;
 
-    printHello(v1.x);
+    // printHello(v1.x);
+
+    Vec3 v3 = new Vec3(10, 10, 10);
+    printHello(v3.x);
+    printHello(v3.AddMembers());    
 }

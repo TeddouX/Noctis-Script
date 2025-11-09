@@ -21,7 +21,7 @@ Value ScriptContext::callObjectNew(DWord objIdx) {
 
 Value ScriptContext::callObjectMethod(DWord objIdx, DWord methodIdx, const std::vector<Value> &args) {
     CPPObject &obj = cppObjects_[objIdx];
-    CPPObject::Method *method = obj.getMethod(methodIdx);
+    CPPMethod *method = obj.getMethod(methodIdx);
     
     if (!method)
         return Value{};

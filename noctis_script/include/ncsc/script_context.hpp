@@ -20,21 +20,27 @@ struct CPPFunction : public Function {
     std::function<Value (const std::vector<Value> &)> registryFun;
 };
 
-struct CPPObject : public Object {
-    struct Method : public NCSC::Method {
-        std::function<Value (const std::vector<Value> &)> registryFun;
-    };
 
-    struct Member : public NCSC::Member {
-        std::function<Value (const Value &)> registryFun;
-    };
-    
+struct CPPMethod : public Method {
+    std::function<Value (const std::vector<Value> &)> registryFun;
+};
+
+struct CPPMember : public Member {
+    std::function<Value (const Value &)> registryFun;
+};
+
+class CPPObject : public Object {
+public:
     // Calls new(sizeof(Obj_))
     std::function<Value (void)> newFun;
     const std::type_info *classInfo;
 
-    NCSC_GETTERS_SETTERS_FOR_NAMED_VECTOR_CASTS(Method, methods, CPPObject::Method)
-    NCSC_GETTERS_SETTERS_FOR_NAMED_VECTOR_CASTS(Member, members, CPPObject::Member)
+    NCSC_GETTERS_SETTERS_FOR_NAMED_VECTOR(Method, methods_, CPPMethod)
+    NCSC_GETTERS_SETTERS_FOR_NAMED_VECTOR(Member, members_, CPPMember)
+
+private:
+    std::vector<CPPMethod> methods_;
+    std::vector<CPPMember> members_;
 };
 
 
@@ -172,7 +178,7 @@ void ScriptContext::registerObjectCtor(bool isPublic) {
     if (!obj)
         return;
 
-    CPPObject::Method ctor{};
+    CPPMethod ctor{};
     ctor.name = obj->name;
     ctor.paramTypes = { valueTypeFromCPPType<CtorArgs_>()... };
     ctor.numParams = sizeof...(CtorArgs_) + 1;
@@ -203,7 +209,7 @@ void ScriptContext::registerObjectMethod(const std::string &name, RetTy_ (Obj_::
     if (!obj)
         return;
     
-    CPPObject::Method method{};
+    CPPMethod method{};
     method.name = name;
     method.paramTypes = { valueTypeFromCPPType<MethodArgs_>()... }; 
     method.returnTy = valueTypeFromCPPType<RetTy_>();
@@ -223,7 +229,7 @@ void ScriptContext::registerObjectMember(const std::string &name, MemberTy_ Obj_
     if (!obj) 
         return;
     
-    CPPObject::Member member{};
+    CPPMember member{};
     member.name = name;
     member.type = valueTypeFromCPPType<MemberTy_>();
     member.isPublic = isPublic;

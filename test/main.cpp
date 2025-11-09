@@ -21,15 +21,16 @@ int add4(int a, int b, int c, int d) {
     return a + b + c + d;
 }
 
-class Vec2 {
+class Vec3 {
 public:
-    Vec2() = default;
-    Vec2(int x, int y) noexcept : x(x), y(y) {}
+    Vec3() = default;
+    Vec3(int x, int y, int z) noexcept : x(x), y(y), z(z) {}
 
-    int x;
-    int y;
+    int x = 0;
+    int y = 0;
+    int z = 0;
 
-    int addMembers() { return x + y; }
+    int addMembers() { return x + y + z; }
 };
 
 int main() {
@@ -63,12 +64,12 @@ int main() {
     scriptCtx->registerGlobalFunction("add", add);
     scriptCtx->registerGlobalFunction("add4", add4);
 
-    scriptCtx->registerObject<Vec2>("Vec2");
-    scriptCtx->registerObjectCtor<Vec2>();
-    scriptCtx->registerObjectCtor<Vec2, int, int>();
-    scriptCtx->registerObjectMember("x", &Vec2::x);
-    scriptCtx->registerObjectMember("y", &Vec2::y);
-    scriptCtx->registerObjectMethod("AddMembers", &Vec2::addMembers);
+    scriptCtx->registerObject<Vec3>("Vec3");
+    scriptCtx->registerObjectCtor<Vec3, int, int, int>();
+    scriptCtx->registerObjectMember("x", &Vec3::x);
+    scriptCtx->registerObjectMember("y", &Vec3::y);
+    scriptCtx->registerObjectMember("z", &Vec3::z);
+    scriptCtx->registerObjectMethod("AddMembers", &Vec3::addMembers);
 
     NCSC::Compiler compiler(scriptCtx);
     std::shared_ptr<NCSC::Script> script = compiler.compileScript(src);
@@ -119,22 +120,22 @@ int main() {
     }
 
     const NCSC::ScriptFunction *fun = script->getFunction("Main");
-    if (fun) {
-        NCSC::VM vm(script);
-        if (!vm.computeGlobals()) {
-            std::println("{}", vm.getLastError());
-            exit(EXIT_FAILURE);
-        }
+    // if (fun) {
+    //     NCSC::VM vm(script);
+    //     if (!vm.computeGlobals()) {
+    //         std::println("{}", vm.getLastError());
+    //         exit(EXIT_FAILURE);
+    //     }
 
-        vm.prepareFunction(fun);
+    //     vm.prepareFunction(fun);
 
-        if (!vm.execute()) {
-            std::println("{}", vm.getLastError());
-            exit(EXIT_FAILURE);
-        }
+    //     if (!vm.execute()) {
+    //         std::println("{}", vm.getLastError());
+    //         exit(EXIT_FAILURE);
+    //     }
         
-        std::println("{}", vm.getStackStrRepr());
-    }
+    //     std::println("{}", vm.getStackStrRepr());
+    // }
 
     return 0;
 }

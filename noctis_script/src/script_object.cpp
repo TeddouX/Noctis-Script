@@ -6,7 +6,7 @@ namespace NCSC
 {
 
 ScriptMethod *ScriptObject::getConstructor() {
-    for (auto &m : methods) {
+    for (auto &m : methods_) {
         if (m.name == name) 
             return static_cast<ScriptMethod *>(&m);
     }
@@ -14,8 +14,8 @@ ScriptMethod *ScriptObject::getConstructor() {
 }
 
 DWord ScriptObject::getConstructorIdx() const {
-    for (DWord i = 0; i < methods.size(); i++) {
-        if (methods[i].name == name) 
+    for (DWord i = 0; i < methods_.size(); i++) {
+        if (methods_[i].name == name) 
             return i;
     }
     return INVALID_IDX;

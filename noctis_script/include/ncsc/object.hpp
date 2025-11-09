@@ -3,6 +3,7 @@
 #pragma once
 #include "variable.hpp"
 #include "function.hpp"
+#include "named_utils.hpp"
 
 namespace NCSC
 {
@@ -18,8 +19,6 @@ struct Method : public virtual Function {
 struct Object {
     ValueType type = ValueType::INVALID;
     std::string name;
-    std::vector<Method> methods;
-    std::vector<Member> members;
 
     virtual ~Object() = default;
 };

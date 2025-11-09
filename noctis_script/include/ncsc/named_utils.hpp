@@ -22,24 +22,6 @@
     std::vector<ty> &getAll##name##s() { return vec; }                                                      \
     NCSC::DWord get##name##Count() const { return vec.size(); }                                             \
 
-// - Defines some default getters, setters and utilities for a vector of named elements
-// - Casts everything to 'ty' before returning, it is unefficient for the getAll function
-// so use 'NCSC_GETTERS_SETTERS_FOR_NAMED_VECTOR' instead
-// - Used internally to save time on writing every function
-#define NCSC_GETTERS_SETTERS_FOR_NAMED_VECTOR_CASTS(name, vec, ty)                                          \
-    bool has##name(const std::string &name) { return get##name##Idx(name) != NCSC::INVALID_IDX; }           \
-    void add##name(const ty& name) { vec.push_back(name); }                                                 \
-    ty &emplace##name(const ty& name) { return static_cast<ty &>(vec.emplace_back(name)); }                 \
-    ty *get##name(DWord idx) {                                                                              \
-        if (idx >= vec.size())                                                                              \
-            return nullptr;                                                                                 \
-        return static_cast<ty *>(&vec[idx]);                                                                \
-    }                                                                                                       \
-    ty *get##name(const std::string &name) { return static_cast<ty *>(NCSC::findNamed(vec, name)); }        \
-    NCSC::DWord get##name##Idx(const std::string &name) const { return NCSC::getNamedIndex(vec, name); }    \
-    std::vector<ty> getAll##name##s() { return NCSC::convertVector<ty>(vec); }                              \
-    NCSC::DWord get##name##Count() const { return vec.size(); }                                             \
-
 
 namespace NCSC
 {
