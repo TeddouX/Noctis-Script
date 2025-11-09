@@ -27,9 +27,9 @@ public:
     std::shared_ptr<ScriptContext> ctx;
     DWord numGlobalVariables = 0;
     
-    GETTERS_SETTERS_FOR_NAMED_VECTOR(Function, functions_, ScriptFunction)
-    GETTERS_SETTERS_FOR_NAMED_VECTOR(GlobalVariable, globalVars_, GlobalVar)
-    GETTERS_SETTERS_FOR_NAMED_VECTOR(Object, objects_, ScriptObject)
+    NCSC_GETTERS_SETTERS_FOR_NAMED_VECTOR(Function, functions_, ScriptFunction)
+    NCSC_GETTERS_SETTERS_FOR_NAMED_VECTOR(GlobalVariable, globalVars_, GlobalVar)
+    NCSC_GETTERS_SETTERS_FOR_NAMED_VECTOR(Object, objects_, ScriptObject)
 
 private:
     std::vector<ScriptFunction> functions_;

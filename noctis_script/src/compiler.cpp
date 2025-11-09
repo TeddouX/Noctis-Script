@@ -408,7 +408,7 @@ size_t Compiler::computeRequiredStackSize(const std::vector<Byte> &bc) {
 
             case Instruction::CLGLBLCPPFUN: {
                 DWord idx = readWord<DWord>(bc, i + 1);
-                const auto *fun = ctx_->getGlobalFunction(idx);
+                const auto *fun = ctx_->getCppFunction(idx);
                 if (!fun) break;
 
                 currSize -= fun->numParams;
@@ -562,9 +562,9 @@ Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, Script
         } 
     }
 
-    DWord cppFunIdx = ctx_->getGlobalFunctionIdx(name);
+    DWord cppFunIdx = ctx_->getCppFunctionIdx(name);
     if (cppFunIdx != INVALID_IDX) {
-        Function *cppFun = ctx_->getGlobalFunction(cppFunIdx); 
+        Function *cppFun = ctx_->getCppFunction(cppFunIdx); 
         return SymbolSearchRes{
             .fun = cppFun,
             .idx = cppFunIdx,
@@ -1198,7 +1198,7 @@ void Compiler::compileFunctionCall(const ASTNode &funCall, ValueType expectedTyp
     if (sres.ty == SymbolSearchRes::FUNCTION)
         fun = currScript_->getFunction(idx);
     else if (sres.ty == SymbolSearchRes::CPP_FUNCTION)
-        fun = ctx_->getGlobalFunction(idx);
+        fun = ctx_->getCppFunction(idx);
 
     if (clearMask(expectedType, ValueType::REF_MASK) != ValueType::VOID 
      && fun->returnTy == ValueType::VOID) {

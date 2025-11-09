@@ -49,12 +49,6 @@
 #   define NCSC_API
 #endif
 
-
-#if !defined(NCSC_USE_UNSAFE_WORD_READING)
-// Faster but may cause problems if unaligned
-#   define NCSC_USE_UNSAFE_WORD_READING false
-#endif
-
 namespace NCSC 
 {
 
@@ -62,7 +56,6 @@ typedef uint8_t   Byte;
 typedef uint16_t  Word;
 typedef uint32_t  DWord;
 typedef uint64_t  QWord;
-typedef uintptr_t PtrWord;
 
 constexpr DWord INVALID_IDX = -1;
 
@@ -73,13 +66,9 @@ typedef float  float32_t;
 template <typename T>
 inline T readWord(const std::vector<Byte> &bytes, size_t idx) {
     assert(idx + sizeof(T) <= bytes.size());
-#if NCSC_USE_UNSAFE_WORD_READING
-    return *reinterpret_cast<const T*>(bytes + idx);
-#else
     T val{};
     std::memcpy(&val, bytes.data() + idx, sizeof(T));
     return val;
-#endif
 }
 
 template <typename T>

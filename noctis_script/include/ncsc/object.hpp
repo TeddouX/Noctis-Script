@@ -16,6 +16,7 @@ struct Method : public virtual Function {
 };
 
 struct Object {
+    ValueType type = ValueType::INVALID;
     std::string name;
     std::vector<Method> methods;
     std::vector<Member> members;

@@ -293,7 +293,7 @@ void VM::executeNext() {
         INSTR(CLGLBLCPPFUN): {
             DWord idx = readWord<DWord>(bytecode, ip + 1);
 
-            const CPPFunction *fun = script_->ctx->getGlobalFunction(idx);
+            const CPPFunction *fun = script_->ctx->getCppFunction(idx);
 
             // Build vector of arguments from the top n values on the stack
             auto spIt = stack_.begin() + sp_;
@@ -301,7 +301,7 @@ void VM::executeNext() {
             sp_ -= fun->numParams;
 
             // Call function and push the result, if one exists
-            Value ret = script_->ctx->callGlobalFunction(idx, args);
+            Value ret = script_->ctx->callCppFunction(idx, args);
             if (fun->returnTy != ValueType::VOID)
                 push(ret);
 

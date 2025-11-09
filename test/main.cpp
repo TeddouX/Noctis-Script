@@ -23,6 +23,9 @@ int add4(int a, int b, int c, int d) {
 
 class Vec2 {
 public:
+    Vec2() = default;
+    Vec2(int x, int y) noexcept : x(x), y(y) {}
+
     int x;
     int y;
 
@@ -61,6 +64,8 @@ int main() {
     scriptCtx->registerGlobalFunction("add4", add4);
 
     scriptCtx->registerObject<Vec2>("Vec2");
+    scriptCtx->registerObjectCtor<Vec2>();
+    scriptCtx->registerObjectCtor<Vec2, int, int>();
     scriptCtx->registerObjectMember("x", &Vec2::x);
     scriptCtx->registerObjectMember("y", &Vec2::y);
     scriptCtx->registerObjectMethod("AddMembers", &Vec2::addMembers);
