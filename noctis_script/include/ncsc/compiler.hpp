@@ -160,7 +160,6 @@ private:
     void compileConstructCall(const ASTNode &constructCall, ValueType expectedTy);
     // Won't create compile errors
     void compileStore(const ASTNode &varNode);
-    void compileMethodCall(const ASTNodeType &methodCall);
 
     // Naively try to find the type of an expression term
     // Won't create a compileError if one is encountered
