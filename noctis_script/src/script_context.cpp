@@ -14,12 +14,12 @@ Value ScriptContext::callCppFunction(DWord idx, const std::vector<Value> &args) 
     return globalFun.registryFun(args);
 }
 
-Value ScriptContext::callObjectNew(DWord objIdx, GarbageCollectedObj *obj) {
+Value ScriptContext::callObjectNew(DWord objIdx, GarbageCollectorObj *obj) {
     CPPObject &cppObj = cppObjects_[objIdx];
     return cppObj.newFun(obj);
 }
 
-void ScriptContext::destroyObject(DWord objIdx, GarbageCollectedObj *obj) {
+void ScriptContext::destroyObject(DWord objIdx, GarbageCollectorObj *obj) {
     CPPObject &cppObj = cppObjects_[objIdx];
     return cppObj.destructorFun(obj);
 }

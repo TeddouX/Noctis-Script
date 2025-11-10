@@ -33,9 +33,9 @@ struct CPPMember : public Member {
 class CPPObject : public Object {
 public:
     // Calls new(sizeof(Obj_))
-    std::function<Value (GarbageCollectedObj *obj)> newFun;
+    std::function<Value (GarbageCollectorObj *obj)> newFun;
     // Calls Obj_.~Obj_()
-    std::function<void (GarbageCollectedObj *obj)> destructorFun;
+    std::function<void (GarbageCollectorObj *obj)> destructorFun;
 
     const std::type_info *classInfo;
 
@@ -87,10 +87,10 @@ public:
     // INTERNAL
     Value callCppFunction(DWord idx, const std::vector<Value> &args);
     // INTERNAL
-    // obj: default allocated GarbageCollectedObj from the garbage collector
-    Value callObjectNew(DWord objIdx, GarbageCollectedObj *obj);
+    // obj: default allocated GarbageCollectorObj from the garbage collector
+    Value callObjectNew(DWord objIdx, GarbageCollectorObj *obj);
     // INTERNAL
-    void destroyObject(DWord objIdx, GarbageCollectedObj *obj);
+    void destroyObject(DWord objIdx, GarbageCollectorObj *obj);
     // INTERNAL
     Value callObjectMethod(DWord objIdx, DWord methodIdx, const std::vector<Value> &args);
     // INTERNAL
@@ -169,13 +169,13 @@ void ScriptContext::registerObject(const std::string &name) {
     obj.type = objType;
     obj.name = name;
     obj.classInfo = &typeid(Obj_);
-    obj.newFun = [objType](GarbageCollectedObj *obj) -> Value {
+    obj.newFun = [objType](GarbageCollectorObj *obj) -> Value {
         // Allocate raw memory for the object
         obj->ptr = std::malloc(sizeof(Obj_));
         obj->type = objType;
         return Value{ .ty = objType, .obj = obj };
     };
-    obj.destructorFun = [](GarbageCollectedObj *obj) {
+    obj.destructorFun = [](GarbageCollectorObj *obj) {
         delete static_cast<Obj_ *>(obj->ptr);
     };
 

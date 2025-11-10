@@ -331,7 +331,7 @@ void VM::executeNext() {
             auto objVals = new std::vector<Value>;
             objVals->resize(scriptObj->getMemberCount());
 
-            GarbageCollectedObj *gcObj = garbageCollector_->allocateObj();
+            GarbageCollectorObj *gcObj = garbageCollector_->allocateObj();
             gcObj->ptr = objVals;
             gcObj->type = scriptObj->type;
 
@@ -348,7 +348,7 @@ void VM::executeNext() {
         INSTR(CPPNEW): {
             DWord objIdx = readWord<DWord>(bytecode, ip + 1);
             
-            GarbageCollectedObj *gcObj = garbageCollector_->allocateObj();
+            GarbageCollectorObj *gcObj = garbageCollector_->allocateObj();
             push(ctx_->callObjectNew(objIdx, gcObj));
 
             END_INSTR(1 + sizeof(DWord));

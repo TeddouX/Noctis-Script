@@ -14,8 +14,8 @@ void GarbageCollector::cleanup() {
         deleteObj(obj);
 }
 
-GarbageCollectedObj *GarbageCollector::allocateObj() {
-    auto *obj = new GarbageCollectedObj;
+GarbageCollectorObj *GarbageCollector::allocateObj() {
+    auto *obj = new GarbageCollectorObj;
     heap_.push_back(obj);
     return obj;
 }
@@ -35,7 +35,7 @@ void GarbageCollector::markAll(std::deque<Value> &vals) {
     for (auto *obj : heap_)
         obj->marked = false;
 
-    std::function<void (GarbageCollectedObj *)> mark = [&](GarbageCollectedObj *obj) {
+    std::function<void (GarbageCollectorObj *)> mark = [&](GarbageCollectorObj *obj) {
         if (!obj || obj->marked) 
             return;
         
@@ -53,7 +53,7 @@ void GarbageCollector::markAll(std::deque<Value> &vals) {
 }
 
 void GarbageCollector::sweep() {
-    for (auto *obj : heap_) {
+    for (auto *&obj : heap_) {
         if (obj->marked)
             continue;
 
@@ -61,7 +61,10 @@ void GarbageCollector::sweep() {
     }
 }
 
-void GarbageCollector::deleteObj(GarbageCollectedObj *obj) {
+void GarbageCollector::deleteObj(GarbageCollectorObj *&obj) {
+    if (!obj) 
+        return;
+
     if (isScriptObject(obj->type))
         delete static_cast<std::vector<Value> *>(obj->ptr);
     else {
@@ -70,6 +73,7 @@ void GarbageCollector::deleteObj(GarbageCollectedObj *obj) {
     }
 
     delete obj;
+    obj = nullptr;
 }
 
 } // namespace NCSC

@@ -19,22 +19,22 @@ public:
 
     ~GarbageCollector() { cleanup(); }
 
-    // Allocates an GarbageCollectedObj on the heap
-    GarbageCollectedObj *allocateObj();
+    // Allocates an GarbageCollectorObj on the heap
+    GarbageCollectorObj *allocateObj();
     void gc(std::deque<Value> &vals);
 
     void cleanup();
 
 private:
     std::shared_ptr<ScriptContext> ctx_;
-    std::vector<GarbageCollectedObj *> heap_;
+    std::vector<GarbageCollectorObj *> heap_;
     size_t gcTreshold_;
     float thresholdGrowthFactor_;
 
     void markAll(std::deque<Value> &vals);
     void sweep();
 
-    void deleteObj(GarbageCollectedObj *obj);
+    void deleteObj(GarbageCollectorObj *&obj);
 };
 
 } // namespace NCSC

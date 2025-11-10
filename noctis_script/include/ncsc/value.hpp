@@ -10,13 +10,13 @@
 namespace NCSC
 {
 
-struct GarbageCollectedObj {
+struct GarbageCollectorObj {
     void *ptr;
     ValueType type; // Used by the GC at destruction
     
     // GC
     bool marked;
-    std::vector<GarbageCollectedObj *> children;
+    std::vector<GarbageCollectorObj *> children;
 };
 
 class ScriptContext;
@@ -39,7 +39,7 @@ struct NCSC_API Value {
 
         bool b;
 
-        GarbageCollectedObj *obj;
+        GarbageCollectorObj *obj;
 
         Value *ref;
         void *cppRef;
