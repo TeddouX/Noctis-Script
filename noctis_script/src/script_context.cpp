@@ -19,6 +19,11 @@ Value ScriptContext::callObjectNew(DWord objIdx, GarbageCollectedObj *obj) {
     return cppObj.newFun(obj);
 }
 
+void ScriptContext::destroyObject(DWord objIdx, GarbageCollectedObj *obj) {
+    CPPObject &cppObj = cppObjects_[objIdx];
+    return cppObj.destructorFun(obj);
+}
+
 Value ScriptContext::callObjectMethod(DWord objIdx, DWord methodIdx, const std::vector<Value> &args) {
     CPPObject &obj = cppObjects_[objIdx];
     CPPMethod *method = obj.getMethod(methodIdx);

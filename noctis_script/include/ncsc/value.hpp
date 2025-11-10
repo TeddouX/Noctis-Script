@@ -12,7 +12,7 @@ namespace NCSC
 
 struct GarbageCollectedObj {
     void *ptr;
-    bool isScriptObj;
+    ValueType type; // Used by the GC at destruction
     
     // GC
     bool marked;

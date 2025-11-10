@@ -33,6 +33,9 @@ class CPPObject : public Object {
 public:
     // Calls new(sizeof(Obj_))
     std::function<Value (GarbageCollectedObj *obj)> newFun;
+    // Calls Obj_.~Obj_()
+    std::function<void (GarbageCollectedObj *obj)> destructorFun;
+
     const std::type_info *classInfo;
 
     NCSC_GETTERS_SETTERS_FOR_NAMED_VECTOR(Method, methods_, CPPMethod)
@@ -85,6 +88,8 @@ public:
     // INTERNAL
     // obj: default allocated GarbageCollectedObj from the garbage collector
     Value callObjectNew(DWord objIdx, GarbageCollectedObj *obj);
+    // INTERNAL
+    void destroyObject(DWord objIdx, GarbageCollectedObj *obj);
     // INTERNAL
     Value callObjectMethod(DWord objIdx, DWord methodIdx, const std::vector<Value> &args);
     // INTERNAL
@@ -166,7 +171,11 @@ void ScriptContext::registerObject(const std::string &name) {
     obj.newFun = [objType](GarbageCollectedObj *obj) -> Value {
         // Allocate raw memory for the object
         obj->ptr = std::malloc(sizeof(Obj_));
+        obj->type = objType;
         return Value{ .ty = objType, .obj = obj };
+    };
+    obj.destructorFun = [](GarbageCollectedObj *obj) {
+        delete static_cast<Obj_ *>(obj->ptr);
     };
 
     cppObjects_.push_back(obj);
@@ -198,8 +207,8 @@ void ScriptContext::registerObjectCtor(bool isPublic) {
             if (!isCPPObject(args[0].ty)) 
                 return Value{};
 
-            // void *cppObj = args[0].cppObj; 
-            // cppObj = new(cppObj) Obj_();
+            void *cppObj = args[0].obj->ptr; 
+            cppObj = new(cppObj) Obj_();
             return args[0];
         };
     } else {
@@ -285,17 +294,15 @@ Value ScriptContext::callCPPMethod(RetTy_ (Obj_::*method)(MethodArgs_...), const
     if (!isCPPObject(objArg.ty))
         return Value{};
 
-    // Obj_ *objPtr = static_cast<Obj_ *>(objArg.cppObj);
+    Obj_ *objPtr = static_cast<Obj_ *>(objArg.obj->ptr);
 
-    // Discard the objArg
     if constexpr (std::is_void_v<RetTy_>) {
-        // (objPtr->*method)(args[I].castTo<MethodArgs_>()...);
+        (objPtr->*method)(args[I].castTo<MethodArgs_>()...);
         return Value{};
     } 
     else {
-        // RetTy_ ret = (objPtr->*method)(args[++idx].castTo<MethodArgs_>()...);
-        // return Value::fromLiteral(ret);
-        return Value{};
+        RetTy_ ret = (objPtr->*method)(args[I].castTo<MethodArgs_>()...);
+        return Value::fromLiteral(ret);
     }
 }
 
@@ -304,19 +311,19 @@ Value ScriptContext::getCPPMember(MemberTy_ Obj_::*member, const Value &arg, boo
     if (!isCPPObject(arg.ty))
         return Value{};
 
-    // Obj_ *objPtr = static_cast<Obj_ *>(arg.cppObj);
+    Obj_ *objPtr = static_cast<Obj_ *>(arg.obj->ptr);
 
-    // if (ref) {
-    //     MemberTy_ *memberVal = &(objPtr->*member);
-    //     return Value {
-    //         .ty = setMask(valueTypeFromLiteral<MemberTy_>(*memberVal), ValueType::CPP_REF_MASK),
-    //         .cppRef = memberVal, 
-    //     };
-    // }
-    // else {
-    //     MemberTy_ memberVal = objPtr->*member;
-    //     return Value::fromLiteral(memberVal);
-    // }
+    if (ref) {
+        MemberTy_ *memberVal = &(objPtr->*member);
+        return Value {
+            .ty = setMask(valueTypeFromLiteral<MemberTy_>(*memberVal), ValueType::CPP_REF_MASK),
+            .cppRef = memberVal, 
+        };
+    }
+    else {
+        MemberTy_ memberVal = objPtr->*member;
+        return Value::fromLiteral(memberVal);
+    }
 
     return Value{};
 }

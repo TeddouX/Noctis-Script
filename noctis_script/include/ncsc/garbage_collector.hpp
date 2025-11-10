@@ -12,8 +12,10 @@ namespace NCSC
 class NCSC_API GarbageCollector {
 public:
     // gcStartTreshold in number of allocations
-    GarbageCollector(size_t gcStartTreshold = 10, float thresholdGrowthFactor = 1.5f)
-        : gcTreshold_(gcStartTreshold), thresholdGrowthFactor_(thresholdGrowthFactor) {}
+    GarbageCollector(std::shared_ptr<ScriptContext> ctx, size_t gcStartTreshold = 10, float thresholdGrowthFactor = 1.5f)
+        : ctx_(ctx), 
+          gcTreshold_(gcStartTreshold), 
+          thresholdGrowthFactor_(thresholdGrowthFactor) {}
 
     ~GarbageCollector() { cleanup(); }
 
@@ -24,6 +26,7 @@ public:
     void cleanup();
 
 private:
+    std::shared_ptr<ScriptContext> ctx_;
     std::vector<GarbageCollectedObj *> heap_;
     size_t gcTreshold_;
     float thresholdGrowthFactor_;

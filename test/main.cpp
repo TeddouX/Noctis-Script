@@ -28,6 +28,10 @@ public:
         std::println("Vec3 got constructed!");
     }
 
+    ~Vec3() {
+        std::println("Vec3 got destroyed");
+    }
+
     int x = 0;
     int y = 0;
     int z = 0;
@@ -140,6 +144,8 @@ int main() {
         }
         
         std::println("{}", vm.getStackStrRepr());
+
+        vm.cleanup();
     }
 
     return 0;

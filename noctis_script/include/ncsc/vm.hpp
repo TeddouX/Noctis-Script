@@ -24,7 +24,7 @@ struct CallFrame {
 
 class NCSC_API VM {
 public:
-    explicit VM(std::shared_ptr<Script> script);
+    explicit VM(std::shared_ptr<Script> script, GarbageCollector *gc = nullptr);
 
     bool computeGlobals();
 

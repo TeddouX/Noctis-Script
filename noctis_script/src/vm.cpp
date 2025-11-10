@@ -40,9 +40,10 @@ static void setCPPRefVal(Value &cppRef, Value &val) {
 }
 
 
-VM::VM(std::shared_ptr<Script> script)
+VM::VM(std::shared_ptr<Script> script, GarbageCollector *gc)
     : script_(script),
-      ctx_(script->ctx)
+      ctx_(script->ctx),
+      garbageCollector_(gc)
 {
     globalVariables_.resize(script_->numGlobalVariables);
 }
@@ -121,11 +122,10 @@ void VM::executeNext() {
                 return;
             }
             
-            GarbageCollectedObj *gcObj = obj.obj;
             if (isCPPObject(objTy))
                 push(ctx_->getObjectMember(idx, obj));
             else {
-                auto members = static_cast<std::vector<Value> *>(gcObj->ptr);
+                auto members = static_cast<std::vector<Value> *>(obj.obj->ptr);
                 push(members->at(idx));
             }
 
@@ -141,11 +141,10 @@ void VM::executeNext() {
                 return;
             }
 
-            GarbageCollectedObj *gcObj = obj.obj;
             if (isCPPObject(objTy))
                 push(ctx_->getObjectMember(idx, obj, /*asRef*/true));
             else {
-                auto members = static_cast<std::vector<Value> *>(gcObj->ptr);
+                auto members = static_cast<std::vector<Value> *>(obj.obj->ptr);
                 Value &member = members->at(idx);
                 push(makeReference(member));
             }
@@ -414,7 +413,7 @@ void VM::executeNext() {
 
             GarbageCollectedObj *gcObj = garbageCollector_->allocateObj();
             gcObj->ptr = objVals;
-            gcObj->isScriptObj = true;
+            gcObj->type = scriptObj->type;
 
             Value obj{
                 .ty = setMask((ValueType)idx, ValueType::OBJ_MASK),
@@ -430,8 +429,6 @@ void VM::executeNext() {
             DWord objIdx = readWord<DWord>(bytecode, ip + 1);
             
             GarbageCollectedObj *gcObj = garbageCollector_->allocateObj();
-            gcObj->isScriptObj = false;
-            
             push(ctx_->callObjectNew(objIdx, gcObj));
 
             END_INSTR(1 + sizeof(DWord));
@@ -533,7 +530,9 @@ bool VM::computeGlobals() {
 }
 
 bool VM::execute() {
-    garbageCollector_ = new GarbageCollector();
+    if (!garbageCollector_)
+        garbageCollector_ = new GarbageCollector(ctx_);
+    
     executionFinished_ = false;
     hasError_ = false;
 

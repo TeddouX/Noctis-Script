@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: BSD-2-Clause
 // Copyright (c) 2025, TeddouX (https://github.com/TeddouX/)
 #include <ncsc/garbage_collector.hpp>
+#include <ncsc/script_context.hpp>
+
 #include <functional>
 #include <print>
 
@@ -64,8 +66,12 @@ void GarbageCollector::sweep() {
 }
 
 void GarbageCollector::deleteObj(GarbageCollectedObj *obj) {
-    if (obj->isScriptObj)
+    if (isScriptObject(obj->type))
         delete static_cast<std::vector<Value> *>(obj->ptr);
+    else {
+        DWord idx = (VTypeWord)clearMask(obj->type, ValueType::CPP_OBJ_MASK);
+        ctx_->destroyObject(idx, obj);
+    }
 
     delete obj;
 }

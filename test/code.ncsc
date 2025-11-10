@@ -12,20 +12,20 @@ obj Vec2 {
 
 // 1 less than necessary to trigger the garbage collector
 fun FunctionThatCreates9Objects() {
-    Vec2 v1 = new Vec2(1,1);    
-    Vec2 v2 = new Vec2(1,1);    
-    Vec2 v3 = new Vec2(1,1);    
-    Vec2 v4 = new Vec2(1,1);    
-    Vec2 v5 = new Vec2(1,1);    
-    Vec2 v6 = new Vec2(1,1);    
-    Vec2 v7 = new Vec2(1,1);    
-    Vec2 v8 = new Vec2(1,1);    
-    Vec2 v9 = new Vec2(1,1);    
+    Vec3 v1 = new Vec3(1,1,1);    
+    Vec3 v2 = new Vec3(1,1,1);    
+    Vec3 v3 = new Vec3(1,1,1);    
+    Vec3 v4 = new Vec3(1,1,1);    
+    Vec3 v5 = new Vec3(1,1,1);    
+    Vec3 v6 = new Vec3(1,1,1);    
+    Vec3 v7 = new Vec3(1,1,1);    
+    Vec3 v8 = new Vec3(1,1,1);    
+    Vec3 v9 = new Vec3(1,1,1);    
 }
 
 fun Main() {
     FunctionThatCreates9Objects();
     // Trigger the garbage collector
-    Vec2 v1 = new Vec2(1,1);
-    Vec2 v2 = new Vec2(1,1);
+    Vec3 v1 = new Vec3(1,1,1);
+    Vec3 v2 = new Vec3(1,1,1);
 }
