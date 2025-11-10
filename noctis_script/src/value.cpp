@@ -127,25 +127,27 @@ Value Value::operator /(const Value &other) {
 std::string Value::getStrRepr(const ScriptContext *ctx) const {
     if (hasMask(ty, ValueType::REF_MASK))
         return std::format("ref 0x{:X}", (intptr_t)ref);
-    else if (hasMask(ty, ValueType::OBJ_MASK)) {
+    else if (isObject(ty)) {
         std::string res;
         if (ctx)
             res = ctx->getTypeName(ty);
-        res += "{ ";
 
-        for (size_t i = 0; i < obj->size(); i++) {
-            const Value &val = obj->at(i);
+        if (isScriptObject(ty)) {
+            res += "{ ";
+            for (size_t i = 0; i < obj->size(); i++) {
+                const Value& val = obj->at(i);
 
-            if (val.isObject() && ctx)
-                res += ctx->getTypeName(val.ty);
+                if (isObject(ty) && ctx)
+                    res += ctx->getTypeName(val.ty);
 
-            res += val.getStrRepr();
+                res += val.getStrRepr();
 
-            // Don't add a comma to the last value
-            if (i < obj->size() - 1)
-                res += ", ";
+                // Don't add a comma to the last value
+                if (i < obj->size() - 1)
+                    res += ", ";
+            }
+            res += " }";
         }
-        res += " }";
 
         return res;
     }
@@ -184,7 +186,7 @@ Value Value::fromBytes(const std::vector<Byte> &bytes, size_t readOff, size_t &r
 }
 
 size_t Value::getSize() const {
-    if (isObject())
+    if (isScriptObject(ty))
         return obj->size();
     return sizeof(ValueType) + getValueTypeSize(ty);
 }
@@ -211,7 +213,7 @@ void Value::getBytes(std::vector<Byte> &bytes, size_t off) const {
         default: break;
     }
 
-    if (isObject()) {
+    if (isObject(ty)) {
         assert(0 && "Getting bytes from a script object is not yet supported");
     }
 }

@@ -32,6 +32,9 @@ struct NCSC_API Value {
 
         std::vector<Value> *obj;
         Value *ref;
+
+        void *cppObj;
+        void *cppRef;
     };
 
     // Reads the value at the end of the bytes array, 
@@ -41,7 +44,7 @@ struct NCSC_API Value {
     static Value fromLiteral(const T &lit) {
         ValueType ty = valueTypeFromLiteral(lit);
         Value val{ .ty = ty };
-        val.setProperty(lit, ty);
+        val.setProperty(&lit, ty);
         return val;
     }
 
@@ -60,29 +63,32 @@ struct NCSC_API Value {
 
     std::string getStrRepr(const ScriptContext *ctx = nullptr) const;
 
-    template <typename T>
-    void setProperty(const T &val, ValueType valTy) {
-#define ASSURE_T_EQ(ty) assert(typeid(ty) == typeid(T) && "Value and ValueType don't match")
+    void setProperty(const void *val, ValueType valTy) {
         ty = valTy;
         switch (ty) {
-            case ValueType::INT8:    ASSURE_T_EQ(int8_t);    i8 = val;   break;
-            case ValueType::INT16:   ASSURE_T_EQ(int16_t);   i16 = val;  break;
-            case ValueType::INT32:   ASSURE_T_EQ(int32_t);   i32 = val;  break;
-            case ValueType::INT64:   ASSURE_T_EQ(int64_t);   i64 = val;  break;
+            case ValueType::INT8:    i8   = *(int8_t *)val;     break;
+            case ValueType::INT16:   i16  = *(int16_t *)val;    break;
+            case ValueType::INT32:   i32  = *(int32_t *)val;    break;
+            case ValueType::INT64:   i64  = *(int64_t *)val;    break;
+            case ValueType::UINT8:   ui8  = *(uint8_t *)val;    break;
+            case ValueType::UINT16:  ui16 = *(uint16_t *)val;   break;
+            case ValueType::UINT32:  ui32 = *(uint32_t *)val;   break;
+            case ValueType::UINT64:  ui64 = *(uint64_t *)val;   break;
+            case ValueType::FLOAT32: f32  = *(float32_t *)val;  break;
+            case ValueType::FLOAT64: f64  = *(float64_t *)val;  break;
+            case ValueType::BOOL:    b    = *(bool *)val;       break;
 
-            case ValueType::UINT8:   ASSURE_T_EQ(uint8_t);   ui8 = val;  break;
-            case ValueType::UINT16:  ASSURE_T_EQ(uint16_t);  ui16 = val; break;
-            case ValueType::UINT32:  ASSURE_T_EQ(uint32_t);  ui32 = val; break;
-            case ValueType::UINT64:  ASSURE_T_EQ(uint64_t);  ui64 = val; break;
-
-            case ValueType::FLOAT32: ASSURE_T_EQ(float32_t); f32 = val;  break;
-            case ValueType::FLOAT64: ASSURE_T_EQ(float64_t); f64 = val;  break;
-
-            case ValueType::BOOL:    ASSURE_T_EQ(bool);      b = val;    break;
-
-            default: return;
+            default: break;
         }
-#undef ASSURE_T_EQ
+
+        if (isScriptObject(ty))
+            obj = *(std::vector<Value> **)val;
+        else if (isCPPObject(ty))
+            cppObj = *(void **)val;
+        else if (isRef(ty))
+            ref = *(Value **)val;
+        else if (hasMask(ty, ValueType::CPP_REF_MASK))
+            cppRef = *(void **)val;
     }
 
     template <typename T>
@@ -109,8 +115,6 @@ struct NCSC_API Value {
 
     size_t getSize() const;
     void getBytes(std::vector<Byte> &bytes, size_t off) const;
-
-    bool isObject() const { return (DWord)ty & (DWord)ValueType::OBJ_MASK; }
 };
 
 template <typename T>

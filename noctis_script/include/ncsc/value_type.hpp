@@ -8,7 +8,7 @@
 namespace NCSC
 {
 
-typedef Word VTypeWord;
+typedef DWord VTypeWord;
 
 enum class ValueType : VTypeWord {
     INVALID,
@@ -30,8 +30,10 @@ enum class ValueType : VTypeWord {
 
     BOOL,
 
-    REF_MASK = (VTypeWord)1 << 14,
-    OBJ_MASK = (VTypeWord)1 << 15,
+    CPP_REF_MASK = (VTypeWord)1 << 28,
+    REF_MASK     = (VTypeWord)1 << 29,
+    OBJ_MASK     = (VTypeWord)1 << 30,
+    CPP_OBJ_MASK = (VTypeWord)1 << 31,
 };
 
 const std::unordered_map<ValueType, std::string> BUILTIN_VTYPES_NAMES = {
@@ -99,8 +101,17 @@ inline bool isRef(ValueType v) {
     return hasMask(v, ValueType::REF_MASK);
 }
 
-inline bool isObject(ValueType v) {
+inline bool isCPPObject(ValueType v) {
+    return hasMask(v, ValueType::CPP_OBJ_MASK);
+}
+
+inline bool isScriptObject(ValueType v) {
     return hasMask(v, ValueType::OBJ_MASK);
+}
+
+// Returns true for script objects or cpp objects
+inline bool isObject(ValueType v) {
+    return isScriptObject(v) || isCPPObject(v);
 }
 
 inline constexpr size_t getValueTypeSize(ValueType ty) {

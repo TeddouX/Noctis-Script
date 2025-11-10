@@ -21,6 +21,23 @@ int add4(int a, int b, int c, int d) {
     return a + b + c + d;
 }
 
+class Vec3 {
+public:
+    Vec3() = default;
+    Vec3(int x, int y, int z) noexcept : x(x), y(y), z(z) {
+        std::println("Vec3 got constructed!");
+    }
+
+    int x = 0;
+    int y = 0;
+    int z = 0;
+
+    int addMembers() { 
+        std::println("Members got added!");
+        return x + y + z; 
+    }
+};
+
 int main() {
     std::ifstream ifs;
 
@@ -51,6 +68,13 @@ int main() {
     scriptCtx->registerGlobalFunction("printHello", printHello);
     scriptCtx->registerGlobalFunction("add", add);
     scriptCtx->registerGlobalFunction("add4", add4);
+
+    scriptCtx->registerObject<Vec3>("Vec3");
+    scriptCtx->registerObjectCtor<Vec3, int, int, int>();
+    scriptCtx->registerObjectMember("x", &Vec3::x);
+    scriptCtx->registerObjectMember("y", &Vec3::y);
+    scriptCtx->registerObjectMember("z", &Vec3::z);
+    scriptCtx->registerObjectMethod("AddMembers", &Vec3::addMembers);
 
     NCSC::Compiler compiler(scriptCtx);
     std::shared_ptr<NCSC::Script> script = compiler.compileScript(src);

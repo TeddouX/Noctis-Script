@@ -113,25 +113,30 @@ private:
 
     struct SymbolSearchRes {
         union {
-            ScriptObject *obj;
+            Object   *obj = nullptr;
             Function *fun;
             Variable *var;
         };
-        DWord idx = NCSC_INVALID_IDX;
+
+        DWord idx = INVALID_IDX;
         ValueType foundType = ValueType::INVALID;
 
         enum {
             INVALID,
-            FUNCTION,
-            CPP_FUNCTION,
-            METHOD,
             GLOBAL_VAR,
             LOCAL_VAR,
+            
+            FUNCTION,
+            METHOD,
             OBJECT,
             MEMBER_VAR,
-        } ty;
+
+            CPP_FUNCTION,
+            CPP_METHOD,
+            CPP_OBJECT,
+        } ty = SymbolSearchRes::INVALID;
     };
-    SymbolSearchRes searchSymbol(const std::string &name, ScriptObject *obj = nullptr);
+    SymbolSearchRes searchSymbol(const std::string &name, Object *obj = nullptr);
 
     ValueType valueTypeFromASTNode(const ASTNode &typeNode);
 

@@ -36,7 +36,7 @@ public:
 
     // Returns true on success
     template <typename... Args>
-    bool setArguments(Args ...args) {
+    bool setArguments(Args... args) {
         hasError_ = false;
 
         if (!currFun_) {
@@ -104,7 +104,7 @@ private:
     void executeNext();
 
     void prepareScriptFunction(const ScriptFunction *fun);
-    // void recursiveInit()
+    Value makeReference(Value &val);
 
     template <typename T>
     bool setArgument(const T &arg, size_t &idx) {
@@ -126,7 +126,7 @@ private:
         }
 
         Value val{ .ty = givenTy };
-        val.setProperty(arg, givenTy);
+        val.setProperty(&arg, givenTy);
 
         stack_[idx] = val;
         idx++;
@@ -153,6 +153,7 @@ private:
     inline static constexpr std::string_view CANT_INC_OR_DEC_NON_NUM            = "Execution error E6: Can't increment or decrement non numeric type";
     inline static constexpr std::string_view CANT_INVERT_NON_BOOLEAN            = "Execution error E7: Can't invert a non boolean type";
     inline static constexpr std::string_view TRYED_SETTING_VAL_OF_INVALID_REF   = "Execution error E8: Tried setting the value of an invalid reference";
+    inline static constexpr std::string_view TRYED_ACCESSING_MEMB_OF_INV_OB     = "Execution error E9: Tried accessing a member of an invalid object";
 };
  
 } // namespace NCSC

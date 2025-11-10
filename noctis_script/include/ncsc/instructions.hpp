@@ -51,10 +51,13 @@ enum class Instruction : Byte {
     RETVOID,        // RETVOID ; returns to the previous callframe on the callstack and removes locals and temporaries
 
     CALLSCRFUN,     // CALLSCRFUN 0 ; calls script function at index 0
+    CALLCPPFUN,     // CLGLBLCPPFUN 0 ; calls a global function registered in the ScriptContext at index 0
+    
     CALLMETHOD,     // CALLMETHOD 0 ; calls method at index 0
-    CLGLBLCPPFUN,   // CLGLBLCPPFUN 0 ; calls a global function registered in the ScriptContext at index 0
+    CALLCPPMETHOD,  // CLCPPMETHOD 0 ; calls method at index 0
 
     NEW,            // NEW 0 ; creates object of type 0
+    CPPNEW,         // CPPNEW 0 ; creates cpp object of idx 0
 
     LABEL,          // Temporary instruction to indicate the location of a jump
 };
@@ -75,10 +78,6 @@ const std::unordered_map<Instruction, std::pair<const char *, size_t>> INSTR_INF
 
     { Instruction::LOADMEMBER,      {"LOADMEMBER",     sizeof(DWord)} },
     { Instruction::LOADMEMBER_REF,  {"LOADMEMBER_REF", sizeof(DWord)} },
-
-    { Instruction::CALLSCRFUN,      {"CALLSCRFUN",     sizeof(DWord)} },
-    { Instruction::CALLMETHOD,      {"CALLMETHOD",     sizeof(QWord)} /* DWord -> Object idx + DWord -> Method idx */  },
-    { Instruction::CLGLBLCPPFUN,    {"CLGLBLCPPFUN",   sizeof(DWord)} },
     
     { Instruction::ADD,             {"ADD",            0} },
     { Instruction::SUB,             {"SUB",            0} },
@@ -106,7 +105,14 @@ const std::unordered_map<Instruction, std::pair<const char *, size_t>> INSTR_INF
     { Instruction::RET,             {"RET",            0} },
     { Instruction::RETVOID,         {"RETVOID",        0} },
 
+    { Instruction::CALLSCRFUN,      {"CALLSCRFUN",     sizeof(DWord)} },
+    { Instruction::CALLCPPFUN,      {"CALLCPPFUN",     sizeof(DWord)} },
+
+    { Instruction::CALLMETHOD,      {"CALLMETHOD",     sizeof(QWord)} /* DWord -> Object idx + DWord -> Method idx */ },
+    { Instruction::CALLCPPMETHOD,   {"CALLCPPMETHOD",  sizeof(QWord)} },
+
     { Instruction::NEW,             {"NEW",            sizeof(DWord)} },
+    { Instruction::CPPNEW,          {"CPPNEW",         sizeof(DWord)} },
 
     { Instruction::LABEL,           {"LABEL",          sizeof(QWord)} },
 };

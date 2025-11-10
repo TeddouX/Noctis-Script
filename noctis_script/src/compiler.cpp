@@ -40,7 +40,7 @@ std::string Compiler::disassemble(const std::vector<Byte>& bc) {
             
             i += size;
         }
-        else if (instr == Instruction::CALLMETHOD) {
+        else if (instr == Instruction::CALLMETHOD || instr == Instruction::CALLCPPMETHOD) {
             oss << " ";
             
             DWord objIdx    = readWord<DWord>(bc, i);
@@ -234,12 +234,12 @@ void Compiler::compileFunction(const ASTNode &funcDecl, bool method) {
     bool isConstructor = false;
     if (method) {
         isConstructor = funcDeclName == currObject_->name;
-        if (firstChild.type() == ASTNodeType::IDENTIFIER && !isConstructor) {
-            createCompileError(NOT_A_TYPE, funcDeclNameNode);
-            return;
-        }
+        // if (firstChild.type() == ASTNodeType::IDENTIFIER && !isConstructor) {
+        //     createCompileError(NOT_A_TYPE, funcDeclNameNode);
+        //     return;
+        // }
 
-        Method me;
+        ScriptMethod me;
         me.isPublic = firstChild.token().isValid() 
                    && firstChild.token().type == TokenType::PUBLIC_KWD;
         me.numParams = 1;
@@ -298,7 +298,7 @@ void Compiler::compileFunction(const ASTNode &funcDecl, bool method) {
 
     // Safe as long as no other functions are added after this
     if (method) {
-        auto &method = currObject_->emplaceMethod(*static_cast<Method *>(currFunction_));
+        auto &method = currObject_->emplaceMethod(*static_cast<const ScriptMethod *>(currFunction_));
         // Update currFunction_ to point to the newly added method
         currFunction_ = &method;
     } 
@@ -362,6 +362,7 @@ size_t Compiler::computeRequiredStackSize(const std::vector<Byte> &bc) {
             case Instruction::LOADGLOBAL_REF: 
             case Instruction::PUSH:
             case Instruction::NEW:
+            case Instruction::CPPNEW:
             case Instruction::DUP: 
                 maxSize = std::max(maxSize, ++currSize);
                 break;
@@ -380,39 +381,42 @@ size_t Compiler::computeRequiredStackSize(const std::vector<Byte> &bc) {
                 currSize -= 2;
                 break;
 
-            case Instruction::CALLSCRFUN: {
+            case Instruction::CALLSCRFUN:
+            case Instruction::CALLCPPFUN: {
                 DWord idx = readWord<DWord>(bc, i + 1);
-                const ScriptFunction *scrFun = currScript_->getFunction(idx);
-                if (!scrFun) break;
+                const Function *func = instr == Instruction::CALLSCRFUN 
+                    ? static_cast<Function *>(currScript_->getFunction(idx)) 
+                    : static_cast<Function *>(ctx_->getCppFunction(idx));
+                
+                if (!func) break;
 
-                currSize -= scrFun->numParams;
-                currSize += scrFun->returnTy == ValueType::VOID ? 0 : 1;
+                currSize -= func->numParams;
+                currSize += func->returnTy == ValueType::VOID ? 0 : 1;
 
                 break;
             }
 
-            case Instruction::CALLMETHOD: {
+            case Instruction::CALLMETHOD:
+            case Instruction::CALLCPPMETHOD: {
                 DWord objIdx = readWord<DWord>(bc, i + 1);
                 DWord methodIdx = readWord<DWord>(bc, i + 1 + sizeof(DWord));
 
-                ScriptObject *scrObj = currScript_->getObject(objIdx);
-                if (!scrObj) break;
-                const ScriptFunction *scrFun = scrObj->getMethod(methodIdx);
-                if (!scrFun) break;
+                const Function *method = nullptr;
+                if (instr == Instruction::CALLMETHOD) {
+                    ScriptObject *scrObj = currScript_->getObject(objIdx);
+                    if (!scrObj) break;
+                    method = scrObj->getMethod(methodIdx);
+                }
+                else {
+                    CPPObject *cppObj = ctx_->getCppObject(objIdx);
+                    if (!cppObj) break;
+                    method = cppObj->getMethod(methodIdx);
+                }
 
-                currSize -= scrFun->numParams;
-                currSize += scrFun->returnTy == ValueType::VOID ? 0 : 1;
+                if (!method) break;
 
-                break;
-            }
-
-            case Instruction::CLGLBLCPPFUN: {
-                DWord idx = readWord<DWord>(bc, i + 1);
-                const auto *fun = ctx_->getGlobalFunction(idx);
-                if (!fun) break;
-
-                currSize -= fun->numParams;
-                currSize += fun->returnTy == ValueType::VOID ? 0 : 1;
+                currSize -= method->numParams;
+                currSize += method->returnTy == ValueType::VOID ? 0 : 1;
 
                 break;
             }
@@ -471,38 +475,65 @@ void Compiler::resolveJumps(std::vector<Byte> &bc) {
     }
 }
 
-Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, ScriptObject *obj) {
+Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, Object *obj) {
     // Search for members or methods in the object
-    if (obj) {        
-        DWord memberIdx = obj->getMemberIdx(name);
-        if (memberIdx != NCSC_INVALID_IDX) {
-            Variable *var = obj->getMember(memberIdx);
-            return SymbolSearchRes{
-                .var = var,
-                .idx = memberIdx,
-                .foundType = var->type,
-                .ty = SymbolSearchRes::MEMBER_VAR,
-            };
+    if (obj) {
+        if (auto *scrObj = dynamic_cast<ScriptObject *>(obj)) {
+            DWord memberIdx = scrObj->getMemberIdx(name);
+            if (memberIdx != INVALID_IDX) {
+                Variable *var = scrObj->getMember(memberIdx);
+                return SymbolSearchRes{
+                    .var = var,
+                    .idx = memberIdx,
+                    .foundType = var->type,
+                    .ty = SymbolSearchRes::MEMBER_VAR,
+                };
+            }
+
+            DWord methodIdx = scrObj->getMethodIdx(name);
+            if (methodIdx != INVALID_IDX) {
+                Function *method = scrObj->getMethod(methodIdx);
+                return SymbolSearchRes{
+                    .fun = method,
+                    .idx = methodIdx,
+                    .foundType = method->returnTy,
+                    .ty = SymbolSearchRes::METHOD,
+                };
+            }
+        }
+        else {
+            CPPObject *cppObj = dynamic_cast<CPPObject *>(obj);
+
+            DWord cppMemberIdx = cppObj->getMemberIdx(name);
+            if (cppMemberIdx != INVALID_IDX) {
+                Variable *cppMemberVar = cppObj->getMember(cppMemberIdx);
+                return SymbolSearchRes{
+                    .var = cppMemberVar,
+                    .idx = cppMemberIdx,
+                    .foundType = cppMemberVar->type,
+                    .ty = SymbolSearchRes::MEMBER_VAR,
+                };
+            }
+
+            DWord cppMethodIdx = cppObj->getMethodIdx(name);
+            if (cppMethodIdx != INVALID_IDX) {
+                Function *cppMethod = cppObj->getMethod(cppMethodIdx);
+                return SymbolSearchRes{
+                    .fun = cppMethod,
+                    .idx = cppMethodIdx,
+                    .foundType = cppMethod->returnTy,
+                    .ty = SymbolSearchRes::CPP_METHOD,
+                };
+            }
         }
 
-        DWord methodIdx = obj->getMethodIdx(name);
-        if (methodIdx != NCSC_INVALID_IDX) {
-            Function *method = obj->getMethod(methodIdx);
-            return SymbolSearchRes{
-                .fun = method,
-                .idx = methodIdx,
-                .foundType = method->returnTy,
-                .ty = SymbolSearchRes::METHOD,
-            };
-        }
-
-        return SymbolSearchRes{ .ty = SymbolSearchRes::INVALID };
+        return SymbolSearchRes{};
     }
 
     // Local variable
     if (currScope_) {
         DWord varIdx = currScope_->getLocalVarIdx(name);
-        if (varIdx != NCSC_INVALID_IDX) {
+        if (varIdx != INVALID_IDX) {
             Variable *var = currScope_->getLocalVar(varIdx); 
             return SymbolSearchRes{
                 .var = var,
@@ -516,7 +547,7 @@ Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, Script
     // Script object or function
     if (currScript_) {
         DWord funIdx = currScript_->getFunctionIdx(name);
-        if (funIdx != NCSC_INVALID_IDX) {
+        if (funIdx != INVALID_IDX) {
             Function *fun = currScript_->getFunction(funIdx);
             return SymbolSearchRes{
                 .fun = fun,
@@ -527,7 +558,7 @@ Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, Script
         }
 
         DWord scriptObjIdx = currScript_->getObjectIdx(name);
-        if (scriptObjIdx != NCSC_INVALID_IDX) {
+        if (scriptObjIdx != INVALID_IDX) {
             ScriptObject *scriptObj = currScript_->getObject(scriptObjIdx);
             return SymbolSearchRes{
                 .obj = scriptObj,
@@ -540,7 +571,7 @@ Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, Script
 
     if (currObject_) {        
         DWord memberIdx = currObject_->getMemberIdx(name);
-        if (memberIdx != NCSC_INVALID_IDX) {
+        if (memberIdx != INVALID_IDX) {
             Variable *var = currObject_->getMember(memberIdx);
             return SymbolSearchRes{
                 .var = var,
@@ -551,7 +582,7 @@ Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, Script
         }
 
         DWord methodIdx = currObject_->getMethodIdx(name);
-        if (methodIdx != NCSC_INVALID_IDX) {
+        if (methodIdx != INVALID_IDX) {
             Function *method = currObject_->getMethod(methodIdx);
             return SymbolSearchRes{
                 .fun = method,
@@ -562,9 +593,9 @@ Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, Script
         } 
     }
 
-    DWord cppFunIdx = ctx_->getGlobalFunctionIdx(name);
-    if (cppFunIdx != NCSC_INVALID_IDX) {
-        Function *cppFun = ctx_->getGlobalFunction(cppFunIdx); 
+    DWord cppFunIdx = ctx_->getCppFunctionIdx(name);
+    if (cppFunIdx != INVALID_IDX) {
+        Function *cppFun = ctx_->getCppFunction(cppFunIdx); 
         return SymbolSearchRes{
             .fun = cppFun,
             .idx = cppFunIdx,
@@ -572,8 +603,19 @@ Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, Script
             .ty = SymbolSearchRes::CPP_FUNCTION,
         };
     }
+
+    DWord cppObjIdx = ctx_->getCppObjectIdx(name);
+    if (cppObjIdx != INVALID_IDX) {
+        Object *cppObj = ctx_->getCppObject(cppObjIdx); 
+        return SymbolSearchRes{
+            .obj = cppObj,
+            .idx = cppObjIdx,
+            .foundType = cppObj->type,
+            .ty = SymbolSearchRes::CPP_OBJECT,
+        };
+    }
         
-    return SymbolSearchRes{ .ty = SymbolSearchRes::INVALID };
+    return SymbolSearchRes{};
 }
 
 ValueType Compiler::valueTypeFromASTNode(const ASTNode &typeNode) {
@@ -600,7 +642,7 @@ ValueType Compiler::valueTypeFromASTNode(const ASTNode &typeNode) {
     }
 
     SymbolSearchRes sres = searchSymbol(tok.val);
-    if (sres.ty == SymbolSearchRes::OBJECT)
+    if (sres.ty == SymbolSearchRes::OBJECT || sres.ty == SymbolSearchRes::CPP_OBJECT)
         return sres.foundType;
 
     createCompileError(NOT_A_TYPE, typeNode);
@@ -622,7 +664,7 @@ void Compiler::compileObject(const ASTNode &obj) {
     ctx_->addTypeName(currObject_->type, currObject_->name);
 
     // Member init method
-    Method membInit;
+    ScriptMethod membInit;
     membInit.name = "<membInit>";
     membInit.returnTy = ValueType::VOID;
     // 'this'
@@ -661,8 +703,8 @@ void Compiler::compileObject(const ASTNode &obj) {
     }
 
     DWord constructorIdx = currObject_->getConstructorIdx();
-    if (constructorIdx == NCSC_INVALID_IDX) {
-        Method defaultConstructor;
+    if (constructorIdx == INVALID_IDX) {
+        ScriptMethod defaultConstructor;
         defaultConstructor.isPublic = false;
         defaultConstructor.name = currObject_->name;
         defaultConstructor.numLocals = 0;
@@ -695,7 +737,7 @@ void Compiler::compileObject(const ASTNode &obj) {
     }
 
     // Optimize the member init method's bytecode
-    Method *membInitFinal = currObject_->getMethod(0);
+    ScriptMethod *membInitFinal = currObject_->getMethod(0);
     membInitFinal->bytecode.push_back(static_cast<Byte>(Instruction::RETVOID));
 
     finalizeBc(membInitFinal->bytecode);
@@ -739,7 +781,7 @@ void Compiler::compileVariableDeclaration(const ASTNode &varDecl, bool global, b
         currScript_->addGlobalVariable(gv);
         currScript_->numGlobalVariables++;
     } else if (member) {
-        MemberVariable mv;
+        Member mv;
         mv.name = varName;
         mv.type = varType;
         mv.isPublic = firstChild.token().isValid() 
@@ -991,7 +1033,7 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
     // - If the last value is invalid, calls compileExpressionValue(exprValue, ValueType::VOID);
     // and sets lastTypeOnStack accordingly
     auto checkLastValIsObj = [&]() -> bool {
-        if (hasValOnStack && !hasMask(lastTypeOnStack, ValueType::OBJ_MASK)) {
+        if (hasValOnStack && !isObject(lastTypeOnStack)) {
             createCompileError(TY_IS_NOT_AN_OBJECT.format(ctx_->getTypeName(lastTypeOnStack)), exprValue);
             return false;
         }
@@ -1016,6 +1058,18 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
         return lastTypeOnStack != ValueType::INVALID;
     };
 
+    auto getLastTypeOnStackObj = [&](bool &isScriptObj, DWord &idx) -> Object * {
+        isScriptObj = isScriptObject(lastTypeOnStack);
+
+        idx = isScriptObj 
+            ? (VTypeWord)clearMask(lastTypeOnStack, ValueType::OBJ_MASK) 
+            : (VTypeWord)clearMask(lastTypeOnStack, ValueType::CPP_OBJ_MASK);
+        
+        return isScriptObj 
+            ? static_cast<Object *>(currScript_->getObject(idx)) 
+            : static_cast<Object *>(ctx_->getCppObject(idx));
+    };
+
     for (; childIdx < exprTerm.numChildren(); childIdx++) {
         const auto &postOp = exprTerm.child(childIdx);
         const auto &postOpChild = postOp.child(0);
@@ -1024,18 +1078,19 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
         if (postOpChild.type() == ASTNodeType::FUNCTION_CALL) {
             if (!checkLastValIsObj()) return;
 
-            DWord objIdx = (VTypeWord)clearMask(lastTypeOnStack, ValueType::OBJ_MASK);
-            ScriptObject *obj = currScript_->getObject(objIdx);
+            bool isScriptObj;
+            DWord objIdx;
+            Object *obj = getLastTypeOnStackObj(isScriptObj, objIdx);
 
             // Search for the member in the object
             const std::string &methodName = postOpChild.child(0).token().val;
             SymbolSearchRes sres = searchSymbol(methodName, obj);
-            if (sres.ty != SymbolSearchRes::METHOD) {
+            if (sres.ty != SymbolSearchRes::METHOD && sres.ty != SymbolSearchRes::CPP_METHOD) {
                 createCompileError(NOT_A_METHOD.format(obj->name), postOp);
                 return;
             }
 
-            Method *method = static_cast<Method *>(sres.fun);
+            Method *method = dynamic_cast<Method *>(sres.fun);
             if (!method->isPublic) {
                 createCompileError(INACESSIBLE_BC_NOT_PUB, postOp);
                 return;
@@ -1061,7 +1116,7 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
             }
             compileArguments(postOpChild.child(1), method, true);
 
-            emit(Instruction::CALLMETHOD);
+            emit(isScriptObj ? Instruction::CALLMETHOD : Instruction::CALLCPPMETHOD);
             emit(objIdx);
             emit(sres.idx);
 
@@ -1085,8 +1140,9 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
             case TokenType::ID: {
                 if (!checkLastValIsObj()) return;
                 
-                DWord objIdx = (VTypeWord)clearMask(lastTypeOnStack, ValueType::OBJ_MASK);
-                ScriptObject *obj = currScript_->getObject(objIdx);
+                bool isScriptObj;
+                DWord objIdx;
+                Object *obj = getLastTypeOnStackObj(isScriptObj, objIdx);
 
                 const std::string &postOpTokVal = postOpChild.token().val;
                 // Search for the member in the object
@@ -1096,7 +1152,7 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
                     return;
                 }
 
-                MemberVariable *memberVar = static_cast<MemberVariable *>(sres.var);
+                Member *memberVar = dynamic_cast<Member *>(sres.var);
                 if (!memberVar->isPublic) {
                     createCompileError(INACESSIBLE_BC_NOT_PUB, postOp);
                     return;
@@ -1198,7 +1254,7 @@ void Compiler::compileFunctionCall(const ASTNode &funCall, ValueType expectedTyp
     if (sres.ty == SymbolSearchRes::FUNCTION)
         fun = currScript_->getFunction(idx);
     else if (sres.ty == SymbolSearchRes::CPP_FUNCTION)
-        fun = ctx_->getGlobalFunction(idx);
+        fun = ctx_->getCppFunction(idx);
 
     if (clearMask(expectedType, ValueType::REF_MASK) != ValueType::VOID 
      && fun->returnTy == ValueType::VOID) {
@@ -1217,7 +1273,7 @@ void Compiler::compileFunctionCall(const ASTNode &funCall, ValueType expectedTyp
     compileArguments(argsNode, fun);
     
     if (sres.ty == SymbolSearchRes::FUNCTION)          emit(Instruction::CALLSCRFUN);
-    else if (sres.ty == SymbolSearchRes::CPP_FUNCTION) emit(Instruction::CLGLBLCPPFUN);
+    else if (sres.ty == SymbolSearchRes::CPP_FUNCTION) emit(Instruction::CALLCPPFUN);
     else return;
 
     emit(idx);
@@ -1504,7 +1560,7 @@ void Compiler::compileConstructCall(const ASTNode &constructCall, ValueType expe
 
     const std::string &typeName = constructCall.child(0).token().val;
     SymbolSearchRes sres = searchSymbol(typeName);
-    if (sres.ty != SymbolSearchRes::OBJECT) {
+    if (sres.ty != SymbolSearchRes::OBJECT && sres.ty != SymbolSearchRes::CPP_OBJECT) {
         createCompileError(NOT_AN_OBJ, constructCall);
         return;
     }
@@ -1516,13 +1572,30 @@ void Compiler::compileConstructCall(const ASTNode &constructCall, ValueType expe
         return;
     }
 
+    bool isScriptObj = sres.ty == SymbolSearchRes::OBJECT;
+
     DWord objIdx = sres.idx;
-    emit(Instruction::NEW);
+    emit(isScriptObj ? Instruction::NEW : Instruction::CPPNEW);
     emit(objIdx);
 
-    ScriptObject *obj = sres.obj;
-    DWord constructorIdx = obj->getConstructorIdx();
-    const Method *constructor = obj->getMethod(constructorIdx);
+    Object *obj = sres.obj;
+    DWord constructorIdx = 0;
+    const Method *constructor = nullptr;
+
+    if (isScriptObj) {
+        auto scriptObj = static_cast<ScriptObject *>(obj);
+
+        constructorIdx = scriptObj->getConstructorIdx();
+        constructor = scriptObj->getMethod(constructorIdx);
+    } 
+    else {
+        auto cppObj = static_cast<CPPObject *>(obj);
+
+        // The constructor is just a method with the 
+        // same name as the object
+        constructorIdx = cppObj->getMethodIdx(cppObj->name);
+        constructor = cppObj->getMethod(constructorIdx);
+    }
 
     if (!constructor) {
         createCompileError(NOT_A_CTOR.format(obj->name), constructCall);
@@ -1537,7 +1610,7 @@ void Compiler::compileConstructCall(const ASTNode &constructCall, ValueType expe
 
     compileArguments(constructCall.child(1), constructor, true);
 
-    emit(Instruction::CALLMETHOD);
+    emit(isScriptObj ? Instruction::CALLMETHOD : Instruction::CALLCPPMETHOD);
     emit(objIdx);
     emit(constructorIdx);
 }

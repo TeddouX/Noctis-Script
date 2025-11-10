@@ -9,29 +9,40 @@ std::shared_ptr<ScriptContext> ScriptContext::create() {
     return std::shared_ptr<ScriptContext>(new ScriptContext());
 }
 
-GlobalCPPFunctionRepr *ScriptContext::getGlobalFunction(DWord idx) {
-    if (idx >= globalCPPFunctions_.size())
-        return nullptr;
-    return &globalCPPFunctions_[idx];
-}
-
-GlobalCPPFunctionRepr *ScriptContext::getGlobalFunction(const std::string &name) {
-    for (auto &fun : globalCPPFunctions_)
-        if (fun.name == name)
-            return &fun;
-    return nullptr;
-}
-
-DWord ScriptContext::getGlobalFunctionIdx(const std::string &name) const {
-    for (int i = 0; i < globalCPPFunctions_.size(); i++)
-        if (globalCPPFunctions_[i].name == name)
-            return i;
-    return -1;
-}
-
-Value ScriptContext::callGlobalFunction(DWord idx, const std::vector<Value> &args) {
-    GlobalCPPFunctionRepr &globalFun = globalCPPFunctions_[idx];
+Value ScriptContext::callCppFunction(DWord idx, const std::vector<Value> &args) {
+    CPPFunction &globalFun = cppFunctions_[idx];
     return globalFun.registryFun(args);
+}
+
+Value ScriptContext::callObjectNew(DWord objIdx) {
+    CPPObject &obj = cppObjects_[objIdx];
+    return obj.newFun();
+}
+
+Value ScriptContext::callObjectMethod(DWord objIdx, DWord methodIdx, const std::vector<Value> &args) {
+    CPPObject &obj = cppObjects_[objIdx];
+    CPPMethod *method = obj.getMethod(methodIdx);
+    
+    if (!method)
+        return Value{};
+    
+    return method->registryFun(args);
+}
+
+Value ScriptContext::getObjectMember(DWord idx, const Value &object, bool asRef) {
+    if (!isCPPObject(object.ty))
+        return Value{};
+
+    DWord objIdx = (VTypeWord)clearMask(object.ty, ValueType::CPP_OBJ_MASK);
+    CPPObject *cppObj = getCppObject(objIdx);
+    if (!cppObj) 
+        return Value{};
+
+    auto *member = cppObj->getMember(idx);
+    if (!member)
+        return Value{};
+
+    return member->registryFun(object, asRef);
 }
 
 std::string ScriptContext::getTypeName(ValueType ty) const {

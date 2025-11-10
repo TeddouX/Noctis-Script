@@ -15,6 +15,8 @@ struct Function {
     std::vector<ValueType> paramTypes;
     ValueType returnTy;
     size_t numParams;
+
+    virtual ~Function() = default;
 };
 
 } // namespace NCSC
