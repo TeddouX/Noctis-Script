@@ -15,24 +15,28 @@ static void setCPPRefVal(Value &cppRef, Value &val) {
 
     // TODO: add check for equality of cppRef.ty & val.ty (macro)
 
+#define CHECK_TYPES_EQUAL() if (clearMask(cppRef.ty, ValueType::CPP_REF_MASK) != val.ty) return
+
     switch (clearMask(cppRef.ty, ValueType::CPP_REF_MASK)) {
-        case ValueType::INT8:    *(int8_t *)cppRef.cppRef    = val.i8;   return;
-        case ValueType::INT16:   *(int16_t *)cppRef.cppRef   = val.i16;  return;
-        case ValueType::INT32:   *(int32_t *)cppRef.cppRef   = val.i32;  return;
-        case ValueType::INT64:   *(int64_t *)cppRef.cppRef   = val.i64;  return;
+        case ValueType::INT8:    CHECK_TYPES_EQUAL(); *(int8_t *)cppRef.cppRef    = val.i8;   return;
+        case ValueType::INT16:   CHECK_TYPES_EQUAL(); *(int16_t *)cppRef.cppRef   = val.i16;  return;
+        case ValueType::INT32:   CHECK_TYPES_EQUAL(); *(int32_t *)cppRef.cppRef   = val.i32;  return;
+        case ValueType::INT64:   CHECK_TYPES_EQUAL(); *(int64_t *)cppRef.cppRef   = val.i64;  return;
 
-        case ValueType::UINT8:   *(uint8_t *)cppRef.cppRef   = val.ui8;  return;
-        case ValueType::UINT16:  *(uint16_t *)cppRef.cppRef  = val.ui16; return;
-        case ValueType::UINT32:  *(uint32_t *)cppRef.cppRef  = val.ui32; return;
-        case ValueType::UINT64:  *(uint64_t *)cppRef.cppRef  = val.ui64; return;
-
-        case ValueType::FLOAT32: *(float32_t *)cppRef.cppRef = val.f32;  return;
-        case ValueType::FLOAT64: *(float64_t *)cppRef.cppRef = val.f64;  return;
+        case ValueType::UINT8:   CHECK_TYPES_EQUAL(); *(uint8_t *)cppRef.cppRef   = val.ui8;  return;
+        case ValueType::UINT16:  CHECK_TYPES_EQUAL(); *(uint16_t *)cppRef.cppRef  = val.ui16; return;
+        case ValueType::UINT32:  CHECK_TYPES_EQUAL(); *(uint32_t *)cppRef.cppRef  = val.ui32; return;
+        case ValueType::UINT64:  CHECK_TYPES_EQUAL(); *(uint64_t *)cppRef.cppRef  = val.ui64; return;
         
-        case ValueType::BOOL:    *(bool *)cppRef.cppRef      = val.b;    return;
+        case ValueType::FLOAT32: CHECK_TYPES_EQUAL(); *(float32_t *)cppRef.cppRef = val.f32;  return;
+        case ValueType::FLOAT64: CHECK_TYPES_EQUAL(); *(float64_t *)cppRef.cppRef = val.f64;  return;
+        
+        case ValueType::BOOL:    CHECK_TYPES_EQUAL(); *(bool *)cppRef.cppRef      = val.b;    return;
 
         default: break;
     }
+
+#undef CHECK_TYPES_EQUAL
 }
 
 
