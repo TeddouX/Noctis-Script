@@ -37,7 +37,7 @@ public:
     int z = 0;
 
     int addMembers() { 
-        std::println("Members got added!");
+        std::println("Members got added! ({} + {} + {})", x, y, z);
         return x + y + z; 
     }
 };
@@ -60,7 +60,7 @@ int main() {
     auto tokens = NCSC::Lexer(src).tokenizeAll();
     NCSC::Parser parser(tokens, src);
     auto rootNode = parser.parseAll();
-    // std::println("{}", rootNode.getStrRepr());
+    std::println("{}", rootNode.getStrRepr());
     if (parser.hasErrors()) {
         for (auto error : parser.getErrors()) 
             std::println("{}", error.getErrorMessage());
@@ -143,9 +143,11 @@ int main() {
             exit(EXIT_FAILURE);
         }
         
+        std::println("Execution finished with stack:");
         std::println("{}", vm.getStackStrRepr());
 
         vm.cleanup();
+        std::println("VM cleanup successful");
     }
 
     return 0;

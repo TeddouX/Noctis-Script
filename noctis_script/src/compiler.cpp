@@ -357,14 +357,19 @@ size_t Compiler::computeRequiredStackSize(const std::vector<Byte> &bc) {
 
         switch (instr) {
             case Instruction::LOADLOCAL:
-            case Instruction::LOADLOCAL_REF: 
             case Instruction::LOADGLOBAL: 
-            case Instruction::LOADGLOBAL_REF: 
+            case Instruction::LOADMEMBER: 
             case Instruction::PUSH:
             case Instruction::NEW:
             case Instruction::CPPNEW:
             case Instruction::DUP: 
                 maxSize = std::max(maxSize, ++currSize);
+                break;
+
+            case Instruction::STORELOCAL: 
+            case Instruction::STOREGLOBAL: 
+            case Instruction::STOREMEMBER:
+                currSize--;
                 break;
             
             case Instruction::ADD:
@@ -377,7 +382,6 @@ size_t Compiler::computeRequiredStackSize(const std::vector<Byte> &bc) {
             case Instruction::CMPGE:
             case Instruction::CMPEQ:
             case Instruction::CMPNE:
-            case Instruction::SETREF:
                 currSize -= 2;
                 break;
 
@@ -544,6 +548,31 @@ Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, Object
         }
     }
 
+    // Member variable or function
+    if (currObject_) {        
+        DWord memberIdx = currObject_->getMemberIdx(name);
+        if (memberIdx != INVALID_IDX) {
+            Variable *var = currObject_->getMember(memberIdx);
+            return SymbolSearchRes{
+                .var = var,
+                .idx = memberIdx,
+                .foundType = var->type,
+                .ty = SymbolSearchRes::MEMBER_VAR,
+            };
+        }
+
+        DWord methodIdx = currObject_->getMethodIdx(name);
+        if (methodIdx != INVALID_IDX) {
+            Function *method = currObject_->getMethod(methodIdx);
+            return SymbolSearchRes{
+                .fun = method,
+                .idx = methodIdx,
+                .foundType = method->returnTy,
+                .ty = SymbolSearchRes::METHOD,
+            };
+        } 
+    }
+
     // Script object or function
     if (currScript_) {
         DWord funIdx = currScript_->getFunctionIdx(name);
@@ -565,30 +594,6 @@ Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, Object
                 .idx = scriptObjIdx,
                 .foundType = scriptObj->type,
                 .ty = SymbolSearchRes::OBJECT,
-            };
-        } 
-    }
-
-    if (currObject_) {        
-        DWord memberIdx = currObject_->getMemberIdx(name);
-        if (memberIdx != INVALID_IDX) {
-            Variable *var = currObject_->getMember(memberIdx);
-            return SymbolSearchRes{
-                .var = var,
-                .idx = memberIdx,
-                .foundType = var->type,
-                .ty = SymbolSearchRes::MEMBER_VAR,
-            };
-        }
-
-        DWord methodIdx = currObject_->getMethodIdx(name);
-        if (methodIdx != INVALID_IDX) {
-            Function *method = currObject_->getMethod(methodIdx);
-            return SymbolSearchRes{
-                .fun = method,
-                .idx = methodIdx,
-                .foundType = method->returnTy,
-                .ty = SymbolSearchRes::METHOD,
             };
         } 
     }
@@ -678,7 +683,7 @@ void Compiler::compileObject(const ASTNode &obj) {
         switch (child.type()) {
             case ASTNodeType::VARIABLE_DECLARATION: {
                 // Compile variable declaration as a member variable
-                compileVariableDeclaration(child, false, true);
+                compileVariableDeclaration(child, /*global*/false, /*member*/true);
 
                 resolveJumps(tempCompiledBytecode_);
 
@@ -834,13 +839,13 @@ void Compiler::compileExpression(const ASTNode &expr, ValueType expectedType) {
     recursivelyCompileExpression(rootOp, expectedType);
 }
 
-void Compiler::recursivelyCompileExpression(const ASTNode &exprChild, ValueType expectedType) {
+void Compiler::recursivelyCompileExpression(const ASTNode &exprChild, ValueType expectedType, bool shouldBeAssignable) {
     if (exprChild.type() == ASTNodeType::BINOP) {
         recursivelyCompileExpression(exprChild.child(1), expectedType);
         recursivelyCompileExpression(exprChild.child(0), expectedType);
         compileOperator(exprChild, expectedType);
     } else if (exprChild.type() == ASTNodeType::EXPRESSION_TERM) {
-        compileExpressionTerm(exprChild, expectedType);
+        compileExpressionTerm(exprChild, expectedType, shouldBeAssignable);
     }
 }
 
@@ -946,7 +951,7 @@ void Compiler::compileConstantPush(const ASTNode &constant, ValueType expectedTy
     }
 }
 
-void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expectedTy) {
+void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expectedTy, bool shouldBeAssignable) {
     assert(exprTerm.type() == ASTNodeType::EXPRESSION_TERM);
 
     // Compile expressions inside parentheses
@@ -974,10 +979,74 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
     // If an expression term has none (constant, ...), pushing the value is necessary
     bool hasValOnStack = false;
 
+    // -------------------------
+    // HELPERS FOR PRE-OPERATORS
+    // -------------------------
+
+    auto checkNotAssignableAndNumeric = [&](ValueType vtype) -> bool {
+        if (shouldBeAssignable) {
+            createCompileError(EXPECTED_ASSIGNABLE_TERM, exprTerm);
+            return false;
+        }
+
+        if (!isNumeric(vtype)) {
+            createCompileError(EXPECTED_NUMERIC_TYPE.format(ctx_->getTypeName(vtype)), exprTerm);
+            return false;
+        }
+
+        return true;
+    };
+
+    auto doPreIncDec = [&](TokenType op) -> bool {
+        SymbolSearchRes sres = searchSymbol(exprValue.child(0).token().val);
+        if (!checkNotAssignableAndNumeric(sres.foundType))
+            return false;
+
+        // Get the value of the operand
+        compileExpressionValue(exprValue, expectedTy, true);
+        if (op == TokenType::PLUS_PLUS) 
+            emit(Instruction::INC);
+        else
+            emit(Instruction::DEC);
+        // Store the value back in the variable
+        compileStore(exprValue);
+
+        if (expectedTy != ValueType::VOID)
+            compileExpressionValue(exprValue, expectedTy, true);
+
+        return true;
+    };
+
+    // -------------------------
+    // PRE-OPERATORS (++, --, !)
+    // -------------------------
+
     size_t childIdx = 0;
     for (const auto &child : exprTerm.children()) {
         if (child.type() == ASTNodeType::EXPRESSION_PREOP) {
-            compileExpressionPreOp(child, exprValue, expectedTy);
+            TokenType preopTy = child.token().type;
+            switch (preopTy) {
+                case TokenType::PLUS_PLUS:
+                    if (!doPreIncDec(preopTy)) return;
+                    break;
+                case TokenType::MINUS_MINUS:
+                    if (!doPreIncDec(preopTy)) return;
+                    break;
+
+                case TokenType::NOT: {
+                    if (expectedTy != ValueType::BOOL) {
+                        createCompileError(EXPECTED_A_BOOLEAN.format(ctx_->getTypeName(expectedTy)), exprValue);
+                        return;
+                    }
+
+                    compileExpressionValue(exprValue, expectedTy, false);
+                    emit(Instruction::NOT);
+
+                    break;
+                }
+
+                default: break;
+            }
             childIdx++;
             hasValOnStack = true;
         } else 
@@ -991,38 +1060,37 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
 
     ValueType lastTypeOnStack = ValueType::INVALID;
 
-    // local helper for ++ / --
-    auto doIncDec = [&](TokenType op) -> bool {
+    // --------------------------
+    // HELPERS FOR POST-OPERATORS
+    // --------------------------
+
+    // Helper for post ++ / --
+    auto doPostIncDec = [&](TokenType op) -> bool {
         // Caller expected a reference but an increment can't load that
-        if (hasMask(expectedTy, ValueType::REF_MASK)) {
+        if (checkNotAssignableAndNumeric(expectedTy)) {
             createCompileError(EXP_MODIFIABLE_VALUE, exprTerm);
             return false;
         }
 
-        if (hasValOnStack && !checkVTypeIsNumricAndModifiable(lastTypeOnStack, exprValue))
+        if (hasValOnStack && !isNumeric(lastTypeOnStack))
             return false;
         else if (!hasValOnStack) {
             // Search for the operand
             SymbolSearchRes sres = searchSymbol(exprValue.child(0).token().val);
-            if (sres.ty != SymbolSearchRes::GLOBAL_VAR 
-            && sres.ty != SymbolSearchRes::LOCAL_VAR 
-            && sres.ty != SymbolSearchRes::MEMBER_VAR 
-            && !checkVTypeIsNumricAndModifiable(sres.foundType, exprValue))
+            if (!isNumeric(sres.foundType))
                 return false;
 
             // Load original value of the variable
             if (expectedTy != ValueType::VOID)
-                compileExpressionValue(exprValue, expectedTy);
+                compileExpressionValue(exprValue, expectedTy, true);
         }
         
-        if (!hasValOnStack)
-            compileExpressionValue(exprValue, setMask(expectedTy, ValueType::REF_MASK));
-        
         emit(Instruction::DUP);
-        emit(Instruction::LOADREF);
-        if (op == TokenType::PLUS_PLUS) emit(Instruction::INC);
-        else                            emit(Instruction::DEC);
-        emit(Instruction::SETREF);
+        if (op == TokenType::PLUS_PLUS) 
+            emit(Instruction::INC);
+        else
+            emit(Instruction::DEC);
+        compileStore(exprValue);
 
         lastTypeOnStack = expectedTy;
 
@@ -1039,7 +1107,7 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
         }
 
         if (!hasValOnStack) {
-            compileExpressionValue(exprValue, ValueType::VOID);
+            compileExpressionValue(exprValue, ValueType::VOID, shouldBeAssignable);
 
             const auto& exprValueChild = exprValue.child(0);
             SymbolSearchRes sres;
@@ -1058,17 +1126,9 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
         return lastTypeOnStack != ValueType::INVALID;
     };
 
-    auto getLastTypeOnStackObj = [&](bool &isScriptObj, DWord &idx) -> Object * {
-        isScriptObj = isScriptObject(lastTypeOnStack);
-
-        idx = isScriptObj 
-            ? (VTypeWord)clearMask(lastTypeOnStack, ValueType::OBJ_MASK) 
-            : (VTypeWord)clearMask(lastTypeOnStack, ValueType::CPP_OBJ_MASK);
-        
-        return isScriptObj 
-            ? static_cast<Object *>(currScript_->getObject(idx)) 
-            : static_cast<Object *>(ctx_->getCppObject(idx));
-    };
+    // ------------------------------------------------------
+    // POST-OPERATORS (++, --, !, method call, member access)
+    // ------------------------------------------------------
 
     for (; childIdx < exprTerm.numChildren(); childIdx++) {
         const auto &postOp = exprTerm.child(childIdx);
@@ -1080,7 +1140,7 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
 
             bool isScriptObj;
             DWord objIdx;
-            Object *obj = getLastTypeOnStackObj(isScriptObj, objIdx);
+            Object *obj = getValueTypeAsObject(lastTypeOnStack, isScriptObj, objIdx);
 
             // Search for the member in the object
             const std::string &methodName = postOpChild.child(0).token().val;
@@ -1130,10 +1190,10 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
         TokenType postOpTokTy = postOpChild.token().type;
         switch (postOpTokTy) {
             case TokenType::PLUS_PLUS:
-                if (!doIncDec(TokenType::PLUS_PLUS)) return;
+                if (!doPostIncDec(TokenType::PLUS_PLUS)) return;
                 break;
             case TokenType::MINUS_MINUS:
-                if (!doIncDec(TokenType::MINUS_MINUS)) return;
+                if (!doPostIncDec(TokenType::MINUS_MINUS)) return;
                 break;
 
             // Member access
@@ -1142,7 +1202,7 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
                 
                 bool isScriptObj;
                 DWord objIdx;
-                Object *obj = getLastTypeOnStackObj(isScriptObj, objIdx);
+                Object *obj = getValueTypeAsObject(lastTypeOnStack, isScriptObj, objIdx);
 
                 const std::string &postOpTokVal = postOpChild.token().val;
                 // Search for the member in the object
@@ -1188,7 +1248,7 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
                     }
                 }
                 
-                emit(wantRef ? Instruction::LOADMEMBER_REF : Instruction::LOADMEMBER);
+                emit(Instruction::LOADMEMBER);
                 emit(sres.idx);
                 
                 hasValOnStack = true;
@@ -1203,7 +1263,7 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
     }
 
     if (!hasValOnStack)
-        compileExpressionValue(exprValue, expectedTy);
+        compileExpressionValue(exprValue, expectedTy, shouldBeAssignable);
 }
 
 void Compiler::compileStatementBlock(const ASTNode &stmtBlock) {
@@ -1335,14 +1395,14 @@ void Compiler::compileVariableAccess(const ASTNode &varAccess, ValueType expecte
     if (sres.ty == SymbolSearchRes::LOCAL_VAR)
         // Variables that are not primitives don't need to be loaded as a reference
         // because objects technically are references    
-        emit(wantRef ? Instruction::LOADLOCAL_REF : Instruction::LOADLOCAL);
+        emit(Instruction::LOADLOCAL);
     else if (sres.ty == SymbolSearchRes::GLOBAL_VAR) 
-        emit(wantRef ? Instruction::LOADGLOBAL_REF : Instruction::LOADGLOBAL);
+        emit(Instruction::LOADGLOBAL);
     else if (sres.ty == SymbolSearchRes::MEMBER_VAR) {
         emit(Instruction::LOADLOCAL);
         emit((DWord)0); // 'this'
 
-        emit(wantRef ? Instruction::LOADMEMBER_REF : Instruction::LOADMEMBER);
+        emit(Instruction::LOADMEMBER);
     }
     else return;
 
@@ -1434,23 +1494,14 @@ void Compiler::compileAssignment(const ASTNode &assignment) {
     }
 
     const ASTNode &varTerm = assignment.child(0);
-
-    // Load a reference to the variable
-    compileExpressionTerm(varTerm, setMask(ValueType::VOID, ValueType::REF_MASK));
-
+    
+    // Load variable value
     TokenType opTokTy = assignment.child(1).token().type;
-    // If its an =, the variable's value doesn't need to 
-    // be on the stack for the binary operation
-    if (opTokTy != TokenType::EQUAL) {
-        // We need two references on the stack, one for getting 
-        // the value, one for setting it
-        emit(Instruction::DUP);
-        emit(Instruction::LOADREF);
-    }
-
-    // Set the expected type to that of the loaded variable
+    if (opTokTy != TokenType::EQUAL)
+        compileExpressionTerm(varTerm, ValueType::VOID);
+    
     ValueType varTermType = getExpressionTermType(varTerm);
-    // Compile expression
+    // Set the expected type to that of the loaded variable
     compileExpression(assignment.child(2), varTermType);
 
     switch (opTokTy) {
@@ -1461,87 +1512,20 @@ void Compiler::compileAssignment(const ASTNode &assignment) {
         default:                                             break;
     }
 
-    emit(Instruction::SETREF);
-}
-
-void Compiler::compileExpressionPreOp(const ASTNode &preOp, const ASTNode &operand, ValueType expectedTy) {
-    assert(preOp.type() == ASTNodeType::EXPRESSION_PREOP);
-
-    TokenType preopTy = preOp.token().type;
-    switch (preopTy) {
-        case TokenType::PLUS_PLUS: {
-            SymbolSearchRes sres = searchSymbol(operand.child(0).token().val);
-            if (sres.ty != SymbolSearchRes::GLOBAL_VAR 
-             && sres.ty != SymbolSearchRes::LOCAL_VAR 
-             && sres.ty != SymbolSearchRes::MEMBER_VAR 
-             && checkVTypeIsNumricAndModifiable(sres.foundType, operand))
-                return;
-
-            compileExpressionValue(operand, setMask(expectedTy, ValueType::REF_MASK));
-            // One reference for getting the value, one for setting it
-            emit(Instruction::DUP);
-            // Get the value of the operand
-            emit(Instruction::LOADREF);
-            // Increment it
-            emit(Instruction::INC);
-            // Set the value of the operand
-            emit(Instruction::SETREF);
-
-            // For a pre-inc, the updated value should be on the stack at the end of the operation
-            if (expectedTy != ValueType::VOID)
-                compileExpressionValue(operand, expectedTy);
-
-            break;
-        }
-        case TokenType::MINUS_MINUS: {
-            SymbolSearchRes sres = searchSymbol(operand.child(0).token().val);
-            if (sres.ty != SymbolSearchRes::GLOBAL_VAR 
-             && sres.ty != SymbolSearchRes::LOCAL_VAR 
-             && sres.ty != SymbolSearchRes::MEMBER_VAR 
-             && !checkVTypeIsNumricAndModifiable(sres.foundType, operand))
-                return;
-
-            compileExpressionValue(operand, setMask(expectedTy, ValueType::REF_MASK));
-            
-            emit(Instruction::DUP);
-            emit(Instruction::LOADREF);
-            emit(Instruction::DEC);
-            emit(Instruction::SETREF);
-            // Same reason as the pre-inc
-
-            if (expectedTy != ValueType::VOID)
-                compileExpressionValue(operand, expectedTy);
-
-            break;
-        }
-
-        case TokenType::NOT: {
-            if (expectedTy != ValueType::BOOL) {
-                createCompileError(EXPECTED_A_BOOLEAN.format(ctx_->getTypeName(expectedTy)), operand);
-                return;
-            }
-
-            compileExpressionValue(operand, expectedTy);
-            emit(Instruction::NOT);
-
-            break;
-        }
-
-        default: break;
-    }
+    // Store back the value into the variable
+    compileStore(varTerm);
 }
     
-void Compiler::compileExpressionValue(const ASTNode &exprVal, ValueType expectedTy) {
+void Compiler::compileExpressionValue(const ASTNode &exprVal, ValueType expectedTy, bool shouldBeAssignable) {
     assert(exprVal.type() == ASTNodeType::EXPRESSION_VALUE);
 
     ASTNode firstChild = exprVal.child(0);
 
     bool isConst = firstChild.type() == ASTNodeType::CONSTANT;
     bool isFnCall = firstChild.type() == ASTNodeType::FUNCTION_CALL;
-    bool wantRef = hasMask(expectedTy, ValueType::REF_MASK);
 
-    if (isConst && wantRef) {
-        createCompileError(EXP_MODIFIABLE_VALUE, firstChild);
+    if ((isFnCall || isConst) && shouldBeAssignable) {
+        createCompileError(EXPECTED_ASSIGNABLE_TERM, firstChild);
         return;
     }
 
@@ -1713,7 +1697,7 @@ ValueType Compiler::getExpressionTermType(const ASTNode &exprTerm) {
 
                 res = sres.foundType;
             }
-            // Post-incs and post-decs push a reference
+            // Post-incs and post-decs need a reference
             else if (postOp.type() == ASTNodeType::TOKEN)
                 res = clearMask(res, ValueType::REF_MASK);
         }
@@ -1722,18 +1706,87 @@ ValueType Compiler::getExpressionTermType(const ASTNode &exprTerm) {
     return res;
 }
 
-bool Compiler::checkVTypeIsNumricAndModifiable(ValueType vtype, const ASTNode &errNode) {
-    if (!isNumeric(clearMask(vtype, ValueType::REF_MASK))) {
-        createCompileError(EXPECTED_NUMERIC_TYPE.format(ctx_->getTypeName(vtype)), errNode);
-        return false;
-    }
+void Compiler::compileStore(const ASTNode &varNode) {
+    assert(varNode.type() == ASTNodeType::EXPRESSION_TERM);
 
-    if (!hasMask(vtype, ValueType::REF_MASK)) {
-        createCompileError(EXP_MODIFIABLE_VALUE, errNode);
-        return false;
-    }
+    ValueType lastTy = ValueType::INVALID;
+    for (size_t i = 0; i < varNode.numChildren(); i++) {
+        const auto &child = varNode.child(i);
+        const auto &firstChild = child.child(0);
+        bool isLastChild = i + 1 >= varNode.numChildren();
 
-    return true;
+        // Variable
+        if (child.type() == ASTNodeType::EXPRESSION_VALUE) {
+            const std::string &varName = firstChild.token().val;
+            SymbolSearchRes sres = searchSymbol(varName);
+            if (sres.ty != SymbolSearchRes::GLOBAL_VAR 
+             && sres.ty != SymbolSearchRes::LOCAL_VAR 
+             && sres.ty != SymbolSearchRes::MEMBER_VAR)
+                return;
+            
+            if (sres.ty == SymbolSearchRes::GLOBAL_VAR)
+                emit(isLastChild ? Instruction::STOREGLOBAL : Instruction::LOADGLOBAL);
+            if (sres.ty == SymbolSearchRes::LOCAL_VAR)
+                emit(isLastChild ? Instruction::STORELOCAL : Instruction::LOADLOCAL);
+            if (sres.ty == SymbolSearchRes::MEMBER_VAR)
+                emit(isLastChild ? Instruction::STOREMEMBER : Instruction::LOADMEMBER);
+
+            emit(sres.idx);
+
+            if (isLastChild) break;
+
+            lastTy = sres.foundType;
+        }
+        else if (child.type() == ASTNodeType::EXPRESSION_POSTOP) {
+            if (firstChild.type() == ASTNodeType::FUNCTION_CALL) {
+                if (isLastChild)
+                    return;
+
+                bool isScriptObj;
+                DWord idx;
+                Object *obj = getValueTypeAsObject(lastTy, isScriptObj, idx);
+                if (!obj) return;
+
+                const std::string &methodName = firstChild.child(0).token().val;
+                SymbolSearchRes sres = searchSymbol(methodName, obj);
+                if (sres.ty != SymbolSearchRes::METHOD && sres.ty != SymbolSearchRes::CPP_METHOD)
+                    return;
+
+                emit(isScriptObj ? Instruction::CALLMETHOD : Instruction::CALLCPPMETHOD);
+                emit(idx);
+                emit(sres.idx);
+            }
+            else if (firstChild.type() == ASTNodeType::IDENTIFIER) {
+                bool isScriptObj;
+                DWord idx;
+                Object *obj = getValueTypeAsObject(lastTy, isScriptObj, idx);
+                if (!obj) return;
+
+                const std::string &memberName = firstChild.token().val;
+                SymbolSearchRes sres = searchSymbol(memberName, obj);
+                if (sres.ty != SymbolSearchRes::MEMBER_VAR)
+                    return;
+
+                if (isLastChild)
+                    emit(Instruction::STOREMEMBER);
+                else
+                    emit(Instruction::LOADMEMBER);
+                emit(sres.idx);
+            }
+        }
+    }
+}
+
+Object *Compiler::getValueTypeAsObject(ValueType type, bool &isScriptObj, DWord &idx) {
+    isScriptObj = isScriptObject(type);
+
+    idx = isScriptObj 
+        ? (VTypeWord)clearMask(type, ValueType::OBJ_MASK) 
+        : (VTypeWord)clearMask(type, ValueType::CPP_OBJ_MASK);
+
+    return isScriptObj 
+        ? static_cast<Object *>(currScript_->getObject(idx)) 
+        : static_cast<Object *>(ctx_->getCppObject(idx));
 }
 
 } // namespace NCSC

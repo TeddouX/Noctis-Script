@@ -31,7 +31,6 @@ void GarbageCollector::gc(std::deque<Value> &vals) {
 }
 
 void GarbageCollector::markAll(std::deque<Value> &vals) {
-    std::println("Marking... (vals.size() = {})", vals.size());
     // Reset marked flag
     for (auto *obj : heap_)
         obj->marked = false;
@@ -54,12 +53,9 @@ void GarbageCollector::markAll(std::deque<Value> &vals) {
 }
 
 void GarbageCollector::sweep() {
-    std::println("Sweeping...");
     for (auto *obj : heap_) {
         if (obj->marked)
             continue;
-
-        std::println("Collecting object...");
 
         deleteObj(obj);
     }

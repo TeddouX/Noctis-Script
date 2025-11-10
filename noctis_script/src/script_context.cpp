@@ -34,20 +34,14 @@ Value ScriptContext::callObjectMethod(DWord objIdx, DWord methodIdx, const std::
     return method->registryFun(args);
 }
 
-Value ScriptContext::getObjectMember(DWord idx, const Value &object, bool asRef) {
-    if (!isCPPObject(object.ty))
-        return Value{};
+Value ScriptContext::getObjectMember(DWord idx, const Value &object) {
+    CPPMember *member = getMember(idx, object);
+    return member->getterFun(object);
+}
 
-    DWord objIdx = (VTypeWord)clearMask(object.ty, ValueType::CPP_OBJ_MASK);
-    CPPObject *cppObj = getCppObject(objIdx);
-    if (!cppObj) 
-        return Value{};
-
-    auto *member = cppObj->getMember(idx);
-    if (!member)
-        return Value{};
-
-    return member->registryFun(object, asRef);
+void ScriptContext::setObjectMember(DWord idx, const Value &object, const Value &val) {
+    CPPMember *member = getMember(idx, object);
+    return member->setterFun(object, val);
 }
 
 std::string ScriptContext::getTypeName(ValueType ty) const {
@@ -62,6 +56,18 @@ std::string ScriptContext::getTypeName(ValueType ty) const {
     if (it != typeNames_.end())
         return it->second + refStr;
     return "";
+}
+
+CPPMember *ScriptContext::getMember(DWord idx, const Value &object) {
+    if (!isCPPObject(object.ty))
+        return nullptr;
+
+    DWord objIdx = (VTypeWord)clearMask(object.ty, ValueType::CPP_OBJ_MASK);
+    CPPObject *cppObj = getCppObject(objIdx);
+    if (!cppObj) 
+        return nullptr;
+
+    return cppObj->getMember(idx);
 }
 
 } // namespace NCSC

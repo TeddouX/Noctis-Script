@@ -12,15 +12,15 @@ obj Vec2 {
 
 // 1 less than necessary to trigger the garbage collector
 fun FunctionThatCreates9Objects() {
-    Vec3 v1 = new Vec3(1,1,1);    
-    Vec3 v2 = new Vec3(1,1,1);    
-    Vec3 v3 = new Vec3(1,1,1);    
-    Vec3 v4 = new Vec3(1,1,1);    
-    Vec3 v5 = new Vec3(1,1,1);    
-    Vec3 v6 = new Vec3(1,1,1);    
-    Vec3 v7 = new Vec3(1,1,1);    
-    Vec3 v8 = new Vec3(1,1,1);    
-    Vec3 v9 = new Vec3(1,1,1);    
+    Vec3 v1 = new Vec3(1,1,1);
+    Vec3 v2 = new Vec3(1,1,1);
+    Vec3 v3 = new Vec3(1,1,1);
+    Vec3 v4 = new Vec3(1,1,1);
+    Vec3 v5 = new Vec3(1,1,1);
+    Vec3 v6 = new Vec3(1,1,1);
+    Vec3 v7 = new Vec3(1,1,1);
+    Vec3 v8 = new Vec3(1,1,1);
+    Vec3 v9 = new Vec3(1,1,1);
 }
 
 fun Main() {
@@ -28,4 +28,6 @@ fun Main() {
     // Trigger the garbage collector
     Vec3 v1 = new Vec3(1,1,1);
     Vec3 v2 = new Vec3(1,1,1);
+
+    printHello(v1.AddMembers());
 }

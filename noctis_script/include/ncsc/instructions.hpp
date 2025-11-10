@@ -16,13 +16,13 @@ enum class Instruction : Byte {
     DUP,            // DUP ; Duplicates last value on the stack
 
     LOADLOCAL,      // LOADLOCAL 1 ; Loads a local variable a onto the stack
-    LOADLOCAL_REF,  // LOADLOCAL_REF 1 ; Loads a reference to a local variable a onto the stack
+    STORELOCAL,     // STORELOCAL 1 ; Pops value and sets local 1 to it
     
     LOADGLOBAL,     // LOADLOCAL 1 ; Loads a global variable a onto the stack
-    LOADGLOBAL_REF, // LOADGLOBAL_REF 1 ; Loads a reference to a global variable a onto the stack
+    STOREGLOBAL,    // STOREGLOBAL 1 ; Pops value and sets global 1 to it
 
     LOADMEMBER,     // LOADMEMBER 1 ; Loads a member variable from the last object pushed on the stack, if none exists, try loading it from the object register
-    LOADMEMBER_REF, // LOADMEMBER_REF 1 ; Loads a reference to a global variable a onto the stack
+    STOREMEMBER,    // STOREMEMBER 1 ; Pops value and sets member 1 to it
 
     ADD,            // ADD ; pop first two values on the stack, adds them and pushes the result on the stack
     SUB,            // SUB ; pop first two values on the stack, substracts them and pushes the result on the stack
@@ -41,9 +41,6 @@ enum class Instruction : Byte {
 
     JMP,            // JMP 123 ; set the PC to the operand
     JMPFALSE,       // JMPFALSE 123 ; if the last value on the stack is false or equals to zero, set the PC to the operand
-
-    LOADREF,        // LOADREF ; Pushes a value of a reference on the stack
-    SETREF,         // SETREF ; Pops a reference and a value 
 
     TYCAST,         // TYCAST b ; pops the last value on the stack and changes it type to b 
 
@@ -71,13 +68,13 @@ const std::unordered_map<Instruction, std::pair<const char *, size_t>> INSTR_INF
     { Instruction::DUP,             {"DUP",            0} },
     
     { Instruction::LOADLOCAL,       {"LOADLOCAL",      sizeof(DWord)} },
-    { Instruction::LOADLOCAL_REF,   {"LOADLOCAL_REF",  sizeof(DWord)} },
+    { Instruction::STORELOCAL,      {"STORELOCAL",     sizeof(DWord)} },
 
     { Instruction::LOADGLOBAL,      {"LOADGLOBAL",     sizeof(DWord)} },
-    { Instruction::LOADGLOBAL_REF,  {"LOADGLOBAL_REF", sizeof(DWord)} },
+    { Instruction::STOREGLOBAL,     {"STOREGLOBAL",    sizeof(DWord)} },
 
     { Instruction::LOADMEMBER,      {"LOADMEMBER",     sizeof(DWord)} },
-    { Instruction::LOADMEMBER_REF,  {"LOADMEMBER_REF", sizeof(DWord)} },
+    { Instruction::STOREMEMBER,     {"STOREMEMBER",    sizeof(DWord)} },
     
     { Instruction::ADD,             {"ADD",            0} },
     { Instruction::SUB,             {"SUB",            0} },
@@ -96,9 +93,6 @@ const std::unordered_map<Instruction, std::pair<const char *, size_t>> INSTR_INF
 
     { Instruction::JMP,             {"JMP",            sizeof(QWord)} },
     { Instruction::JMPFALSE,        {"JMPFALSE",       sizeof(QWord)} },
-
-    { Instruction::LOADREF,         {"LOADREF",        0} },
-    { Instruction::SETREF,          {"SETREF",         0} },
 
     { Instruction::TYCAST,          {"TYCAST",         sizeof(DWord)} },
     
