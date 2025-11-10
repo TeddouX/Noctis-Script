@@ -14,9 +14,9 @@ Value ScriptContext::callCppFunction(DWord idx, const std::vector<Value> &args) 
     return globalFun.registryFun(args);
 }
 
-Value ScriptContext::callObjectNew(DWord objIdx) {
-    CPPObject &obj = cppObjects_[objIdx];
-    return obj.newFun();
+Value ScriptContext::callObjectNew(DWord objIdx, GarbageCollectedObj *obj) {
+    CPPObject &cppObj = cppObjects_[objIdx];
+    return cppObj.newFun(obj);
 }
 
 Value ScriptContext::callObjectMethod(DWord objIdx, DWord methodIdx, const std::vector<Value> &args) {

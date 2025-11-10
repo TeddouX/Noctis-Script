@@ -121,10 +121,13 @@ void VM::executeNext() {
                 return;
             }
             
+            GarbageCollectedObj *gcObj = obj.obj;
             if (isCPPObject(objTy))
                 push(ctx_->getObjectMember(idx, obj));
-            else
-                push(obj.obj->at(idx));
+            else {
+                auto members = static_cast<std::vector<Value> *>(gcObj->ptr);
+                push(members->at(idx));
+            }
 
             END_INSTR(sizeof(DWord) + 1);
         }
@@ -138,10 +141,12 @@ void VM::executeNext() {
                 return;
             }
 
+            GarbageCollectedObj *gcObj = obj.obj;
             if (isCPPObject(objTy))
                 push(ctx_->getObjectMember(idx, obj, /*asRef*/true));
             else {
-                Value &member = obj.obj->at(idx);
+                auto members = static_cast<std::vector<Value> *>(gcObj->ptr);
+                Value &member = members->at(idx);
                 push(makeReference(member));
             }
             
@@ -373,14 +378,6 @@ void VM::executeNext() {
             break;
         }
 
-        INSTR(CPPNEW): {
-            DWord objIdx = readWord<DWord>(bytecode, ip + 1);
-            
-            push(ctx_->callObjectNew(objIdx));
-
-            END_INSTR(1 + sizeof(DWord));
-        }
-
         INSTR(RET): {
             Value ret = pop();
             // Don't resize if its the first function pushed on the 
@@ -415,12 +412,27 @@ void VM::executeNext() {
             auto objVals = new std::vector<Value>;
             objVals->resize(scriptObj->getMemberCount());
 
+            GarbageCollectedObj *gcObj = garbageCollector_->allocateObj();
+            gcObj->ptr = objVals;
+            gcObj->isScriptObj = true;
+
             Value obj{
                 .ty = setMask((ValueType)idx, ValueType::OBJ_MASK),
-                .obj = objVals,
+                .obj = gcObj,
             };
 
             push(obj);
+
+            END_INSTR(1 + sizeof(DWord));
+        }
+
+        INSTR(CPPNEW): {
+            DWord objIdx = readWord<DWord>(bytecode, ip + 1);
+            
+            GarbageCollectedObj *gcObj = garbageCollector_->allocateObj();
+            gcObj->isScriptObj = false;
+            
+            push(ctx_->callObjectNew(objIdx, gcObj));
 
             END_INSTR(1 + sizeof(DWord));
         }
@@ -434,9 +446,11 @@ void VM::executeNext() {
     //     INSTR_INFO.at(instr).first, 
     //     sp_, 
     //     callStack_.empty() ? 0 : callStack_.back().bp);
-    // std::println("Stack: {}", getStackStrRepr());
+    std::println("Stack: {}", getStackStrRepr());
     // std::println("Globals: {}", getStackStrRepr(globalVariables_));
     // std::println();
+
+    garbageCollector_->gc(stack_);
 
 #undef INSTR
 #undef END_INSTR
@@ -519,6 +533,7 @@ bool VM::computeGlobals() {
 }
 
 bool VM::execute() {
+    garbageCollector_ = new GarbageCollector();
     executionFinished_ = false;
     hasError_ = false;
 
@@ -541,6 +556,10 @@ bool VM::execute() {
 
     executionFinished_ = true;
     return !hasError_;
+}
+
+void VM::cleanup() {
+    delete garbageCollector_;
 }
 
 std::string VM::getStackStrRepr() const {

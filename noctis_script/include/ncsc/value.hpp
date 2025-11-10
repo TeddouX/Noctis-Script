@@ -10,6 +10,15 @@
 namespace NCSC
 {
 
+struct GarbageCollectedObj {
+    void *ptr;
+    bool isScriptObj;
+    
+    // GC
+    bool marked;
+    std::vector<GarbageCollectedObj *> children;
+};
+
 class ScriptContext;
 
 struct NCSC_API Value {
@@ -30,10 +39,9 @@ struct NCSC_API Value {
 
         bool b;
 
-        std::vector<Value> *obj;
-        Value *ref;
+        GarbageCollectedObj *obj;
 
-        void *cppObj;
+        Value *ref;
         void *cppRef;
     };
 
@@ -78,17 +86,8 @@ struct NCSC_API Value {
             case ValueType::FLOAT64: f64  = *(float64_t *)val;  break;
             case ValueType::BOOL:    b    = *(bool *)val;       break;
 
-            default: break;
+            default: return;
         }
-
-        if (isScriptObject(ty))
-            obj = *(std::vector<Value> **)val;
-        else if (isCPPObject(ty))
-            cppObj = *(void **)val;
-        else if (isRef(ty))
-            ref = *(Value **)val;
-        else if (hasMask(ty, ValueType::CPP_REF_MASK))
-            cppRef = *(void **)val;
     }
 
     template <typename T>

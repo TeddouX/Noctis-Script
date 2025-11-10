@@ -32,7 +32,7 @@ struct CPPMember : public Member {
 class CPPObject : public Object {
 public:
     // Calls new(sizeof(Obj_))
-    std::function<Value (void)> newFun;
+    std::function<Value (GarbageCollectedObj *obj)> newFun;
     const std::type_info *classInfo;
 
     NCSC_GETTERS_SETTERS_FOR_NAMED_VECTOR(Method, methods_, CPPMethod)
@@ -83,7 +83,8 @@ public:
     // INTERNAL
     Value callCppFunction(DWord idx, const std::vector<Value> &args);
     // INTERNAL
-    Value callObjectNew(DWord objIdx);
+    // obj: default allocated GarbageCollectedObj from the garbage collector
+    Value callObjectNew(DWord objIdx, GarbageCollectedObj *obj);
     // INTERNAL
     Value callObjectMethod(DWord objIdx, DWord methodIdx, const std::vector<Value> &args);
     // INTERNAL
@@ -112,11 +113,18 @@ private:
     template <typename RetTy_, typename... FuncArgs_, size_t... I>
     Value callCPPFunction(RetTy_(*fun)(FuncArgs_...), const std::vector<Value> &args, std::index_sequence<I...>);
 
-    template <typename Obj_, typename... CtorArgs_, size_t... I>
-    Value callCPPCtor(const std::vector<Value> &args, std::index_sequence<I...>);
+    template <typename Obj_, typename... CtorArgs_, size_t FirstI_, size_t... I>
+    Value callCPPCtor(const std::vector<Value> &args, std::index_sequence<FirstI_, I...>);
 
-    template <typename Obj_, typename RetTy_, typename... MethodArgs_, size_t... I>
-    Value callCPPMethod(RetTy_ (Obj_::*method)(MethodArgs_...), const std::vector<Value> &args, std::index_sequence<I...>);
+    template <typename Obj_, 
+        typename RetTy_, 
+        typename... MethodArgs_, 
+        size_t FirstI_, // Skip first argument because its the object 
+        size_t... I>
+    Value callCPPMethod(
+        RetTy_ (Obj_::*method)(MethodArgs_...), 
+        const std::vector<Value> &args, 
+        std::index_sequence<FirstI_, I...>);
 
     template <typename Obj_, typename MemberTy_>
     Value getCPPMember(MemberTy_ Obj_::*member, const Value &arg, bool ref);
@@ -155,10 +163,10 @@ void ScriptContext::registerObject(const std::string &name) {
     obj.type = objType;
     obj.name = name;
     obj.classInfo = &typeid(Obj_);
-    obj.newFun = [objType](void) -> Value {
+    obj.newFun = [objType](GarbageCollectedObj *obj) -> Value {
         // Allocate raw memory for the object
-        void *obj = std::malloc(sizeof(Obj_));
-        return Value{ .ty = objType, .cppObj = obj };
+        obj->ptr = std::malloc(sizeof(Obj_));
+        return Value{ .ty = objType, .obj = obj };
     };
 
     cppObjects_.push_back(obj);
@@ -190,8 +198,8 @@ void ScriptContext::registerObjectCtor(bool isPublic) {
             if (!isCPPObject(args[0].ty)) 
                 return Value{};
 
-            void *cppObj = args[0].cppObj; 
-            cppObj = new(cppObj) Obj_();
+            // void *cppObj = args[0].cppObj; 
+            // cppObj = new(cppObj) Obj_();
             return args[0];
         };
     } else {
@@ -216,8 +224,11 @@ void ScriptContext::registerObjectMethod(const std::string &name, RetTy_ (Obj_::
     // + 1 because it takes a pointer to the actual object
     method.numParams = sizeof...(MethodArgs_) + 1;
     method.isPublic = isPublic;
-    method.registryFun = [this, methodPtr](const std::vector<Value> &args) -> Value {
-        return this->callCPPMethod(methodPtr, args, std::index_sequence_for<MethodArgs_...>{});
+    method.registryFun = [&](const std::vector<Value> &args) -> Value {
+        constexpr size_t methodArgsSize = sizeof...(MethodArgs_);
+        // Methods always take at least one argument, the object
+        constexpr size_t argsSize = methodArgsSize == 0 ? 1 : methodArgsSize;
+        return this->callCPPMethod(methodPtr, args, std::make_index_sequence<argsSize>{});
     };
 
     obj->addMethod(method);
@@ -254,37 +265,37 @@ Value ScriptContext::callCPPFunction(RetTy_(*fun)(FuncArgs_...), const std::vect
     }
 }
 
-template <typename Obj_, typename... CtorArgs_, size_t... I>
-Value ScriptContext::callCPPCtor(const std::vector<Value> &args, std::index_sequence<I...>) {
+template <typename Obj_, typename... CtorArgs_, size_t FirstI_, size_t... I>
+Value ScriptContext::callCPPCtor(const std::vector<Value> &args, std::index_sequence<FirstI_, I...>) {
     Value objArg = args[0];
     if (!isCPPObject(objArg.ty))
         return Value{};
 
     // Garbage memory for now
-    Obj_ *objPtr = static_cast<Obj_ *>(objArg.cppObj);
+    // Obj_ *objPtr = static_cast<Obj_ *>(objArg.cppObj);
 
-    objPtr = new(objPtr) Obj_(args[I].castTo<CtorArgs_>()...);
+    // objPtr = new(objPtr) Obj_(args[I].castTo<CtorArgs_>()...);
 
     return objArg;
 }
 
-template <typename Obj_, typename RetTy_, typename... MethodArgs_, size_t... I>
-Value ScriptContext::callCPPMethod(RetTy_ (Obj_::*method)(MethodArgs_...), const std::vector<Value> &args, std::index_sequence<I...>) {
+template <typename Obj_, typename RetTy_, typename... MethodArgs_, size_t FirstI_, size_t... I>
+Value ScriptContext::callCPPMethod(RetTy_ (Obj_::*method)(MethodArgs_...), const std::vector<Value> &args, std::index_sequence<FirstI_, I...>) {
     Value objArg = args[0];
     if (!isCPPObject(objArg.ty))
         return Value{};
 
-    Obj_ *objPtr = static_cast<Obj_ *>(objArg.cppObj);
+    // Obj_ *objPtr = static_cast<Obj_ *>(objArg.cppObj);
 
     // Discard the objArg
-    size_t idx = 1;
     if constexpr (std::is_void_v<RetTy_>) {
-        (objPtr->*method)(args[I].castTo<MethodArgs_>()...);
+        // (objPtr->*method)(args[I].castTo<MethodArgs_>()...);
         return Value{};
     } 
     else {
-        RetTy_ ret = (objPtr->*method)(args[++idx].castTo<MethodArgs_>()...);
-        return Value::fromLiteral(ret);
+        // RetTy_ ret = (objPtr->*method)(args[++idx].castTo<MethodArgs_>()...);
+        // return Value::fromLiteral(ret);
+        return Value{};
     }
 }
 
@@ -293,19 +304,21 @@ Value ScriptContext::getCPPMember(MemberTy_ Obj_::*member, const Value &arg, boo
     if (!isCPPObject(arg.ty))
         return Value{};
 
-    Obj_ *objPtr = static_cast<Obj_ *>(arg.cppObj);
+    // Obj_ *objPtr = static_cast<Obj_ *>(arg.cppObj);
 
-    if (ref) {
-        MemberTy_ *memberVal = &(objPtr->*member);
-        return Value {
-            .ty = setMask(valueTypeFromLiteral<MemberTy_>(*memberVal), ValueType::CPP_REF_MASK),
-            .cppRef = memberVal, 
-        };
-    }
-    else {
-        MemberTy_ memberVal = objPtr->*member;
-        return Value::fromLiteral(memberVal);
-    }
+    // if (ref) {
+    //     MemberTy_ *memberVal = &(objPtr->*member);
+    //     return Value {
+    //         .ty = setMask(valueTypeFromLiteral<MemberTy_>(*memberVal), ValueType::CPP_REF_MASK),
+    //         .cppRef = memberVal, 
+    //     };
+    // }
+    // else {
+    //     MemberTy_ memberVal = objPtr->*member;
+    //     return Value::fromLiteral(memberVal);
+    // }
+
+    return Value{};
 }
 
 template <typename Obj_>

@@ -133,9 +133,11 @@ std::string Value::getStrRepr(const ScriptContext *ctx) const {
             res = ctx->getTypeName(ty);
 
         if (isScriptObject(ty)) {
+            auto objVals = static_cast<std::vector<Value> *>(obj->ptr);
+
             res += "{ ";
-            for (size_t i = 0; i < obj->size(); i++) {
-                const Value& val = obj->at(i);
+            for (size_t i = 0; i < objVals->size(); i++) {
+                const Value& val = objVals->at(i);
 
                 if (isObject(ty) && ctx)
                     res += ctx->getTypeName(val.ty);
@@ -143,7 +145,7 @@ std::string Value::getStrRepr(const ScriptContext *ctx) const {
                 res += val.getStrRepr();
 
                 // Don't add a comma to the last value
-                if (i < obj->size() - 1)
+                if (i < objVals->size() - 1)
                     res += ", ";
             }
             res += " }";
@@ -186,8 +188,6 @@ Value Value::fromBytes(const std::vector<Byte> &bytes, size_t readOff, size_t &r
 }
 
 size_t Value::getSize() const {
-    if (isScriptObject(ty))
-        return obj->size();
     return sizeof(ValueType) + getValueTypeSize(ty);
 }
 

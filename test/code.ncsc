@@ -1,14 +1,6 @@
-obj TestObj {
-    pub Int i = 0;
-
-    pub TestObj() {}
-}
-
 obj Vec2 {
     pub Int x = 0;
     pub Int y = 0;
-
-    pub TestObj test = new TestObj();
 
     pub Vec2(Int x, Int y) {
         this.x = x;
@@ -16,26 +8,24 @@ obj Vec2 {
     }
 
     pub Int AddMembers() { return x + y; }
-    pub TestObj GetTest() { return test; }
 }
 
-fun Add(Int a, Int b) {
-    Int c = a + b;
+// 1 less than necessary to trigger the garbage collector
+fun FunctionThatCreates9Objects() {
+    Vec2 v1 = new Vec2(1,1);    
+    Vec2 v2 = new Vec2(1,1);    
+    Vec2 v3 = new Vec2(1,1);    
+    Vec2 v4 = new Vec2(1,1);    
+    Vec2 v5 = new Vec2(1,1);    
+    Vec2 v6 = new Vec2(1,1);    
+    Vec2 v7 = new Vec2(1,1);    
+    Vec2 v8 = new Vec2(1,1);    
+    Vec2 v9 = new Vec2(1,1);    
 }
 
 fun Main() {
-    // Vec2 v1 = new Vec2(10, 10);
-    // Vec2 v2 = v1;
-    // v2.x = 11;
-
-    // printHello(v1.x);
-
-    Vec3 v3 = new Vec3(10, 10, 10);
-    printHello(v3.x);
-
-    v3.x = 20;
-
-    printHello(v3.x);
-
-    printHello(v3.AddMembers()); 
+    FunctionThatCreates9Objects();
+    // Trigger the garbage collector
+    Vec2 v1 = new Vec2(1,1);
+    Vec2 v2 = new Vec2(1,1);
 }
