@@ -36,7 +36,7 @@ public:
 
     // Returns true on success
     template <typename... Args>
-    bool setArguments(Args ...args) {
+    bool setArguments(Args... args) {
         hasError_ = false;
 
         if (!currFun_) {

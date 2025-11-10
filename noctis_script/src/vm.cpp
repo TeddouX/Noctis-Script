@@ -13,6 +13,8 @@ static void setCPPRefVal(Value &cppRef, Value &val) {
     if (!hasMask(cppRef.ty, ValueType::CPP_REF_MASK))
         return;
 
+    // TODO: add check for equality of cppRef.ty & val.ty (macro)
+
     switch (clearMask(cppRef.ty, ValueType::CPP_REF_MASK)) {
         case ValueType::INT8:    *(int8_t *)cppRef.cppRef    = val.i8;   return;
         case ValueType::INT16:   *(int16_t *)cppRef.cppRef   = val.i16;  return;
@@ -456,8 +458,15 @@ void VM::prepareScriptFunction(const ScriptFunction *fun) {
 }
 
 Value VM::makeReference(Value &val) {
+    if (hasMask(val.ty, ValueType::CPP_REF_MASK)) {
+        return Value{
+            .ty = val.ty,
+            .cppRef = val.cppRef,
+        };
+    }
+
     bool isRef = NCSC::isRef(val.ty);
-    return Value {
+    return Value{
         .ty = setMask(val.ty, ValueType::REF_MASK),
         .ref = isRef ? val.ref : &val,
     };

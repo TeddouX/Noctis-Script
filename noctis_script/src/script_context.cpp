@@ -38,7 +38,11 @@ Value ScriptContext::getObjectMember(DWord idx, const Value &object, bool asRef)
     if (!cppObj) 
         return Value{};
 
-    return cppObj->getMember(idx)->registryFun(object, asRef);
+    auto *member = cppObj->getMember(idx);
+    if (!member)
+        return Value{};
+
+    return member->registryFun(object, asRef);
 }
 
 std::string ScriptContext::getTypeName(ValueType ty) const {

@@ -186,7 +186,7 @@ Value Value::fromBytes(const std::vector<Byte> &bytes, size_t readOff, size_t &r
 }
 
 size_t Value::getSize() const {
-    if (isObject(ty))
+    if (isScriptObject(ty))
         return obj->size();
     return sizeof(ValueType) + getValueTypeSize(ty);
 }
