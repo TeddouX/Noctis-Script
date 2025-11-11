@@ -159,6 +159,8 @@ int main() {
         std::println("\tNumber of allocations: {}", gcStats.numAllocations);
         std::println("\tNumber of minor garbage collections: {}", gcStats.numMinorGCs - gcStats.numMajorGCs);
         std::println("\tNumber of major garbage collections: {}", gcStats.numMajorGCs);
+
+        gc->cleanup();
     }
 
     return 0;

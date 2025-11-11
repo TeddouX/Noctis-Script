@@ -176,7 +176,13 @@ void ScriptContext::registerObject(const std::string &name) {
         return Value{ .ty = objType, .obj = obj };
     };
     obj.destructorFun = [](GarbageCollectorObj *obj) {
-        delete static_cast<Obj_ *>(obj->ptr);
+        if (!obj || !obj->ptr)
+            return;
+        
+        static_cast<Obj_ *>(obj->ptr)->~Obj_();
+        std::free(obj->ptr);
+        
+        obj->ptr = nullptr;
     };
 
     cppObjects_.push_back(obj);

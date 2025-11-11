@@ -989,7 +989,7 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
             return false;
         }
 
-        if (!isNumeric(vtype)) {
+        if (vtype != ValueType::VOID && !isNumeric(vtype)) {
             createCompileError(EXPECTED_NUMERIC_TYPE.format(ctx_->getTypeName(vtype)), exprTerm);
             return false;
         }
@@ -999,7 +999,11 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
 
     auto doPreIncDec = [&](TokenType op) -> bool {
         SymbolSearchRes sres = searchSymbol(exprValue.child(0).token().val);
-        if (!checkNotAssignableAndNumeric(sres.foundType))
+        if (sres.ty == SymbolSearchRes::INVALID) {
+            createCompileError(NOT_A_VAR, exprValue);
+            return false;
+        }
+        else if (!checkNotAssignableAndNumeric(sres.foundType))
             return false;
 
         // Get the value of the operand
@@ -1008,8 +1012,9 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
             emit(Instruction::INC);
         else
             emit(Instruction::DEC);
+        
         // Store the value back in the variable
-        compileStore(exprValue);
+        compileStore(exprTerm);
 
         if (expectedTy != ValueType::VOID)
             compileExpressionValue(exprValue, expectedTy, true);
@@ -1066,23 +1071,25 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
 
     // Helper for post ++ / --
     auto doPostIncDec = [&](TokenType op) -> bool {
-        // Caller expected a reference but an increment can't load that
-        if (checkNotAssignableAndNumeric(expectedTy)) {
-            createCompileError(EXP_MODIFIABLE_VALUE, exprTerm);
-            return false;
-        }
-
-        if (hasValOnStack && !isNumeric(lastTypeOnStack))
+        if (hasValOnStack && !checkNotAssignableAndNumeric(lastTypeOnStack))
             return false;
         else if (!hasValOnStack) {
             // Search for the operand
             SymbolSearchRes sres = searchSymbol(exprValue.child(0).token().val);
-            if (!isNumeric(sres.foundType))
+            if (sres.ty == SymbolSearchRes::INVALID) {
+                createCompileError(NOT_A_VAR, exprValue);
                 return false;
+            }
+            else if (!isNumeric(sres.foundType)) {
+                createCompileError(EXPECTED_NUMERIC_TYPE.format(ctx_->getTypeName(sres.foundType)), exprValue);
+                return false;
+            }
 
             // Load original value of the variable
             if (expectedTy != ValueType::VOID)
-                compileExpressionValue(exprValue, expectedTy, true);
+                compileExpressionValue(exprValue, lastTypeOnStack, true);
+
+            lastTypeOnStack = sres.foundType;
         }
         
         emit(Instruction::DUP);
@@ -1090,9 +1097,8 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
             emit(Instruction::INC);
         else
             emit(Instruction::DEC);
-        compileStore(exprValue);
-
-        lastTypeOnStack = expectedTy;
+        
+        compileStore(exprTerm);
 
         return true;
     };
@@ -1166,10 +1172,8 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
                     return;
                 }
 
-                if (hasMask(expectedTy, ValueType::REF_MASK) 
-                && !hasMask(method->returnTy, ValueType::REF_MASK)
                 // Objects are references
-                && !hasMask(method->returnTy, ValueType::OBJ_MASK)) {
+                if (shouldBeAssignable && !hasMask(method->returnTy, ValueType::OBJ_MASK)) {
                     createCompileError(EXP_MODIFIABLE_VALUE, postOp);
                     return;
                 }
@@ -1227,33 +1231,12 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
                     return;
                 }
 
-                bool wantRef = isRef(expectedTy);
-                // Check next post-operator
-                if (!isLastPostOp) {
-                    const auto &nextPostOp = exprTerm.child(childIdx + 1);
-                    const auto &nextPostOpChild = nextPostOp.child(0);
-
-                    switch (nextPostOpChild.type()) {
-                        // Increments and decrements need references to the previous value
-                        case ASTNodeType::TOKEN:
-                            wantRef = true;
-                            break;
-
-                        case ASTNodeType::IDENTIFIER:
-                        case ASTNodeType::FUNCTION_CALL:
-                            wantRef = false;
-                            break;
-
-                        default: break;
-                    }
-                }
-                
                 emit(Instruction::LOADMEMBER);
                 emit(sres.idx);
                 
                 hasValOnStack = true;
                 exprValue = postOpChild;
-                lastTypeOnStack = wantRef ? setMask(memberVar->type, ValueType::REF_MASK) : memberVar->type;
+                lastTypeOnStack = memberVar->type;
 
                 break;
             }
@@ -1707,35 +1690,45 @@ ValueType Compiler::getExpressionTermType(const ASTNode &exprTerm) {
 }
 
 void Compiler::compileStore(const ASTNode &varNode) {
-    assert(varNode.type() == ASTNodeType::EXPRESSION_TERM);
+    auto compileVariableStore = [&](const std::string &varName, bool store, ValueType &foundTy) -> bool {
+        SymbolSearchRes sres = searchSymbol(varName);
+        if (sres.ty != SymbolSearchRes::GLOBAL_VAR 
+            && sres.ty != SymbolSearchRes::LOCAL_VAR 
+            && sres.ty != SymbolSearchRes::MEMBER_VAR)
+            return false;
+        
+        if (sres.ty == SymbolSearchRes::GLOBAL_VAR)
+            emit(store ? Instruction::STOREGLOBAL : Instruction::LOADGLOBAL);
+        if (sres.ty == SymbolSearchRes::LOCAL_VAR)
+            emit(store ? Instruction::STORELOCAL : Instruction::LOADLOCAL);
+        if (sres.ty == SymbolSearchRes::MEMBER_VAR)
+            emit(store ? Instruction::STOREMEMBER : Instruction::LOADMEMBER);
+
+        emit(sres.idx);
+
+        foundTy = sres.foundType;
+
+        return true;
+    };
 
     ValueType lastTy = ValueType::INVALID;
+    if (varNode.type() == ASTNodeType::EXPRESSION_VALUE) {
+        compileVariableStore(varNode.child(0).token().val, /*store*/true, lastTy);
+        return;
+    }
+
     for (size_t i = 0; i < varNode.numChildren(); i++) {
         const auto &child = varNode.child(i);
         const auto &firstChild = child.child(0);
-        bool isLastChild = i + 1 >= varNode.numChildren();
+        bool isLastChild = i + 1 >= varNode.numChildren()
+            // Next post-op is a increment or a decrement
+            || varNode.child(i + 1).child(0).type() == ASTNodeType::TOKEN;
 
         // Variable
         if (child.type() == ASTNodeType::EXPRESSION_VALUE) {
-            const std::string &varName = firstChild.token().val;
-            SymbolSearchRes sres = searchSymbol(varName);
-            if (sres.ty != SymbolSearchRes::GLOBAL_VAR 
-             && sres.ty != SymbolSearchRes::LOCAL_VAR 
-             && sres.ty != SymbolSearchRes::MEMBER_VAR)
+            // Compile as a store only if its the last child
+            if (!compileVariableStore(firstChild.token().val, /*store*/isLastChild, lastTy))
                 return;
-            
-            if (sres.ty == SymbolSearchRes::GLOBAL_VAR)
-                emit(isLastChild ? Instruction::STOREGLOBAL : Instruction::LOADGLOBAL);
-            if (sres.ty == SymbolSearchRes::LOCAL_VAR)
-                emit(isLastChild ? Instruction::STORELOCAL : Instruction::LOADLOCAL);
-            if (sres.ty == SymbolSearchRes::MEMBER_VAR)
-                emit(isLastChild ? Instruction::STOREMEMBER : Instruction::LOADMEMBER);
-
-            emit(sres.idx);
-
-            if (isLastChild) break;
-
-            lastTy = sres.foundType;
         }
         else if (child.type() == ASTNodeType::EXPRESSION_POSTOP) {
             if (firstChild.type() == ASTNodeType::FUNCTION_CALL) {

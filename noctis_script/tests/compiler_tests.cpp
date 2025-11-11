@@ -170,3 +170,7 @@ TEST(CompilerTests, Variables) {
 TEST(CompilerTests, Functions) {
     ASSERT_CHECK_ERR_RES_OK("functions_compiler");
 }
+
+TEST(CompilerTests, IncsDecs) {
+    ASSERT_CHECK_ERR_RES_OK("incs_decs");
+}
