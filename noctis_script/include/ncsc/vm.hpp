@@ -108,7 +108,7 @@ private:
     Value pop();
     void push(const Value &val);
 
-    void error(const std::string &mess);
+    void error(std::string_view mess);
 
     void executeNext();
 

@@ -79,7 +79,7 @@ void VM::executeNext() {
             const ValueType objTy = obj.ty;
 
             if (!isObject(objTy)) {
-                error(std::string(TRYED_ACCESSING_MEMB_OF_INV_OB));
+                error(TRYED_ACCESSING_MEMB_OF_INV_OB);
                 return;
             }
             
@@ -99,13 +99,18 @@ void VM::executeNext() {
             const ValueType objTy = obj.ty;
 
             if (!isObject(objTy)) {
-                error(std::string(TRYED_ACCESSING_MEMB_OF_INV_OB));
+                error(TRYED_ACCESSING_MEMB_OF_INV_OB);
                 return;
             }
             
             if (isCPPObject(objTy))
                 ctx_->setObjectMember(idx, obj, val);
             else {
+                if (!obj.obj || !obj.obj->ptr) {
+                    error(TRYED_ACCESSING_MEMB_OF_INV_OB);
+                    return;
+                }
+
                 auto members = static_cast<std::vector<Value> *>(obj.obj->ptr);
                 members->at(idx) = val;
             }
@@ -151,7 +156,7 @@ void VM::executeNext() {
                 case ValueType::FLOAT32: a.f32 += 1.0f; break;
                 case ValueType::FLOAT64: a.f64 += 1.0; break;
 
-                default: error(std::string(CANT_INC_OR_DEC_NON_NUM));
+                default: error(CANT_INC_OR_DEC_NON_NUM);
             }
 #undef CASE_INC
 
@@ -178,7 +183,7 @@ void VM::executeNext() {
                 case ValueType::FLOAT32: a.f32 -= 1.0f; break;
                 case ValueType::FLOAT64: a.f64 -= 1.0; break;
 
-                default: error(std::string(CANT_INC_OR_DEC_NON_NUM));
+                default: error(CANT_INC_OR_DEC_NON_NUM);
             }
 #undef CASE_DEC
 
@@ -189,7 +194,7 @@ void VM::executeNext() {
         INSTR(NOT): {
             Value v = pop();
             if (v.ty != ValueType::BOOL) {
-                error(std::string(CANT_INVERT_NON_BOOLEAN));
+                error(CANT_INVERT_NON_BOOLEAN);
                 break;
             }
 
@@ -356,7 +361,7 @@ void VM::executeNext() {
         }
 
         default:
-            error(std::string(INVALID_OR_CORRUPTED_BC));
+            error(INVALID_OR_CORRUPTED_BC);
             break;
     }
 
@@ -415,7 +420,7 @@ void VM::prepareFunction(const ScriptFunction *fun) {
 
 bool VM::computeGlobals() {
     if (!script_) {
-        error(std::string(NO_SCRIPT_ATTACHED));
+        error(NO_SCRIPT_ATTACHED);
         return false;
     }
 
@@ -451,7 +456,7 @@ bool VM::execute() {
     hasError_ = false;
 
     if (!currFun_) {
-        error(std::string(NO_FUN_PREPD));
+        error(NO_FUN_PREPD);
         return false;
     }
 
@@ -495,14 +500,14 @@ std::string VM::getStackStrRepr() const {
 
 Value VM::pop() {
     if (sp_ - 1 == UINT64_MAX) {
-        error(std::string(STACK_UNDERFLOW_EMPTY));
+        error(STACK_UNDERFLOW_EMPTY);
         return Value{};
     }
 
     if (currFun_ && !callStack_.empty()) {
         size_t frameBase = callStack_.back().bp;
         if (sp_ - 1 <= frameBase) {
-            error(std::string(STACK_UNDERFLOW_STACK_FRAME));
+            error(STACK_UNDERFLOW_STACK_FRAME);
             return Value{};
         }
     }
@@ -514,7 +519,7 @@ Value VM::pop() {
 
 void VM::push(const Value &val) {
     if (sp_ >= stack_.size()) {
-        error(std::string(STACK_OVERFLOW));
+        error(STACK_OVERFLOW);
         return;
     }
 
@@ -522,12 +527,12 @@ void VM::push(const Value &val) {
     sp_++;
 }
 
-void VM::error(const std::string &mess) {
+void VM::error(std::string_view mess) {
     hasError_ = true;
 
     const CallFrame &lastFrame = callStack_.back();
     std::string location = std::format(" (in function '{}', bytecode location: {})", currFun_->name, lastFrame.ip);
-    lastError_ = mess + location;
+    lastError_ = std::string(mess) + location;
 }
 
 

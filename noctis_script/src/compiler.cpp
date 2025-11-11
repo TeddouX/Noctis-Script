@@ -368,7 +368,6 @@ size_t Compiler::computeRequiredStackSize(const std::vector<Byte> &bc) {
 
             case Instruction::STORELOCAL: 
             case Instruction::STOREGLOBAL: 
-            case Instruction::STOREMEMBER:
                 currSize--;
                 break;
             
@@ -382,6 +381,7 @@ size_t Compiler::computeRequiredStackSize(const std::vector<Byte> &bc) {
             case Instruction::CMPGE:
             case Instruction::CMPEQ:
             case Instruction::CMPNE:
+            case Instruction::STOREMEMBER:
                 currSize -= 2;
                 break;
 
@@ -1713,7 +1713,9 @@ ValueType Compiler::getExpressionTermType(const ASTNode &exprTerm) {
 }
 
 void Compiler::compileStore(const ASTNode &varNode) {
-    auto compileVariableStore = [&](const std::string &varName, bool store, ValueType &foundTy) -> bool {
+    ValueType lastTy = ValueType::INVALID;
+
+    auto compileVariableStore = [&](const std::string &varName, bool store) -> bool {
         SymbolSearchRes sres = searchSymbol(varName);
         if (sres.ty != SymbolSearchRes::GLOBAL_VAR 
             && sres.ty != SymbolSearchRes::LOCAL_VAR 
@@ -1733,14 +1735,13 @@ void Compiler::compileStore(const ASTNode &varNode) {
 
         emit(sres.idx);
 
-        foundTy = sres.foundType;
+        lastTy = sres.foundType;
 
         return true;
     };
 
-    ValueType lastTy = ValueType::INVALID;
     if (varNode.type() == ASTNodeType::EXPRESSION_VALUE) {
-        compileVariableStore(varNode.child(0).token().val, /*store*/true, lastTy);
+        compileVariableStore(varNode.child(0).token().val, /*store*/true);
         return;
     }
 
@@ -1758,7 +1759,7 @@ void Compiler::compileStore(const ASTNode &varNode) {
         // Variable
         if (child.type() == ASTNodeType::EXPRESSION_VALUE) {
             // Compile as a store only if its the last child
-            if (!compileVariableStore(firstChild.token().val, /*store*/isLastChild, lastTy))
+            if (!compileVariableStore(firstChild.token().val, /*store*/isLastChild))
                 return;
         }
         else if (child.type() == ASTNodeType::EXPRESSION_POSTOP) {
@@ -1796,6 +1797,8 @@ void Compiler::compileStore(const ASTNode &varNode) {
                 else
                     emit(Instruction::LOADMEMBER);
                 emit(sres.idx);
+
+                lastTy = sres.foundType;
             }
         }
     }
