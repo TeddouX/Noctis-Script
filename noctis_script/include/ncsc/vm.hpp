@@ -24,14 +24,13 @@ struct CallFrame {
 
 class NCSC_API VM {
 public:
-    explicit VM(std::shared_ptr<Script> script, GarbageCollector *gc = nullptr);
+    explicit VM(std::shared_ptr<Script> script, std::shared_ptr<GarbageCollector> gc = nullptr);
 
     bool computeGlobals();
 
     void prepareFunction(const ScriptFunction *fun);
     // Returns false if there was an error during execution
     bool execute();
-    void cleanup();
     std::string getStackStrRepr() const;
 
     const std::string &getLastError() { return lastError_; }
@@ -78,9 +77,16 @@ public:
     }
 
 private:
+    inline static GarbageCollectorConfig DEFAULT_GC_CONF_ {
+        .gcStartThreshold = 6,
+        .gcStartThresholhGrowthFactor = 2.f,
+        .majorGCTreshold = 3,
+        .majorGCThresholdGrowthFactor = 2.f,
+    };
+
     std::shared_ptr<Script> script_;
     const std::shared_ptr<ScriptContext> &ctx_; // script_'s ctx
-    GarbageCollector *garbageCollector_ = nullptr;
+    std::shared_ptr<GarbageCollector> garbageCollector_;
 
     const ScriptFunction *currFun_ = nullptr;
     

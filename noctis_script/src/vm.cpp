@@ -8,7 +8,7 @@ namespace NCSC
 {
 
 
-VM::VM(std::shared_ptr<Script> script, GarbageCollector *gc)
+VM::VM(std::shared_ptr<Script> script, std::shared_ptr<GarbageCollector> gc)
     : script_(script),
       ctx_(script->ctx),
       garbageCollector_(gc)
@@ -444,7 +444,7 @@ bool VM::computeGlobals() {
 
 bool VM::execute() {
     if (!garbageCollector_)
-        garbageCollector_ = new GarbageCollector(ctx_);
+        garbageCollector_ = std::make_shared<GarbageCollector>(ctx_, DEFAULT_GC_CONF_);
     
     executionFinished_ = false;
     hasError_ = false;
@@ -468,10 +468,6 @@ bool VM::execute() {
 
     executionFinished_ = true;
     return !hasError_;
-}
-
-void VM::cleanup() {
-    delete garbageCollector_;
 }
 
 std::string VM::getStackStrRepr() const {

@@ -11,12 +11,13 @@ namespace NCSC
 {
 
 struct GarbageCollectorObj {
-    void *ptr;
-    ValueType type; // Used by the GC at destruction
+    void *ptr = nullptr;
+    ValueType type = ValueType::INVALID; // Used by the GC at destruction
     
     // GC
-    bool marked;
+    bool marked = false;
     std::vector<GarbageCollectorObj *> children;
+    bool gen = (bool)0; // false nursery, true gen1
 };
 
 class ScriptContext;

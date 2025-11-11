@@ -130,7 +130,15 @@ int main() {
 
     const NCSC::ScriptFunction *fun = script->getFunction("Main");
     if (fun) {
-        NCSC::VM vm(script);
+        NCSC::GarbageCollectorConfig gcConf {
+            .gcStartThreshold = 6,
+            .gcStartThresholhGrowthFactor = 2.f,
+            .majorGCTreshold = 3,
+            .majorGCThresholdGrowthFactor = 2.f,
+        };
+        auto gc = std::make_shared<NCSC::GarbageCollector>(scriptCtx, gcConf);
+
+        NCSC::VM vm(script, gc);
         if (!vm.computeGlobals()) {
             std::println("{}", vm.getLastError());
             exit(EXIT_FAILURE);
@@ -146,8 +154,11 @@ int main() {
         std::println("Execution finished with stack:");
         std::println("{}", vm.getStackStrRepr());
 
-        vm.cleanup();
-        std::println("VM cleanup successful");
+        const NCSC::GarbageCollectorStats &gcStats = gc->getStats();
+        std::println("Garbage collector stats:");
+        std::println("\tNumber of allocations: {}", gcStats.numAllocations);
+        std::println("\tNumber of minor garbage collections: {}", gcStats.numMinorGCs - gcStats.numMajorGCs);
+        std::println("\tNumber of major garbage collections: {}", gcStats.numMajorGCs);
     }
 
     return 0;
