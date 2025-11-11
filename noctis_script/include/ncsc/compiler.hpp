@@ -158,7 +158,7 @@ private:
     void compileAssignment(const ASTNode &assignment);
     void compileExpressionValue(const ASTNode &exprVal, ValueType expectedTy, bool shouldBeAssignable);
     void compileConstructCall(const ASTNode &constructCall, ValueType expectedTy);
-    // Won't create compile errors
+    // Won't create compile errors, if storing into a member variable, the member should already have been compiled
     void compileStore(const ASTNode &varNode);
 
     // Naively try to find the type of an expression term

@@ -95,6 +95,7 @@ void VM::executeNext() {
         INSTR(STOREMEMBER): {
             DWord idx = readWord<DWord>(bytecode, ip + 1);
             Value obj = pop();
+            Value val = pop();
             const ValueType objTy = obj.ty;
 
             if (!isObject(objTy)) {
@@ -103,10 +104,10 @@ void VM::executeNext() {
             }
             
             if (isCPPObject(objTy))
-                ctx_->setObjectMember(idx, obj, pop());
+                ctx_->setObjectMember(idx, obj, val);
             else {
                 auto members = static_cast<std::vector<Value> *>(obj.obj->ptr);
-                members->at(idx) = pop();
+                members->at(idx) = val;
             }
 
             END_INSTR(sizeof(DWord) + 1);
@@ -359,11 +360,11 @@ void VM::executeNext() {
             break;
     }
 
-    // std::println("Instr: {} SP: {} BP: {}", 
-    //     INSTR_INFO.at(instr).first, 
-    //     sp_, 
-    //     callStack_.empty() ? 0 : callStack_.back().bp);
-    // std::println("Stack: {}", getStackStrRepr());
+    std::println("Instr: {} SP: {} BP: {}", 
+        INSTR_INFO.at(instr).first, 
+        sp_, 
+        callStack_.empty() ? 0 : callStack_.back().bp);
+    std::println("Stack: {}", getStackStrRepr());
     // std::println("Globals: {}", getStackStrRepr(globalVariables_));
     // std::println();
 
@@ -500,7 +501,7 @@ Value VM::pop() {
 
     if (currFun_ && !callStack_.empty()) {
         size_t frameBase = callStack_.back().bp;
-        if (sp_ < frameBase) {
+        if (sp_ - 1 <= frameBase) {
             error(std::string(STACK_UNDERFLOW_STACK_FRAME));
             return Value{};
         }

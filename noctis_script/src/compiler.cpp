@@ -1699,10 +1699,14 @@ void Compiler::compileStore(const ASTNode &varNode) {
         
         if (sres.ty == SymbolSearchRes::GLOBAL_VAR)
             emit(store ? Instruction::STOREGLOBAL : Instruction::LOADGLOBAL);
-        if (sres.ty == SymbolSearchRes::LOCAL_VAR)
+        else if (sres.ty == SymbolSearchRes::LOCAL_VAR)
             emit(store ? Instruction::STORELOCAL : Instruction::LOADLOCAL);
-        if (sres.ty == SymbolSearchRes::MEMBER_VAR)
+        else if (sres.ty == SymbolSearchRes::MEMBER_VAR) {
+            emit(Instruction::LOADLOCAL);
+            emit((DWord)0); // 'this'
+
             emit(store ? Instruction::STOREMEMBER : Instruction::LOADMEMBER);
+        }
 
         emit(sres.idx);
 

@@ -130,7 +130,7 @@ std::string Value::getStrRepr(const ScriptContext *ctx) const {
     else if (isObject(ty)) {
         std::string res;
         if (ctx)
-            res = ctx->getTypeName(ty);
+            res = std::format("{}@{}", ctx->getTypeName(ty), obj->ptr);
 
         if (isScriptObject(ty)) {
             auto objVals = static_cast<std::vector<Value> *>(obj->ptr);
@@ -138,11 +138,7 @@ std::string Value::getStrRepr(const ScriptContext *ctx) const {
             res += "{ ";
             for (size_t i = 0; i < objVals->size(); i++) {
                 const Value& val = objVals->at(i);
-
-                if (isObject(ty) && ctx)
-                    res += ctx->getTypeName(val.ty);
-
-                res += val.getStrRepr();
+                res += val.getStrRepr(ctx);
 
                 // Don't add a comma to the last value
                 if (i < objVals->size() - 1)
