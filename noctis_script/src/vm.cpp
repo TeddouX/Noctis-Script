@@ -7,42 +7,11 @@
 namespace NCSC
 {
 
-// Ignores everything and uses val.ty to cast cppRef.cppRef
-// Really unsafe, just pray to the gods of cpp that val is the same type as the reference
-static void setCPPRefVal(Value &cppRef, Value &val) {
-    if (!hasMask(cppRef.ty, ValueType::CPP_REF_MASK))
-        return;
 
-    // TODO: add check for equality of cppRef.ty & val.ty (macro)
-
-#define CHECK_TYPES_EQUAL() if (clearMask(cppRef.ty, ValueType::CPP_REF_MASK) != val.ty) return
-
-    switch (clearMask(cppRef.ty, ValueType::CPP_REF_MASK)) {
-        case ValueType::INT8:    CHECK_TYPES_EQUAL(); *(int8_t *)cppRef.cppRef    = val.i8;   return;
-        case ValueType::INT16:   CHECK_TYPES_EQUAL(); *(int16_t *)cppRef.cppRef   = val.i16;  return;
-        case ValueType::INT32:   CHECK_TYPES_EQUAL(); *(int32_t *)cppRef.cppRef   = val.i32;  return;
-        case ValueType::INT64:   CHECK_TYPES_EQUAL(); *(int64_t *)cppRef.cppRef   = val.i64;  return;
-
-        case ValueType::UINT8:   CHECK_TYPES_EQUAL(); *(uint8_t *)cppRef.cppRef   = val.ui8;  return;
-        case ValueType::UINT16:  CHECK_TYPES_EQUAL(); *(uint16_t *)cppRef.cppRef  = val.ui16; return;
-        case ValueType::UINT32:  CHECK_TYPES_EQUAL(); *(uint32_t *)cppRef.cppRef  = val.ui32; return;
-        case ValueType::UINT64:  CHECK_TYPES_EQUAL(); *(uint64_t *)cppRef.cppRef  = val.ui64; return;
-        
-        case ValueType::FLOAT32: CHECK_TYPES_EQUAL(); *(float32_t *)cppRef.cppRef = val.f32;  return;
-        case ValueType::FLOAT64: CHECK_TYPES_EQUAL(); *(float64_t *)cppRef.cppRef = val.f64;  return;
-        
-        case ValueType::BOOL:    CHECK_TYPES_EQUAL(); *(bool *)cppRef.cppRef      = val.b;    return;
-
-        default: break;
-    }
-
-#undef CHECK_TYPES_EQUAL
-}
-
-
-VM::VM(std::shared_ptr<Script> script)
+VM::VM(std::shared_ptr<Script> script, std::shared_ptr<GarbageCollector> gc)
     : script_(script),
-      ctx_(script->ctx)
+      ctx_(script->ctx),
+      garbageCollector_(gc)
 {
     globalVariables_.resize(script_->numGlobalVariables);
 }
@@ -89,26 +58,19 @@ void VM::executeNext() {
 
             END_INSTR(sizeof(DWord) + 1);
         }
-        INSTR(LOADLOCAL_REF): {
+        INSTR(STORELOCAL): {
             DWord idx = readWord<DWord>(bytecode, ip + 1);
-            Value &local = stack_[bp + idx];
-            push(makeReference(local));
-
-
+            stack_[bp + idx] = pop();
             END_INSTR(sizeof(DWord) + 1);
         }
         INSTR(LOADGLOBAL): {
             DWord idx = readWord<DWord>(bytecode, ip + 1);
             push(globalVariables_[idx]);
-            
             END_INSTR(sizeof(DWord) + 1);
         }
-        INSTR(LOADGLOBAL_REF): {
+        INSTR(STOREGLOBAL): {
             DWord idx = readWord<DWord>(bytecode, ip + 1);
-            Value &global = globalVariables_[idx];
-            
-            push(makeReference(global));
-            
+            globalVariables_[idx] = pop();
             END_INSTR(sizeof(DWord) + 1);
         }
         INSTR(LOADMEMBER): {
@@ -117,34 +79,42 @@ void VM::executeNext() {
             const ValueType objTy = obj.ty;
 
             if (!isObject(objTy)) {
-                error(std::string(TRYED_ACCESSING_MEMB_OF_INV_OB));
+                error(TRYED_ACCESSING_MEMB_OF_INV_OB);
                 return;
             }
             
             if (isCPPObject(objTy))
                 push(ctx_->getObjectMember(idx, obj));
-            else
-                push(obj.obj->at(idx));
+            else {
+                auto members = static_cast<std::vector<Value> *>(obj.obj->ptr);
+                push(members->at(idx));
+            }
 
             END_INSTR(sizeof(DWord) + 1);
         }
-        INSTR(LOADMEMBER_REF): {
+        INSTR(STOREMEMBER): {
             DWord idx = readWord<DWord>(bytecode, ip + 1);
             Value obj = pop();
+            Value val = pop();
             const ValueType objTy = obj.ty;
 
             if (!isObject(objTy)) {
-                error(std::string(TRYED_ACCESSING_MEMB_OF_INV_OB));
+                error(TRYED_ACCESSING_MEMB_OF_INV_OB);
                 return;
             }
-
-            if (isCPPObject(objTy))
-                push(ctx_->getObjectMember(idx, obj, /*asRef*/true));
-            else {
-                Value &member = obj.obj->at(idx);
-                push(makeReference(member));
-            }
             
+            if (isCPPObject(objTy))
+                ctx_->setObjectMember(idx, obj, val);
+            else {
+                if (!obj.obj || !obj.obj->ptr) {
+                    error(TRYED_ACCESSING_MEMB_OF_INV_OB);
+                    return;
+                }
+
+                auto members = static_cast<std::vector<Value> *>(obj.obj->ptr);
+                members->at(idx) = val;
+            }
+
             END_INSTR(sizeof(DWord) + 1);
         }
 
@@ -186,7 +156,7 @@ void VM::executeNext() {
                 case ValueType::FLOAT32: a.f32 += 1.0f; break;
                 case ValueType::FLOAT64: a.f64 += 1.0; break;
 
-                default: error(std::string(CANT_INC_OR_DEC_NON_NUM));
+                default: error(CANT_INC_OR_DEC_NON_NUM);
             }
 #undef CASE_INC
 
@@ -213,7 +183,7 @@ void VM::executeNext() {
                 case ValueType::FLOAT32: a.f32 -= 1.0f; break;
                 case ValueType::FLOAT64: a.f64 -= 1.0; break;
 
-                default: error(std::string(CANT_INC_OR_DEC_NON_NUM));
+                default: error(CANT_INC_OR_DEC_NON_NUM);
             }
 #undef CASE_DEC
 
@@ -224,7 +194,7 @@ void VM::executeNext() {
         INSTR(NOT): {
             Value v = pop();
             if (v.ty != ValueType::BOOL) {
-                error(std::string(CANT_INVERT_NON_BOOLEAN));
+                error(CANT_INVERT_NON_BOOLEAN);
                 break;
             }
 
@@ -245,46 +215,6 @@ void VM::executeNext() {
                 END_INSTR(0);
             } else
                 END_INSTR(1 + sizeof(QWord));
-        }
-        
-        INSTR(LOADREF): {
-            Value valRef = pop();
-            ValueType valRefTy = valRef.ty;
-            if (isRef(valRefTy))
-                push(*valRef.ref);
-            else if (hasMask(valRefTy, ValueType::CPP_REF_MASK)) {
-                Value val{};
-                val.setProperty(valRef.cppRef, clearMask(valRefTy, ValueType::CPP_REF_MASK));
-                push(val);
-            }
-            else {
-                error(std::string(TRIED_ACCESSING_VAL_OF_INVALID_REF));
-                break;
-            }
-
-            END_INSTR(1);
-        }
-        INSTR(SETREF): {
-            Value val = pop();
-            Value ref = pop();
-
-            if (isObject(ref.ty) && isObject(val.ty)
-             && ref.ty == val.ty) {
-                // Order is reversed for setting objects
-                *ref.obj = *val.obj;
-            }
-            else {
-                if (isRef(ref.ty))
-                    *ref.ref = val;
-                else if (hasMask(ref.ty, ValueType::CPP_REF_MASK))
-                    setCPPRefVal(ref, val);
-                else {
-                    error(std::string(TRYED_SETTING_VAL_OF_INVALID_REF));
-                    break;
-                }
-            }
-
-            END_INSTR(1);
         }
 
         INSTR(TYCAST): {
@@ -373,14 +303,6 @@ void VM::executeNext() {
             break;
         }
 
-        INSTR(CPPNEW): {
-            DWord objIdx = readWord<DWord>(bytecode, ip + 1);
-            
-            push(ctx_->callObjectNew(objIdx));
-
-            END_INSTR(1 + sizeof(DWord));
-        }
-
         INSTR(RET): {
             Value ret = pop();
             // Don't resize if its the first function pushed on the 
@@ -415,9 +337,13 @@ void VM::executeNext() {
             auto objVals = new std::vector<Value>;
             objVals->resize(scriptObj->getMemberCount());
 
+            GarbageCollectorObj *gcObj = garbageCollector_->allocateObj();
+            gcObj->ptr = objVals;
+            gcObj->type = scriptObj->type;
+
             Value obj{
                 .ty = setMask((ValueType)idx, ValueType::OBJ_MASK),
-                .obj = objVals,
+                .obj = gcObj,
             };
 
             push(obj);
@@ -425,8 +351,17 @@ void VM::executeNext() {
             END_INSTR(1 + sizeof(DWord));
         }
 
+        INSTR(CPPNEW): {
+            DWord objIdx = readWord<DWord>(bytecode, ip + 1);
+            
+            GarbageCollectorObj *gcObj = garbageCollector_->allocateObj();
+            push(ctx_->callObjectNew(objIdx, gcObj));
+
+            END_INSTR(1 + sizeof(DWord));
+        }
+
         default:
-            error(std::string(INVALID_OR_CORRUPTED_BC));
+            error(INVALID_OR_CORRUPTED_BC);
             break;
     }
 
@@ -437,6 +372,8 @@ void VM::executeNext() {
     // std::println("Stack: {}", getStackStrRepr());
     // std::println("Globals: {}", getStackStrRepr(globalVariables_));
     // std::println();
+
+    garbageCollector_->gc(stack_);
 
 #undef INSTR
 #undef END_INSTR
@@ -462,13 +399,6 @@ void VM::prepareScriptFunction(const ScriptFunction *fun) {
 }
 
 Value VM::makeReference(Value &val) {
-    if (hasMask(val.ty, ValueType::CPP_REF_MASK)) {
-        return Value{
-            .ty = val.ty,
-            .cppRef = val.cppRef,
-        };
-    }
-
     bool isRef = NCSC::isRef(val.ty);
     return Value{
         .ty = setMask(val.ty, ValueType::REF_MASK),
@@ -490,7 +420,7 @@ void VM::prepareFunction(const ScriptFunction *fun) {
 
 bool VM::computeGlobals() {
     if (!script_) {
-        error(std::string(NO_SCRIPT_ATTACHED));
+        error(NO_SCRIPT_ATTACHED);
         return false;
     }
 
@@ -519,11 +449,14 @@ bool VM::computeGlobals() {
 }
 
 bool VM::execute() {
+    if (!garbageCollector_)
+        garbageCollector_ = std::make_shared<GarbageCollector>(ctx_, DEFAULT_GC_CONF_);
+    
     executionFinished_ = false;
     hasError_ = false;
 
     if (!currFun_) {
-        error(std::string(NO_FUN_PREPD));
+        error(NO_FUN_PREPD);
         return false;
     }
 
@@ -567,14 +500,14 @@ std::string VM::getStackStrRepr() const {
 
 Value VM::pop() {
     if (sp_ - 1 == UINT64_MAX) {
-        error(std::string(STACK_UNDERFLOW_EMPTY));
+        error(STACK_UNDERFLOW_EMPTY);
         return Value{};
     }
 
     if (currFun_ && !callStack_.empty()) {
         size_t frameBase = callStack_.back().bp;
-        if (sp_ < frameBase) {
-            error(std::string(STACK_UNDERFLOW_STACK_FRAME));
+        if (sp_ - 1 <= frameBase) {
+            error(STACK_UNDERFLOW_STACK_FRAME);
             return Value{};
         }
     }
@@ -586,7 +519,7 @@ Value VM::pop() {
 
 void VM::push(const Value &val) {
     if (sp_ >= stack_.size()) {
-        error(std::string(STACK_OVERFLOW));
+        error(STACK_OVERFLOW);
         return;
     }
 
@@ -594,12 +527,12 @@ void VM::push(const Value &val) {
     sp_++;
 }
 
-void VM::error(const std::string &mess) {
+void VM::error(std::string_view mess) {
     hasError_ = true;
 
     const CallFrame &lastFrame = callStack_.back();
     std::string location = std::format(" (in function '{}', bytecode location: {})", currFun_->name, lastFrame.ip);
-    lastError_ = mess + location;
+    lastError_ = std::string(mess) + location;
 }
 
 

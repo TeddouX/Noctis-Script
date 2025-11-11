@@ -28,12 +28,16 @@ public:
         std::println("Vec3 got constructed!");
     }
 
+    ~Vec3() {
+        std::println("Vec3 got destroyed");
+    }
+
     int x = 0;
     int y = 0;
     int z = 0;
 
     int addMembers() { 
-        std::println("Members got added!");
+        std::println("Members got added! ({} + {} + {})", x, y, z);
         return x + y + z; 
     }
 };
@@ -56,7 +60,7 @@ int main() {
     auto tokens = NCSC::Lexer(src).tokenizeAll();
     NCSC::Parser parser(tokens, src);
     auto rootNode = parser.parseAll();
-    // std::println("{}", rootNode.getStrRepr());
+    std::println("{}", rootNode.getStrRepr());
     if (parser.hasErrors()) {
         for (auto error : parser.getErrors()) 
             std::println("{}", error.getErrorMessage());
@@ -126,7 +130,15 @@ int main() {
 
     const NCSC::ScriptFunction *fun = script->getFunction("Main");
     if (fun) {
-        NCSC::VM vm(script);
+        NCSC::GarbageCollectorConfig gcConf {
+            .gcStartThreshold = 6,
+            .gcStartThresholhGrowthFactor = 2.f,
+            .majorGCTreshold = 3,
+            .majorGCThresholdGrowthFactor = 2.f,
+        };
+        auto gc = std::make_shared<NCSC::GarbageCollector>(scriptCtx, gcConf);
+
+        NCSC::VM vm(script, gc);
         if (!vm.computeGlobals()) {
             std::println("{}", vm.getLastError());
             exit(EXIT_FAILURE);
@@ -139,7 +151,16 @@ int main() {
             exit(EXIT_FAILURE);
         }
         
+        std::println("Execution finished with stack:");
         std::println("{}", vm.getStackStrRepr());
+
+        const NCSC::GarbageCollectorStats &gcStats = gc->getStats();
+        std::println("Garbage collector stats:");
+        std::println("\tNumber of allocations: {}", gcStats.numAllocations);
+        std::println("\tNumber of minor garbage collections: {}", gcStats.numMinorGCs - gcStats.numMajorGCs);
+        std::println("\tNumber of major garbage collections: {}", gcStats.numMajorGCs);
+
+        gc->cleanup();
     }
 
     return 0;

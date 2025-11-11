@@ -12,6 +12,7 @@ set(NCSC_SOURCES
     "include/ncsc/compiler.hpp"
     "include/ncsc/error.hpp"
     "include/ncsc/function.hpp"
+    "include/ncsc/garbage_collector.hpp"
     "include/ncsc/instructions.hpp"
     "include/ncsc/lexer.hpp"
     "include/ncsc/ncsc.hpp"
@@ -34,6 +35,7 @@ set(NCSC_SOURCES
     # -------------------
     "src/compiler.cpp"
     "src/error.cpp"
+    "src/garbage_collector.cpp"
     "src/instructions.cpp"
     "src/lexer.cpp"
     "src/optimizer.cpp"

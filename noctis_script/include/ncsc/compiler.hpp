@@ -146,8 +146,8 @@ private:
     void compileConstantPush(const ASTNode &constant, ValueType expectedType);
     void compileOperator(const ASTNode &op, ValueType expectedType);
     void compileExpression(const ASTNode &expr, ValueType expectedType = ValueType::VOID);
-    void recursivelyCompileExpression(const ASTNode &exprChild, ValueType expectedType);
-    void compileExpressionTerm(const ASTNode &exprTerm, ValueType expectedType = ValueType::VOID);
+    void recursivelyCompileExpression(const ASTNode &exprChild, ValueType expectedType, bool shouldBeAssignable = false);
+    void compileExpressionTerm(const ASTNode &exprTerm, ValueType expectedType = ValueType::VOID, bool shouldBeAssignable = false);
     void compileStatementBlock(const ASTNode &stmtBlock);
     void compileFunctionCall(const ASTNode &funCall, ValueType expectedType);
     void compileReturn(const ASTNode &ret);
@@ -156,15 +156,16 @@ private:
     void compileIfStatement(const ASTNode &ifStmt, int nestedCount = 1);
     void compileJmpBcPatch(size_t patchLoc, Instruction jmpInstr, size_t jmpLoc);
     void compileAssignment(const ASTNode &assignment);
-    void compileExpressionPreOp(const ASTNode &preOp, const ASTNode &operand, ValueType expectedTy);
-    void compileExpressionValue(const ASTNode &exprVal, ValueType expectedTy);
+    void compileExpressionValue(const ASTNode &exprVal, ValueType expectedTy, bool shouldBeAssignable);
     void compileConstructCall(const ASTNode &constructCall, ValueType expectedTy);
-
-    bool checkVTypeIsNumricAndModifiable(ValueType vtype, const ASTNode &errNode);
+    // Won't create compile errors, if storing into a member variable, the member should already have been compiled
+    void compileStore(const ASTNode &varNode);
 
     // Naively try to find the type of an expression term
     // Won't create a compileError if one is encountered
     ValueType getExpressionTermType(const ASTNode &exprTerm);
+
+    Object *getValueTypeAsObject(ValueType type, bool &isScriptObj, DWord &idx);
 
     inline static ErrInfo CANT_FIND_FUNCTION_NAMED      { "Compilation error", "C", 0,  "Can't find function named '{}'" };
     inline static ErrInfo CANT_FIND_VAR_NAMED           { "Compilation error", "C", 1,  "Can't find variable named '{}'" };
@@ -195,6 +196,7 @@ private:
     inline static ErrInfo NOT_A_METHOD                  { "Compilation error", "C", 26, "Not a method of {}" };
     inline static ErrInfo DIV_ALWAYS_RETS_A_F64         { "Compilation error", "C", 27, "Division always results in a 'Float64', which can't be converted to '{}'" };
     inline static ErrInfo NOT_A_CTOR                    { "Compilation error", "C", 28, "Not a constructor of {}" };
+    inline static ErrInfo EXPECTED_ASSIGNABLE_TERM      { "Compilation error", "C", 29, "Expected an assignable term" };
 };
 
 } // namespace NCSC

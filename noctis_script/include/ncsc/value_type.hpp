@@ -30,7 +30,6 @@ enum class ValueType : VTypeWord {
 
     BOOL,
 
-    CPP_REF_MASK = (VTypeWord)1 << 28,
     REF_MASK     = (VTypeWord)1 << 29,
     OBJ_MASK     = (VTypeWord)1 << 30,
     CPP_OBJ_MASK = (VTypeWord)1 << 31,

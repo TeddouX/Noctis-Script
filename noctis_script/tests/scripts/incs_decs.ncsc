@@ -1,0 +1,31 @@
+obj Object {
+    pub Int val = 0;
+
+    pub Object() {}
+}
+
+fun TestSuccess() {
+    Int a = 1;
+    Float b = 1.2;
+ 
+    a++;
+    b--;
+    --a;
+    ++b;
+
+    Object object = new Object();
+    object.val++;
+}
+
+fun TestFailC15() {
+    Bool b = false;
+    b++;
+}
+
+fun TestFailC17_1() {
+    1++;
+}
+
+fun TestFailC17_2() {
+    --1;
+}

@@ -4,6 +4,7 @@
 #include "function.hpp"
 #include "script.hpp"
 #include "value.hpp"
+#include "garbage_collector.hpp"
 
 #include <memory>
 #include <deque>
@@ -23,7 +24,7 @@ struct CallFrame {
 
 class NCSC_API VM {
 public:
-    explicit VM(std::shared_ptr<Script> script);
+    explicit VM(std::shared_ptr<Script> script, std::shared_ptr<GarbageCollector> gc = nullptr);
 
     bool computeGlobals();
 
@@ -76,8 +77,16 @@ public:
     }
 
 private:
+    inline static GarbageCollectorConfig DEFAULT_GC_CONF_ {
+        .gcStartThreshold = 6,
+        .gcStartThresholhGrowthFactor = 2.f,
+        .majorGCTreshold = 3,
+        .majorGCThresholdGrowthFactor = 2.f,
+    };
+
     std::shared_ptr<Script> script_;
     const std::shared_ptr<ScriptContext> &ctx_; // script_'s ctx
+    std::shared_ptr<GarbageCollector> garbageCollector_;
 
     const ScriptFunction *currFun_ = nullptr;
     
@@ -99,7 +108,7 @@ private:
     Value pop();
     void push(const Value &val);
 
-    void error(const std::string &mess);
+    void error(std::string_view mess);
 
     void executeNext();
 
