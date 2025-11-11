@@ -9,12 +9,17 @@ fun TestSuccess() {
     Float b = 1.2;
  
     a++;
-    b++;
+    b--;
     --a;
-    --b;
+    ++b;
 
     Object object = new Object();
     object.val++;
+}
+
+fun TestFailC15() {
+    Bool b = false;
+    b++;
 }
 
 fun TestFailC17_1() {
@@ -23,9 +28,4 @@ fun TestFailC17_1() {
 
 fun TestFailC17_2() {
     --1;
-}
-
-fun TestFailC15() {
-    Bool b = false;
-    b++;
 }

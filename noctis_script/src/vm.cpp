@@ -360,11 +360,11 @@ void VM::executeNext() {
             break;
     }
 
-    std::println("Instr: {} SP: {} BP: {}", 
-        INSTR_INFO.at(instr).first, 
-        sp_, 
-        callStack_.empty() ? 0 : callStack_.back().bp);
-    std::println("Stack: {}", getStackStrRepr());
+    // std::println("Instr: {} SP: {} BP: {}", 
+    //     INSTR_INFO.at(instr).first, 
+    //     sp_, 
+    //     callStack_.empty() ? 0 : callStack_.back().bp);
+    // std::println("Stack: {}", getStackStrRepr());
     // std::println("Globals: {}", getStackStrRepr(globalVariables_));
     // std::println();
 

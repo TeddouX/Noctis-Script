@@ -978,6 +978,8 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
     // Pre-ops and post-ops will push the required value on the stack
     // If an expression term has none (constant, ...), pushing the value is necessary
     bool hasValOnStack = false;
+    bool valOnStackModifiable = true;
+    ValueType lastTypeOnStack = ValueType::INVALID;
 
     // -------------------------
     // HELPERS FOR PRE-OPERATORS
@@ -991,6 +993,11 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
 
         if (vtype != ValueType::VOID && !isNumeric(vtype)) {
             createCompileError(EXPECTED_NUMERIC_TYPE.format(ctx_->getTypeName(vtype)), exprTerm);
+            return false;
+        }
+
+        if (!valOnStackModifiable) {
+            createCompileError(EXP_MODIFIABLE_VALUE, exprTerm);
             return false;
         }
 
@@ -1008,6 +1015,7 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
 
         // Get the value of the operand
         compileExpressionValue(exprValue, expectedTy, true);
+        
         if (op == TokenType::PLUS_PLUS) 
             emit(Instruction::INC);
         else
@@ -1018,6 +1026,8 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
 
         if (expectedTy != ValueType::VOID)
             compileExpressionValue(exprValue, expectedTy, true);
+
+        lastTypeOnStack = sres.foundType;
 
         return true;
     };
@@ -1052,8 +1062,11 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
 
                 default: break;
             }
+            
             childIdx++;
+
             hasValOnStack = true;
+            valOnStackModifiable = false;
         } else 
             break;
     }
@@ -1063,7 +1076,6 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
         return;
     childIdx++;
 
-    ValueType lastTypeOnStack = ValueType::INVALID;
 
     // --------------------------
     // HELPERS FOR POST-OPERATORS
@@ -1086,19 +1098,25 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
             }
 
             // Load original value of the variable
-            if (expectedTy != ValueType::VOID)
-                compileExpressionValue(exprValue, lastTypeOnStack, true);
+            compileExpressionValue(exprValue, ValueType::VOID, true);
 
             lastTypeOnStack = sres.foundType;
         }
         
-        emit(Instruction::DUP);
+        // One for the increment and store and another one left on the stack, 
+        // if the caller expects a value
+        if (expectedTy != ValueType::VOID)
+            emit(Instruction::DUP);
+
         if (op == TokenType::PLUS_PLUS) 
             emit(Instruction::INC);
         else
             emit(Instruction::DEC);
         
         compileStore(exprTerm);
+
+        hasValOnStack = true;
+        valOnStackModifiable = false;
 
         return true;
     };
@@ -1107,6 +1125,11 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
     // - If the last value is invalid, calls compileExpressionValue(exprValue, ValueType::VOID);
     // and sets lastTypeOnStack accordingly
     auto checkLastValIsObj = [&]() -> bool {
+        if (!valOnStackModifiable) {
+            createCompileError(EXP_MODIFIABLE_VALUE, exprTerm);
+            return false;
+        }
+
         if (hasValOnStack && !isObject(lastTypeOnStack)) {
             createCompileError(TY_IS_NOT_AN_OBJECT.format(ctx_->getTypeName(lastTypeOnStack)), exprValue);
             return false;
