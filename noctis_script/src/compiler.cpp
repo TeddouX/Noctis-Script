@@ -1723,6 +1723,10 @@ void Compiler::compileStore(const ASTNode &varNode) {
 
     for (size_t i = 0; i < varNode.numChildren(); i++) {
         const auto &child = varNode.child(i);
+        // Skip pre-ops
+        if (!child.hasChildren()) 
+            continue;
+        
         const auto &firstChild = child.child(0);
         bool isLastChild = i + 1 >= varNode.numChildren()
             // Next post-op is a increment or a decrement
