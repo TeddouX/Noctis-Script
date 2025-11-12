@@ -134,23 +134,28 @@ Token &Parser::peek(int amount) {
 
 int Parser::getOperatorPrecedence(const Token &tok) {
     switch (tok.type) {
+        case TokenType::LOGICAL_AND:
+            return 1;
+        case TokenType::LOGICAL_OR:
+            return 2;
+        
         case TokenType::PLUS:
         case TokenType::MINUS:
-            return 1;
+            return 3;
         case TokenType::STAR:
         case TokenType::SLASH:
-            return 2;
+            return 4;
         // Relative comparisons
         case TokenType::STRICTLY_SMALLER:
         case TokenType::SMALLER_EQUAL:
         case TokenType::STRICTLY_BIGGER:
         case TokenType::BIGGER_EQUAL:
-            return 3;
+            return 5;
         // Equality comparisons
         case TokenType::DOUBLE_EQUAL:
         case TokenType::NOT_EQUAL:
-            return 4;
-
+            return 6;
+        
         default: break;
     }
 
@@ -810,6 +815,8 @@ bool isOperator(TokenType type) {
         case TokenType::NOT_EQUAL:
         case TokenType::STRICTLY_BIGGER:
         case TokenType::STRICTLY_SMALLER:
+        case TokenType::LOGICAL_AND:
+        case TokenType::LOGICAL_OR:
             return true;
         default:
             return false;

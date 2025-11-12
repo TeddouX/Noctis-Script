@@ -41,6 +41,12 @@ enum class TokenType : uint8_t {
     BIGGER_EQUAL,  // >=
     SMALLER_EQUAL, // <=
 
+    LOGICAL_AND, // &&
+    LOGICAL_OR,  // ||
+
+    BITWISE_AND, // &
+    BITWISE_OR,  // |
+
     SEMICOLON, // ;
     DOT,       // .
     COMMA,     // ,
@@ -112,6 +118,12 @@ const std::unordered_map<std::string, TokenType> tokensStringToTok = {
     { "!=",         TokenType::NOT_EQUAL, },
     { ">=",         TokenType::BIGGER_EQUAL, },
     { "<=",         TokenType::SMALLER_EQUAL, },
+    
+    { "&&",         TokenType::LOGICAL_AND, },
+    { "||",         TokenType::LOGICAL_OR, },
+
+    { "&",          TokenType::BITWISE_AND, },
+    { "|",          TokenType::BITWISE_OR, },
 
     { "=",          TokenType::EQUAL },
     { "+=",         TokenType::PLUS_EQUAL },

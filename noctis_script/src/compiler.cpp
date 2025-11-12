@@ -909,9 +909,6 @@ void Compiler::compileConstantPush(const ASTNode &constant, ValueType expectedTy
         }
     } else if (constTokTy == TokenType::INT_CONSTANT) {
         switch(expectedType) {
-            // Bools are ints
-            case ValueType::BOOL:    emitIntConstant<int8_t>(constTokVal, constant, ValueType::BOOL);     break;
-            
             case ValueType::INT8:    emitIntConstant<int8_t>(constTokVal, constant, ValueType::INT8);     break;
             case ValueType::INT16:   emitIntConstant<int16_t>(constTokVal, constant, ValueType::INT16);   break;
             // If a float is expected for the expression, we can safely emit an int

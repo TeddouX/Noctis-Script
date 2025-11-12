@@ -193,6 +193,9 @@ std::unique_ptr<Token> Lexer::getCurrent() {
         case '>': return matchOptional('=', TokenType::STRICTLY_BIGGER, TokenType::BIGGER_EQUAL);
         case '<': return matchOptional('=', TokenType::STRICTLY_SMALLER, TokenType::SMALLER_EQUAL);
         case '!': return matchOptional('=', TokenType::NOT, TokenType::NOT_EQUAL);
+
+        case '&': return matchOptional('&', TokenType::BITWISE_AND, TokenType::LOGICAL_AND);
+        case '|': return matchOptional('|', TokenType::BITWISE_OR, TokenType::LOGICAL_OR);
     }
 
     advance();
