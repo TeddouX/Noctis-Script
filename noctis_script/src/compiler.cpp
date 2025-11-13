@@ -840,40 +840,87 @@ void Compiler::compileExpression(const ASTNode &expr, ValueType expectedType) {
 }
 
 void Compiler::recursivelyCompileExpression(const ASTNode &exprChild, ValueType expectedType, bool shouldBeAssignable) {
-    if (exprChild.type() == ASTNodeType::BINOP) {
-        recursivelyCompileExpression(exprChild.child(1), expectedType);
-        recursivelyCompileExpression(exprChild.child(0), expectedType);
-        compileOperator(exprChild, expectedType);
-    } else if (exprChild.type() == ASTNodeType::EXPRESSION_TERM) {
+    if (exprChild.type() == ASTNodeType::BINOP)
+        compileBinaryOp(exprChild, expectedType);
+    else if (exprChild.type() == ASTNodeType::EXPRESSION_TERM)
         compileExpressionTerm(exprChild, expectedType, shouldBeAssignable);
-    }
 }
 
-void Compiler::compileOperator(const ASTNode &op, ValueType expectedType) {
+void Compiler::compileBinaryOp(const ASTNode &op, ValueType expectedType) {
     assert(op.type() == ASTNodeType::BINOP);
 
-    switch (op.token().type) {
-        case TokenType::PLUS:             emit(Instruction::ADD);   return;
-        case TokenType::MINUS:            emit(Instruction::SUB);   return;
-        case TokenType::STAR:             emit(Instruction::MUL);   return;
-        case TokenType::SLASH: {
-            if (!canPromoteType(ValueType::FLOAT64, expectedType)) {
-                createCompileError(DIV_ALWAYS_RETS_A_F64.format(ctx_->getTypeName(expectedType)), op);
+    TokenType opTokTy = op.token().type;
+    ASTNode left = op.child(0);
+    ASTNode right = op.child(1);
+
+    if (opTokTy == TokenType::LOGICAL_AND) {
+        Value trueVal = Value::fromLiteral(true);
+        Value falseVal = Value::fromLiteral(false);
+
+        recursivelyCompileExpression(left, ValueType::BOOL);
+
+        // Jump over the rest of the expression and push false
+        size_t falseJmpLabelNum = tmpLabelNum_++;
+        emit(Instruction::JMPFALSE);
+        emit(falseJmpLabelNum);
+
+        recursivelyCompileExpression(right, ValueType::BOOL);
+
+        emit(Instruction::JMPFALSE);
+        emit(falseJmpLabelNum);
+
+        std::vector<Byte> tmpBytes;
+        // Size is the same for true and false
+        tmpBytes.resize(trueVal.getSize());
+        
+        // Push true, as the whole expression compiled to true
+        trueVal.getBytes(tmpBytes, /*off*/0);
+        emit(Instruction::PUSH);
+        emit(tmpBytes);
+
+        // Jump over the PUSH false
+        size_t endLabelNum = tmpLabelNum_++;
+        emit(Instruction::JMP);
+        emit(endLabelNum);
+
+        emit(Instruction::LABEL);
+        emit(falseJmpLabelNum);
+
+        // Push false
+        falseVal.getBytes(tmpBytes, /*off*/0);
+        emit(Instruction::PUSH);
+        emit(tmpBytes);
+
+        emit(Instruction::LABEL);
+        emit(endLabelNum);
+    }
+    else {
+        recursivelyCompileExpression(right, expectedType);
+        recursivelyCompileExpression(left, expectedType);
+
+        switch (opTokTy) {
+            case TokenType::PLUS:             emit(Instruction::ADD);   return;
+            case TokenType::MINUS:            emit(Instruction::SUB);   return;
+            case TokenType::STAR:             emit(Instruction::MUL);   return;
+            case TokenType::SLASH: {
+                if (!canPromoteType(ValueType::FLOAT64, expectedType)) {
+                    createCompileError(DIV_ALWAYS_RETS_A_F64.format(ctx_->getTypeName(expectedType)), op);
+                    return;
+                }
+
+                emit(Instruction::DIV);
                 return;
             }
 
-            emit(Instruction::DIV);
-            return;
+            case TokenType::STRICTLY_SMALLER: emit(Instruction::CMPST); return;
+            case TokenType::SMALLER_EQUAL:    emit(Instruction::CMPSE); return;
+            case TokenType::STRICTLY_BIGGER:  emit(Instruction::CMPGT); return;
+            case TokenType::BIGGER_EQUAL:     emit(Instruction::CMPGE); return;
+            case TokenType::DOUBLE_EQUAL:     emit(Instruction::CMPEQ); return;
+            case TokenType::NOT_EQUAL:        emit(Instruction::CMPNE); return;
+
+            default:                          emit(Instruction::NOOP);  return;
         }
-
-        case TokenType::STRICTLY_SMALLER: emit(Instruction::CMPST); return;
-        case TokenType::SMALLER_EQUAL:    emit(Instruction::CMPSE); return;
-        case TokenType::STRICTLY_BIGGER:  emit(Instruction::CMPGT); return;
-        case TokenType::BIGGER_EQUAL:     emit(Instruction::CMPGE); return;
-        case TokenType::DOUBLE_EQUAL:     emit(Instruction::CMPEQ); return;
-        case TokenType::NOT_EQUAL:        emit(Instruction::CMPNE); return;
-
-        default:                          emit(Instruction::NOOP);  return;
     }
 }
 

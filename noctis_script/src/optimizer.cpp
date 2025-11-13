@@ -89,9 +89,9 @@ bool Optimizer::constantFolding(std::vector<Byte> &bc, size_t &idx) {
         case Instruction::CMPSE: res = a <= b; break;
         case Instruction::CMPGT: res = a >  b; break;
         case Instruction::CMPGE: res = a >= b; break;
-        case Instruction::CMPEQ: res = a != b; break;
-        case Instruction::CMPNE: res = a == b; break;
-        
+        case Instruction::CMPEQ: res = a == b; break;
+        case Instruction::CMPNE: res = a != b; break;
+    
         default:                 return false;
     }
 

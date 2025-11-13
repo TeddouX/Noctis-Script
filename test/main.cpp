@@ -148,6 +148,9 @@ int main() {
 
         if (!vm.execute()) {
             std::println("{}", vm.getLastError());
+
+            gc->cleanup();
+            
             exit(EXIT_FAILURE);
         }
         

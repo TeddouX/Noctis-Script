@@ -144,7 +144,7 @@ private:
     void compileObject(const ASTNode &obj);
     void compileVariableDeclaration(const ASTNode &varDecl, bool global = false, bool member = false);
     void compileConstantPush(const ASTNode &constant, ValueType expectedType);
-    void compileOperator(const ASTNode &op, ValueType expectedType);
+    void compileBinaryOp(const ASTNode &op, ValueType expectedType);
     void compileExpression(const ASTNode &expr, ValueType expectedType = ValueType::VOID);
     void recursivelyCompileExpression(const ASTNode &exprChild, ValueType expectedType, bool shouldBeAssignable = false);
     void compileExpressionTerm(const ASTNode &exprTerm, ValueType expectedType = ValueType::VOID, bool shouldBeAssignable = false);
