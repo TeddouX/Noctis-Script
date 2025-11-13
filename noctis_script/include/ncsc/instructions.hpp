@@ -41,6 +41,7 @@ enum class Instruction : Byte {
 
     JMP,            // JMP 123 ; set the PC to the operand
     JMPFALSE,       // JMPFALSE 123 ; if the last value on the stack is false or equals to zero, set the PC to the operand
+    JMPTRUE,        // JMPTRUE 123 ; if the last value on the stack is true or different to zero, set the PC to the operand
 
     TYCAST,         // TYCAST b ; pops the last value on the stack and changes it type to b 
 
@@ -93,6 +94,7 @@ const std::unordered_map<Instruction, std::pair<const char *, size_t>> INSTR_INF
 
     { Instruction::JMP,             {"JMP",            sizeof(QWord)} },
     { Instruction::JMPFALSE,        {"JMPFALSE",       sizeof(QWord)} },
+    { Instruction::JMPTRUE,         {"JMPTRUE",        sizeof(QWord)} },
 
     { Instruction::TYCAST,          {"TYCAST",         sizeof(DWord)} },
     

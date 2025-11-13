@@ -16,9 +16,14 @@ namespace NCSC
 
 struct CallFrame {
     const std::vector<Byte> *bytecode;
+    
     size_t bp = 0;
+    DWord numLocals = 0;
+
     QWord  ip = 0;
+    
     size_t sp = 0;
+    
     size_t stackSize = 0;
 };
 

@@ -13,6 +13,8 @@
 namespace NCSC
 {
 
+static bool isComparisonOp(TokenType tty);
+
 std::string Compiler::disassemble(const std::vector<Byte>& bc) {
     std::ostringstream oss;
 
@@ -337,8 +339,6 @@ void Compiler::compileFunction(const ASTNode &funcDecl, bool method) {
     if (!hasErrors()) {
         finalizeBc(tempCompiledBytecode_);
 
-        finalizeBc(tempCompiledBytecode_);
-
         currFunction_->requiredStackSize = computeRequiredStackSize(tempCompiledBytecode_);
         currFunction_->bytecode = tempCompiledBytecode_;
     }
@@ -448,7 +448,8 @@ void Compiler::resolveJumps(std::vector<Byte> &bc) {
         
         switch (instr) {
             case Instruction::JMP:
-            case Instruction::JMPFALSE: {
+            case Instruction::JMPFALSE:
+            case Instruction::JMPTRUE: {
                 QWord jmpLabelNum = readWord<QWord>(bc, i + sizeof(Instruction));
                 jmpLocations.emplace(jmpLabelNum, i);
 
@@ -814,28 +815,6 @@ void Compiler::compileExpression(const ASTNode &expr, ValueType expectedType) {
     }
 
     ASTNode rootOp = expr.child(0);
-    // Comparison ops will always be at the top of the binary tree
-    // so if any of those is present, the expression returns a boolean
-    TokenType rootOpTy = rootOp.token().type;
-    bool isComparisonOp = rootOpTy == TokenType::STRICTLY_SMALLER
-       || rootOpTy == TokenType::SMALLER_EQUAL
-       || rootOpTy == TokenType::STRICTLY_BIGGER
-       || rootOpTy == TokenType::BIGGER_EQUAL
-       || rootOpTy == TokenType::DOUBLE_EQUAL
-       || rootOpTy == TokenType::NOT_EQUAL;
-    
-    if (isComparisonOp) {
-        if (expectedType != ValueType::BOOL) {
-            createCompileError(EXPECTED_TYPE_INSTEAD_GOT.format(
-                ctx_->getTypeName(expectedType), 
-                ctx_->getTypeName(ValueType::BOOL)), expr);
-            return;
-        }
-        else
-            // The rest of the expression can be of any type 
-            expectedType = ValueType::VOID;
-    }
-
     recursivelyCompileExpression(rootOp, expectedType);
 }
 
@@ -853,28 +832,44 @@ void Compiler::compileBinaryOp(const ASTNode &op, ValueType expectedType) {
     ASTNode left = op.child(0);
     ASTNode right = op.child(1);
 
-    if (opTokTy == TokenType::LOGICAL_AND) {
+    if (opTokTy == TokenType::LOGICAL_AND || opTokTy == TokenType::LOGICAL_OR) {
+        bool isAnd = opTokTy == TokenType::LOGICAL_AND;
+
         Value trueVal = Value::fromLiteral(true);
         Value falseVal = Value::fromLiteral(false);
 
         recursivelyCompileExpression(left, ValueType::BOOL);
 
-        // Jump over the rest of the expression and push false
-        size_t falseJmpLabelNum = tmpLabelNum_++;
-        emit(Instruction::JMPFALSE);
-        emit(falseJmpLabelNum);
+        if (isAnd)
+            // Stop computing the operands if one was false
+            emit(Instruction::JMPFALSE);
+        else
+            // Stop computing the operands if one was true
+            emit(Instruction::JMPTRUE);
+        
+        size_t pushLabelNum = tmpLabelNum_++;
+        emit(pushLabelNum);
 
         recursivelyCompileExpression(right, ValueType::BOOL);
 
-        emit(Instruction::JMPFALSE);
-        emit(falseJmpLabelNum);
+        if (isAnd) emit(Instruction::JMPFALSE);
+        else       emit(Instruction::JMPTRUE);
+
+        size_t pushLabelNum1 = tmpLabelNum_++;
+        emit(pushLabelNum1);
 
         std::vector<Byte> tmpBytes;
         // Size is the same for true and false
         tmpBytes.resize(trueVal.getSize());
         
-        // Push true, as the whole expression compiled to true
-        trueVal.getBytes(tmpBytes, /*off*/0);
+        if (isAnd)
+            // For an logical and, if the end was reached, 
+            // it means no JMPFALSEs were hit, so both operands were true
+            trueVal.getBytes(tmpBytes, /*off*/0);
+        else
+            // Same as for logical and, but for JMPTRUEs
+            falseVal.getBytes(tmpBytes, 0);
+            
         emit(Instruction::PUSH);
         emit(tmpBytes);
 
@@ -884,10 +879,13 @@ void Compiler::compileBinaryOp(const ASTNode &op, ValueType expectedType) {
         emit(endLabelNum);
 
         emit(Instruction::LABEL);
-        emit(falseJmpLabelNum);
+        emit(pushLabelNum);
+        emit(Instruction::LABEL);
+        emit(pushLabelNum1);
 
-        // Push false
-        falseVal.getBytes(tmpBytes, /*off*/0);
+        if (isAnd) falseVal.getBytes(tmpBytes, /*off*/0);
+        else       trueVal.getBytes(tmpBytes, 0);
+
         emit(Instruction::PUSH);
         emit(tmpBytes);
 
@@ -895,6 +893,20 @@ void Compiler::compileBinaryOp(const ASTNode &op, ValueType expectedType) {
         emit(endLabelNum);
     }
     else {
+        // Comparison operators return a boolean
+        // We are not type checking the operands for now, might want to change that in the future
+        if (isComparisonOp(opTokTy)) {
+            if (expectedType != ValueType::BOOL) {
+                createCompileError(EXPECTED_TYPE_INSTEAD_GOT.format(
+                    ctx_->getTypeName(expectedType), 
+                    ctx_->getTypeName(ValueType::BOOL)), op);
+                
+                return;
+            }
+
+            expectedType = ValueType::VOID;
+        }
+
         recursivelyCompileExpression(right, expectedType);
         recursivelyCompileExpression(left, expectedType);
 
@@ -1858,6 +1870,15 @@ Object *Compiler::getValueTypeAsObject(ValueType type, bool &isScriptObj, DWord 
     return isScriptObj 
         ? static_cast<Object *>(currScript_->getObject(idx)) 
         : static_cast<Object *>(ctx_->getCppObject(idx));
+}
+
+bool isComparisonOp(TokenType tty) {
+    return tty == TokenType::STRICTLY_SMALLER
+       || tty == TokenType::SMALLER_EQUAL
+       || tty == TokenType::STRICTLY_BIGGER
+       || tty == TokenType::BIGGER_EQUAL
+       || tty == TokenType::DOUBLE_EQUAL
+       || tty == TokenType::NOT_EQUAL;
 }
 
 } // namespace NCSC

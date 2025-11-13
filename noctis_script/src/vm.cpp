@@ -216,6 +216,15 @@ void VM::executeNext() {
             } else
                 END_INSTR(1 + sizeof(QWord));
         }
+        INSTR(JMPTRUE): {
+            Value v = pop();
+            if (v.b == true) {
+                ip = readWord<QWord>(bytecode, ip + 1);
+                
+                END_INSTR(0);
+            } else
+                END_INSTR(1 + sizeof(QWord));
+        }
 
         INSTR(TYCAST): {
             Value val = pop();
@@ -383,6 +392,7 @@ void VM::prepareScriptFunction(const ScriptFunction *fun) {
     CallFrame frame {
         .bytecode = &fun->bytecode,
         .bp = sp_,
+        .numLocals = fun->numLocals,
         .ip = 0,
         .sp = sp_ + fun->numLocals,
         // Parameters are already on the stack so no
@@ -504,17 +514,17 @@ Value VM::pop() {
         return Value{};
     }
 
+    size_t frameBase = callStack_.back().bp;
+    size_t numLocals = callStack_.back().bp;
     if (currFun_ && !callStack_.empty()) {
-        size_t frameBase = callStack_.back().bp;
-        if (sp_ - 1 <= frameBase) {
+        if (sp_ > 1 && sp_ - 1 <= frameBase + numLocals) {
             error(STACK_UNDERFLOW_STACK_FRAME);
             return Value{};
         }
     }
 
     sp_--;
-    Value val = stack_[sp_];
-    return val;
+    return stack_[sp_];
 }
 
 void VM::push(const Value &val) {

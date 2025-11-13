@@ -1,8 +1,19 @@
-fun Main() {
-    Bool b = 1 == 1;
-    Bool b1 = 2 == 2;
+obj v { pub v() {} }
 
-    if (b && b1) {
-        
+Bool returnsTrue() { 
+    printHello(10);
+    return true; 
+}
+
+Bool returnsFalse() { 
+    printHello(11);
+    return false; 
+}
+
+fun Main() {
+    if (true) {
+        printHello(0);
     }
+
+    printHello(1);
 }
