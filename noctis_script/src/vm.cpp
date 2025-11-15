@@ -102,15 +102,15 @@ void VM::executeNext() {
                 error(TRYED_ACCESSING_MEMB_OF_INV_OB);
                 return;
             }
+
+            // If the member added is an object, add it to the list 
+            // of children of the object for the garbage collector
+            if (isObject(val.ty))
+                obj.obj->children.push_back(val.obj);
             
             if (isCPPObject(objTy))
                 ctx_->setObjectMember(idx, obj, val);
             else {
-                if (!obj.obj || !obj.obj->ptr) {
-                    error(TRYED_ACCESSING_MEMB_OF_INV_OB);
-                    return;
-                }
-
                 auto members = static_cast<std::vector<Value> *>(obj.obj->ptr);
                 members->at(idx) = val;
             }
