@@ -7,6 +7,8 @@
 namespace NCSC
 {
 
+static constexpr int ANSI_RED = 31;
+
 static std::string formatSrcLineNumber(size_t lineNum) {
     return std::to_string(lineNum) + " | ";
 }
@@ -45,7 +47,7 @@ std::string Error::getErrorMessageUnformatted(bool colored) const {
     
     if (colored)
         // Red, Bold
-        mess = formatColor(31, true, mess);
+        mess = formatColor(ANSI_RED, true, mess);
 
     return mess;
 }
@@ -53,50 +55,84 @@ std::string Error::getErrorMessageUnformatted(bool colored) const {
 std::vector<std::string> Error::getErrorMessageLines(bool colored) const {
     assert(src_ != nullptr);
 
-   std::vector<std::string> lines;
+    std::vector<std::string> lines;
 
+    // Error message
     lines.push_back(getErrorMessageUnformatted(colored));
 
+    // Helpers
+
+    // The line header width is that of the biggest line
+    size_t headerWidth = formatSrcLineNumber(lineEnd_).size();
+    // Adds the content of line 'n' 
     auto pushSrcLine = [&](int n) {
-        if (n >= 1 && n <= src_->numLines())
-            lines.push_back(formatSrcLineNumber(n) + src_->getLine(n));
+        if (n >= 1 && n <= src_->numLines()) {
+            std::string nStr = std::to_string(n);
+            lines.push_back(nStr + std::string(headerWidth - 1 - nStr.size(), ' ') + "| " + src_->getLine(n));
+        }
     };
 
-    // Line before
-    pushSrcLine(line_ - 1);
-    // Error line
-    pushSrcLine(line_);
+    // Makes the caret line for line 'n'
+    auto makeCaretLine = [&](int lineNum) {
+        std::string text = src_->getLine(lineNum);
+        size_t len = text.size();
 
-    size_t lineHeaderWidth = formatSrcLineNumber(line_).size();
-
-    // Caret line
-    {
-        std::string caret(lineHeaderWidth - 2, ' ');
-        caret += '|';
-
-        if (colEnd_ != 0) {
-            caret += std::string(col_, ' ');
-            caret += '^';
-            caret += std::string(colEnd_ - col_ - 1, '-');
+        size_t start = 0;
+        size_t end = len;
+        bool isBeginning = false;
+        if (lineNum == line_) {
+            start = col_ - 1;
+            isBeginning = true;
         }
 
-        if (colored)
-            caret = formatColor(31, false, caret);
+        bool isEnd = false;
+        if (lineNum == lineEnd_) {
+            end = colEnd_ - 1;
+            isEnd = true;
+        }
 
+        if (start >= end)
+            return;
+
+        std::string caret(headerWidth - 1, ' ');
+        caret += "| ";
+        caret += std::string(start, ' ');
+
+        std::string carets;
+        carets += isBeginning ? '^' : '-';
+
+        if (end > start + 2) {
+            carets += std::string(end - start - 2, '-');
+        }
+        
+        if (start + 1 != end)
+            carets += isEnd ? '^' : '-';
+        
+        caret += colored ? formatColor(ANSI_RED, false, carets) : carets;
+        
         lines.push_back(caret);
+    };
+
+    // Before line
+    pushSrcLine(line_ - 1);
+
+    // Error line(s)
+    for (int ln = line_; ln <= lineEnd_; ++ln) {
+        pushSrcLine(ln);
+        makeCaretLine(ln);
     }
 
-    // Line after
-    pushSrcLine(line_ + 1);
+    // After line
+    pushSrcLine(lineEnd_ + 1);
 
-    // File Location
+    // Location
     {
-        std::string fileLocation =
+        std::string file =
             !src_->filePath.empty() ? src_->filePath.string() :
             !src_->fileName.empty() ? src_->fileName :
             "Unknown location";
 
-        lines.push_back(std::format("{}({},{})", fileLocation, line_, col_));
+        lines.push_back(std::format("{}({},{})", file, line_, col_));
     }
 
     return lines;
