@@ -75,7 +75,7 @@ void Parser::createSyntaxError(const ErrInfo &info, const Token &tok) {
     hasSyntaxError_ = true;
 
     Error err(info, src_);
-    err.setLocation(tok.line, tok.col, tok.col + tok.getLength());
+    err.setLocation(tok.line, tok.line, tok.col, tok.col + tok.getLength());
     syntaxErrors_.push_back(err);
 }
 

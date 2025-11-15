@@ -34,7 +34,7 @@ class NCSC_API Error {
 public:
     Error(const ErrInfo &errInfo, std::shared_ptr<ScriptSource> src);
 
-    void setLocation(size_t line, size_t col, size_t colEnd);
+    void setLocation(size_t line, size_t lineEnd, size_t col, size_t colEnd);
 
     const ErrInfo &getInfo() const { return info_; }
     uint32_t getLine() const { return line_; }
@@ -48,7 +48,8 @@ private:
     ErrInfo info_;
     std::shared_ptr<ScriptSource> src_;
 
-    size_t line_ = 0, col_ = 0, colEnd_ = 0;
+    size_t line_ = 0, lineEnd_ = 0;
+    size_t col_ = 0, colEnd_ = 0;
 };
 
 } // namespace NCSC

@@ -159,7 +159,7 @@ void Compiler::finalizeBc(std::vector<Byte> &bc) {
 
 void Compiler::createCompileError(const ErrInfo &info, const ASTNode &node) {
     Error err(info, src_);
-    err.setLocation(node.line, node.col, node.colEnd);
+    err.setLocation(node.line, node.lineEnd, node.col, node.colEnd);
     compileErrors_.push_back(err);
 }
 
@@ -596,7 +596,18 @@ Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, Object
                 .foundType = scriptObj->type,
                 .ty = SymbolSearchRes::OBJECT,
             };
-        } 
+        }
+
+        DWord globalVarIdx = currScript_->getGlobalVariableIdx(name);
+        if (globalVarIdx != INVALID_IDX) {
+            GlobalVar *globalVar = currScript_->getGlobalVariable(globalVarIdx);
+            return SymbolSearchRes{
+                .var = globalVar,
+                .idx = globalVarIdx,
+                .foundType = globalVar->type,
+                .ty = SymbolSearchRes::GLOBAL_VAR,
+            };
+        }
     }
 
     DWord cppFunIdx = ctx_->getCppFunctionIdx(name);

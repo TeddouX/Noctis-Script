@@ -2,6 +2,7 @@
 // Copyright (c) 2025, TeddouX (https://github.com/TeddouX/)
 #include <ncsc/script_source.hpp>
 #include <sstream>
+#include <format>
 
 namespace NCSC
 {
@@ -12,7 +13,9 @@ std::shared_ptr<ScriptSource> ScriptSource::fromSource(const std::string &source
 
 std::string ScriptSource::getLine(size_t line) {
     if (line == 0 || line > lines_.size())
-        return "line too small or too big";
+        return std::format("Line too small or too big ({} > {})", 
+            std::to_string(line), 
+            std::to_string(lines_.size())); 
     
     auto offset = lines_[line - 1];
     return string_.substr(offset.first, offset.second);
@@ -24,8 +27,9 @@ ScriptSource::ScriptSource(const std::string &source)
     size_t start = 0;
     for (size_t i = 0; i < source.size(); i++) {
         const char &charAt = source[i];
-        if (charAt == '\n') {
-            lines_.push_back({ start, i - start });
+        bool isLastChar = i + 1 >= source.size();
+        if (charAt == '\n' || isLastChar) {
+            lines_.push_back({ start, isLastChar ? i + 1 - start: i - start });
             start = i + 1;
         }
     }
