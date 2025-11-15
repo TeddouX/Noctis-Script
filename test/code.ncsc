@@ -1,3 +1,9 @@
+fun function(Int a, Int b) {
+
+}
+
 fun Main() {
-    Bool b = 12222;
+    function(
+        1
+    );
 }
