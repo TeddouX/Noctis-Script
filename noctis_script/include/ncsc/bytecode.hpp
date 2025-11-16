@@ -28,7 +28,7 @@ public:
 
     const std::shared_ptr<ScriptSource> getSrc() const { return src_; }
     const std::vector<Byte> &getBytes() const { return bytes_; }
-    const DbgInfo &getDbgInfoAt(size_t byteIdx) const { return dbgInfo_.at(byteIdx); }
+    const DbgInfo *getDbgInfoAt(size_t byteIdx) const { return dbgInfo_.find(byteIdx) == dbgInfo_.end() ? nullptr : &dbgInfo_.at(byteIdx); }
 
 private:
     friend class Compiler;

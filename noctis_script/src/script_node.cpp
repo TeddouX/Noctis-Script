@@ -62,11 +62,11 @@ std::string ASTNode::getStrRepr() const {
 }
 
 void ASTNode::setPos(const Token &tok) {
-    line = tok.line;
-    lineEnd = tok.line;
+    location.line = tok.line;
+    location.lineEnd = tok.line;
     
-    col = tok.col;
-    colEnd = col + tok.getLength();
+    location.col = tok.col;
+    location.colEnd = location.col + tok.getLength();
 }
 
 void ASTNode::updatePos(const Token &tok) {
@@ -74,12 +74,12 @@ void ASTNode::updatePos(const Token &tok) {
         return;
 
     if (!hasPosBeenUpdated_) {
-        line = tok.line;
-        col = tok.col;
+        location.line = tok.line;
+        location.col = tok.col;
     }
 
-    lineEnd = std::max(tok.line, lineEnd);
-    colEnd = std::max(tok.col + static_cast<uint32_t>(tok.getLength()), colEnd);
+    location.lineEnd = std::max((size_t)tok.line, location.lineEnd);
+    location.colEnd = std::max(tok.col + tok.getLength(), location.colEnd);
 
     hasPosBeenUpdated_ = true;
 }
@@ -92,14 +92,14 @@ void ASTNode::addChild(const ASTNode &child) {
     // Update the node's position according to the added child
     if (children_.empty()) {
         // First child added
-        line = child.line;
-        lineEnd = child.lineEnd;
+        location.line = child.location.line;
+        location.lineEnd = child.location.lineEnd;
 
-        col = child.col;
-        colEnd = child.colEnd;
+        location.col = child.location.col;
+        location.colEnd = child.location.colEnd;
     } else {
-        lineEnd = std::max(lineEnd, child.lineEnd);
-        colEnd = std::max(colEnd, child.colEnd);
+        location.lineEnd = std::max(location.lineEnd, child.location.lineEnd);
+        location.colEnd = std::max(location.colEnd, child.location.colEnd);
     }
    
     children_.push_back(child); 

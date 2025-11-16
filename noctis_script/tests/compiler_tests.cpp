@@ -59,7 +59,7 @@ static CheckErrorsRes checkErrors(const std::string &name) {
     // ---- in the right locations
     
     // Line, col
-    using Location = std::pair<uint32_t, uint32_t>;
+    using Location = std::pair<size_t, size_t>;
     // Def start, Def end
     using DefinitionRange = std::pair<Location, Location>;
     
@@ -67,8 +67,8 @@ static CheckErrorsRes checkErrors(const std::string &name) {
     
     for (const auto &child : rootNode.children()) {
         if (child.type() == ASTNodeType::FUNCTION) {
-            Location start(child.line, child.col);
-            Location end(child.lineEnd, child.colEnd);
+            Location start(child.location.line, child.location.col);
+            Location end(child.location.lineEnd, child.location.colEnd);
 
             const std::string &funcName = child.child(1).token().val;
 

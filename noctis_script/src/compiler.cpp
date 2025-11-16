@@ -21,6 +21,7 @@ std::string Compiler::disassemble(const Bytecode& bc) {
 
     for (size_t i = 0; i < bytes.size();) {
         size_t offset = i;
+        const Bytecode::DbgInfo *dbgInfo = bc.getDbgInfoAt(i);
         Byte op = bytes[i++];
 
         Instruction instr = static_cast<Instruction>(op);
@@ -62,6 +63,9 @@ std::string Compiler::disassemble(const Bytecode& bc) {
                 default: oss << "(invalid size)";
             }
         }
+
+        if (dbgInfo)
+            oss << " ; " << dbgInfo->mess;
 
         oss << "\n";
     }
@@ -160,7 +164,12 @@ void Compiler::finalizeBc(Bytecode &bc) {
 
 void Compiler::createCompileError(const ErrInfo &info, const ASTNode &node) {
     Error err(info, src_);
-    err.setLocation({ node.line, node.lineEnd, node.col, node.colEnd });
+    err.setLocation({ 
+        node.location.line, 
+        node.location.lineEnd, 
+        node.location.col, 
+        node.location.colEnd 
+    });
     compileErrors_.push_back(err);
 }
 
@@ -200,6 +209,13 @@ void Compiler::emit(QWord qw) {
     bytes.resize(sizeof(QWord));
     makeBytes(qw, bytes, 0);
     emit(bytes);
+}
+
+void Compiler::emitDbgInfo(const std::string &val, const ASTNode &node) {
+    tempCompiledBytecode_.dbgInfo_.emplace(
+        tempCompiledBytecode_.bytes_.size(),
+        Bytecode::DbgInfo{ val, node.location }
+    );
 }
 
 void Compiler::patchBytecode(size_t location, Instruction instr, const std::vector<Byte> &operandBytes) {
@@ -1460,16 +1476,22 @@ void Compiler::compileVariableAccess(const ASTNode &varAccess, ValueType expecte
 
     bool wantRef = hasMask(expectedType, ValueType::REF_MASK);
     expectedType = clearMask(expectedType, ValueType::REF_MASK);
-    if (sres.ty == SymbolSearchRes::LOCAL_VAR)
+    if (sres.ty == SymbolSearchRes::LOCAL_VAR) {
+        emitDbgInfo(varAccessName, varAccess);
+
         // Variables that are not primitives don't need to be loaded as a reference
         // because objects technically are references    
         emit(Instruction::LOADLOCAL);
-    else if (sres.ty == SymbolSearchRes::GLOBAL_VAR) 
+    }
+    else if (sres.ty == SymbolSearchRes::GLOBAL_VAR) {
+        emitDbgInfo(varAccessName, varAccess);
         emit(Instruction::LOADGLOBAL);
+    } 
     else if (sres.ty == SymbolSearchRes::MEMBER_VAR) {
         emit(Instruction::LOADLOCAL);
         emit((DWord)0); // 'this'
-
+        
+        emitDbgInfo(varAccessName, varAccess);
         emit(Instruction::LOADMEMBER);
     }
     else return;
@@ -1777,21 +1799,26 @@ ValueType Compiler::getExpressionTermType(const ASTNode &exprTerm) {
 void Compiler::compileStore(const ASTNode &varNode) {
     ValueType lastTy = ValueType::INVALID;
 
-    auto compileVariableStore = [&](const std::string &varName, bool store) -> bool {
+    auto compileVariableStore = [&](const std::string &varName, bool store, const ASTNode &node) -> bool {
         SymbolSearchRes sres = searchSymbol(varName);
         if (sres.ty != SymbolSearchRes::GLOBAL_VAR 
             && sres.ty != SymbolSearchRes::LOCAL_VAR 
             && sres.ty != SymbolSearchRes::MEMBER_VAR)
             return false;
         
-        if (sres.ty == SymbolSearchRes::GLOBAL_VAR)
+        if (sres.ty == SymbolSearchRes::GLOBAL_VAR) {
+            emitDbgInfo(varName, node);
             emit(store ? Instruction::STOREGLOBAL : Instruction::LOADGLOBAL);
-        else if (sres.ty == SymbolSearchRes::LOCAL_VAR)
+        }
+        else if (sres.ty == SymbolSearchRes::LOCAL_VAR) {
+            emitDbgInfo(varName, node);
             emit(store ? Instruction::STORELOCAL : Instruction::LOADLOCAL);
+        }
         else if (sres.ty == SymbolSearchRes::MEMBER_VAR) {
             emit(Instruction::LOADLOCAL);
             emit((DWord)0); // 'this'
 
+            emitDbgInfo(varName, node);
             emit(store ? Instruction::STOREMEMBER : Instruction::LOADMEMBER);
         }
 
@@ -1803,7 +1830,7 @@ void Compiler::compileStore(const ASTNode &varNode) {
     };
 
     if (varNode.type() == ASTNodeType::EXPRESSION_VALUE) {
-        compileVariableStore(varNode.child(0).token().val, /*store*/true);
+        compileVariableStore(varNode.child(0).token().val, /*store*/true, varNode.child(0));
         return;
     }
 
@@ -1821,7 +1848,7 @@ void Compiler::compileStore(const ASTNode &varNode) {
         // Variable
         if (child.type() == ASTNodeType::EXPRESSION_VALUE) {
             // Compile as a store only if its the last child
-            if (!compileVariableStore(firstChild.token().val, /*store*/isLastChild))
+            if (!compileVariableStore(firstChild.token().val, /*store*/isLastChild, child))
                 return;
         }
         else if (child.type() == ASTNodeType::EXPRESSION_POSTOP) {

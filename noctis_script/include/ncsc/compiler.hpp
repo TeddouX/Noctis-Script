@@ -73,6 +73,8 @@ private:
     // Add an instruction to the bytecode of the current function
     void emit(Instruction instr);
 
+    void emitDbgInfo(const std::string &val, const ASTNode &node);
+
     // Sets tempCompiledBytecode to a new instance of Bytecode
     void clearTmpBytecode() { tempCompiledBytecode_ = Bytecode(src_); }
 

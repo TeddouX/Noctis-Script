@@ -41,7 +41,7 @@ public:
     explicit ASTNode(ASTNodeType type)
         : type_(type) {}
     
-    uint32_t line = 0, lineEnd = 0, col = 0, colEnd = 0;
+    Location location;
 
     // Recursively iterate through its children
     std::string getStrRepr() const;
