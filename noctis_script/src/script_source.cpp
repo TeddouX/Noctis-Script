@@ -26,11 +26,23 @@ ScriptSource::ScriptSource(const std::string &source)
 {
     size_t start = 0;
     for (size_t i = 0; i < source.size(); i++) {
-        const char &charAt = source[i];
+        bool isNL = source[i] == '\n';
         bool isLastChar = i + 1 >= source.size();
-        if (charAt == '\n' || isLastChar) {
-            lines_.push_back({ start, isLastChar ? i + 1 - start: i - start });
+        
+        if (isNL || isLastChar) {
+            lines_.push_back({ 
+                start, 
+                (isLastChar && !isNL) ? i + 1 - start: i - start }
+            );
             start = i + 1;
+
+            if (isLastChar && isNL) {
+                // Add a space if the source ends with an empty line
+                string_ += ' ';
+                i++;
+                
+                lines_.push_back({ start, i - start });
+            }
         }
     }
 }
