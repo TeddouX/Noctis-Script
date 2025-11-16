@@ -5,7 +5,7 @@
 namespace NCSC
 {
     
-const Location &Bytecode::getLocationAt(size_t byteIdx) const {
+Location Bytecode::getLocationAt(size_t byteIdx) const {
     if (locationEntries_.empty())
         return {};
 
@@ -19,11 +19,11 @@ const Location &Bytecode::getLocationAt(size_t byteIdx) const {
     );
 
     if (it == locationEntries_.end())
-        return {};
+        return locationEntries_.back().loc;
     else if (it == locationEntries_.begin())
         return it->loc;
-    
-    return std::prev(it)->loc;
+    else
+        return std::prev(it)->loc;
 }
 
 } // namespace NCSC

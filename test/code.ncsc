@@ -1,6 +1,8 @@
 obj Data {
     pub Int x = 0;
     pub Int y = 0;
+
+    pub fun thisIsAMethod() {}
 }
 
 obj Vec2 {
@@ -9,6 +11,6 @@ obj Vec2 {
 
 fun Main() {
     Vec2 vec = new Vec2();
-
-    vec.data.x;
+    vec.data.thisIsAMethod
+    ();
 }

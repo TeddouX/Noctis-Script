@@ -17,8 +17,12 @@ namespace NCSC
 
 struct CallFrame {
     const Bytecode *bytecode;
-    const std::string *name;
-    
+    union {
+        const ScriptFunction *func = nullptr;
+        const GlobalVar *gv;
+    };
+    bool isFunction = true;
+
     size_t bp = 0;
     DWord numLocals = 0;
 
@@ -40,7 +44,7 @@ public:
     bool execute();
     std::string getStackStrRepr() const;
 
-    const std::string &getLastError() { return lastError_; }
+    const Error &getLastError() { return lastError_; }
 
     // Returns true on success
     template <typename... Args>
@@ -110,7 +114,7 @@ private:
     std::vector<Value> globalVariables_;
 
     bool hasError_ = false;
-    std::string lastError_;
+    Error lastError_;
 
     Value pop();
     void push(const Value &val);
@@ -160,7 +164,16 @@ private:
     inline static ErrInfo PASSED_TY_DONT_MATCH_W_PASSED_TY = { "Preparation error", "P", 7, "Passed type can't converted to {}'s return type" };
 
     // Execution errors
-    inline static ErrInfo BC_ENDED_WOUT_RET = { "Execution error", "E", 0, "Bytecode ended without returning" };
+    inline static ErrInfo BC_ENDED_WOUT_RET = { "Execution error", "E", 0, "Bytecode ended without returning (in {})" };
+    inline static ErrInfo TRIED_ACCESING_MEMB_OF_INV_OBJ = { "Execution error", "E", 1, "Accessing a member of an invalid object (in {})" };
+    inline static ErrInfo TRIED_ACCESSING_MEMB_OF_NULL = { "Execution error", "E", 2, "Accessing a member of an object that is null (in {})" };
+    inline static ErrInfo CANT_INC_OR_DEC_NOM_NUM = { "Execution error", "E", 3, "Can't increment or decrement a non numeric value (in {})" };
+    inline static ErrInfo CANT_INVERT_NON_BOOLEAN = { "Execution error", "E", 4, "Can't invert a non boolean value (in {})" };
+    inline static ErrInfo INVALID_OR_CORRUPTED_BC = { "Execution error", "E", 5, "Encountered invalid or corrupted bytecode (in {})" };
+    inline static ErrInfo STACK_UNDERFLOW_EMPTY = { "Execution error", "E", 6, "Stack underflow (empty stack) (in {})" };
+    inline static ErrInfo STACK_UNDERFLOW_STACK_FRAME = { "Execution error", "E", 7, "Stack underflow (below current frame) (in {})" };
+    inline static ErrInfo STACK_OVERFLOW = { "Execution error", "E", 8, "Stack overflow (in {})" };
+    inline static ErrInfo TRIED_CALLING_METHTOD_OF_NULL = { "Execution error", "E", 8, "Calling a method of an object that is null (in {})" };
     
 };
  

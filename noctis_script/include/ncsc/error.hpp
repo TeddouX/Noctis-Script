@@ -18,6 +18,7 @@ struct ErrInfo {
     std::string mess;
     uint32_t    num;
 
+    ErrInfo() = default;
     ErrInfo(const std::string &type, const std::string &numPrefix, uint32_t num, const std::string &mess)
         : type(type), num(num), numPrefix(numPrefix), mess(mess) {}
 
@@ -32,6 +33,8 @@ struct ErrInfo {
 
 class NCSC_API Error {
 public:
+    Error()
+        : initialized_(false) {}
     Error(const ErrInfo &errInfo, std::shared_ptr<ScriptSource> src);
     Error(const ErrInfo &errInfo)
         : info_(errInfo) {}
@@ -46,6 +49,8 @@ public:
     std::string getErrorMessageUnformatted(bool colored = true) const;
 
 private:
+    bool initialized_ = true;
+
     ErrInfo info_;
     std::shared_ptr<ScriptSource> src_;
     Location loc_;

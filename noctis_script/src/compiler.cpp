@@ -21,7 +21,6 @@ std::string Compiler::disassemble(const Bytecode& bc) {
 
     for (size_t i = 0; i < bytes.size();) {
         size_t offset = i;
-        const Bytecode::DbgInfo *dbgInfo = bc.getDbgInfoAt(i);
         Byte op = bytes[i++];
 
         Instruction instr = static_cast<Instruction>(op);
@@ -64,9 +63,6 @@ std::string Compiler::disassemble(const Bytecode& bc) {
             }
         }
 
-        if (dbgInfo)
-            oss << " ; " << dbgInfo->mess;
-
         oss << "\n";
     }
 
@@ -96,6 +92,7 @@ std::unique_ptr<Script> Compiler::compileScript(std::shared_ptr<ScriptSource> so
 
     auto script = std::make_unique<Script>();
     script->ctx = ctx_;
+    script->src = src_;
 
     currScript_ = script.get();
 
@@ -224,16 +221,6 @@ void Compiler::emit(QWord qw, const ASTNode *node) {
     bytes.resize(sizeof(QWord));
     makeBytes(qw, bytes, 0);
     emit(bytes, node);
-}
-
-void Compiler::emitDbgInfo(const std::string &val, const ASTNode &node) {
-    if (!isDebug_)
-        return;
-
-    tempCompiledBytecode_.dbgInfo_.emplace(
-        tempCompiledBytecode_.bytes_.size(),
-        Bytecode::DbgInfo{ val, node.location }
-    );
 }
 
 void Compiler::patchBytecode(size_t location, Instruction instr, const std::vector<Byte> &operandBytes) {
@@ -751,7 +738,7 @@ void Compiler::compileObject(const ASTNode &obj) {
     DWord constructorIdx = currObject_->getConstructorIdx();
     if (constructorIdx == INVALID_IDX) {
         ScriptMethod defaultConstructor;
-        defaultConstructor.isPublic = false;
+        defaultConstructor.isPublic = true;
         defaultConstructor.name = currObject_->name;
         defaultConstructor.numLocals = 0;
         // 'this'
@@ -768,6 +755,7 @@ void Compiler::compileObject(const ASTNode &obj) {
         emit((DWord)0, nullptr); // this
 
         emit(Instruction::CALLMETHOD, nullptr);
+        emit((VTypeWord)clearMask(currObject_->type, ValueType::OBJ_MASK), nullptr);
         emit((DWord)0, nullptr); // <membInit>
 
         emit(Instruction::LOADLOCAL, nullptr);
@@ -1076,7 +1064,6 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
     bool hasValOnStack = false;
     bool valOnStackModifiable = true;
     ValueType lastTypeOnStack = ValueType::INVALID;
-    std::string lastValOnStackName;
 
     // -------------------------
     // HELPERS FOR PRE-OPERATORS
@@ -1300,9 +1287,6 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
             }
             compileArguments(postOpChild.child(1), method, true);
 
-            if (!lastValOnStackName.empty())
-                emitDbgInfo(lastValOnStackName, exprTerm.child(childIdx - 1));
-
             emit(isScriptObj ? Instruction::CALLMETHOD : Instruction::CALLCPPMETHOD, &postOpChild);
             emit(objIdx, &postOpChild);
             emit(sres.idx, &postOpChild);
@@ -1353,9 +1337,6 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
                     
                     return;
                 }
-
-                if (!lastValOnStackName.empty())
-                    emitDbgInfo(lastValOnStackName, exprTerm.child(childIdx - 1));
                 
                 emit(Instruction::LOADMEMBER, &postOpChild);
                 emit(sres.idx, &postOpChild);
@@ -1501,21 +1482,17 @@ void Compiler::compileVariableAccess(const ASTNode &varAccess, ValueType expecte
 
     expectedType = clearMask(expectedType, ValueType::REF_MASK);
     if (sres.ty == SymbolSearchRes::LOCAL_VAR) {
-        emitDbgInfo(varAccessName, varAccess);
-
         // Variables that are not primitives don't need to be loaded as a reference
         // because objects technically are references    
         emit(Instruction::LOADLOCAL, &varAccess);
     }
     else if (sres.ty == SymbolSearchRes::GLOBAL_VAR) {
-        emitDbgInfo(varAccessName, varAccess);
         emit(Instruction::LOADGLOBAL, &varAccess);
     } 
     else if (sres.ty == SymbolSearchRes::MEMBER_VAR) {
         emit(Instruction::LOADLOCAL, &varAccess);
         emit((DWord)0, &varAccess); // 'this'
         
-        emitDbgInfo(varAccessName, varAccess);
         emit(Instruction::LOADMEMBER, &varAccess);
     }
     else return;
@@ -1831,18 +1808,15 @@ void Compiler::compileStore(const ASTNode &varNode) {
             return false;
         
         if (sres.ty == SymbolSearchRes::GLOBAL_VAR) {
-            emitDbgInfo(varName, node);
             emit(store ? Instruction::STOREGLOBAL : Instruction::LOADGLOBAL, &node);
         }
         else if (sres.ty == SymbolSearchRes::LOCAL_VAR) {
-            emitDbgInfo(varName, node);
             emit(store ? Instruction::STORELOCAL : Instruction::LOADLOCAL, &node);
         }
         else if (sres.ty == SymbolSearchRes::MEMBER_VAR) {
             emit(Instruction::LOADLOCAL, &node);
             emit((DWord)0, &node); // 'this'
 
-            emitDbgInfo(varName, node);
             emit(store ? Instruction::STOREMEMBER : Instruction::LOADMEMBER, &node);
         }
 

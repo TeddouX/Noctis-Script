@@ -3,6 +3,7 @@
 #pragma once
 #include "script_function.hpp"
 #include "script_context.hpp"
+#include "script_source.hpp"
 #include "script_object.hpp"
 #include "named_utils.hpp"
 #include "variable.hpp"
@@ -24,6 +25,8 @@ public:
     Script() = default;
 
     std::shared_ptr<ScriptContext> ctx;
+    std::shared_ptr<ScriptSource> src;
+    
     DWord numGlobalVariables = 0;
     
     NCSC_GETTERS_SETTERS_FOR_NAMED_VECTOR(Function, functions_, ScriptFunction)

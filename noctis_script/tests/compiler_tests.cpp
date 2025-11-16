@@ -50,8 +50,8 @@ static CheckErrorsRes checkErrors(const std::string &name) {
             parser.getErrors()[0].getErrorMessage(true) 
         };
 
-    Compiler compiler(scriptCtx, src);
-    compiler.compileScript(rootNode);
+    Compiler compiler(scriptCtx, false);
+    compiler.compileScript(src, rootNode);
     const std::vector<Error> &errors = compiler.getErrors();
 
 

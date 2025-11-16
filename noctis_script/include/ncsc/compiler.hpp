@@ -74,8 +74,6 @@ private:
     void emit(QWord qw, const ASTNode *node);
     void emit(Instruction instr, const ASTNode *node);
 
-    void emitDbgInfo(const std::string &val, const ASTNode &node);
-
     // Sets tempCompiledBytecode to a new instance of Bytecode
     void clearTmpBytecode() { tempCompiledBytecode_ = Bytecode(src_, isDebug_); }
 

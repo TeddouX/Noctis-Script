@@ -682,7 +682,7 @@ ASTNode Parser::parseArgList() {
         createSyntaxError(EXPECTED_TOKEN.format('('), t);
         return node;
     }
-    node.setPos(t);
+    node.updatePos(t);
 
     Token &t1 = peek(0); 
     if (t1.type != TokenType::PARENTHESIS_CLOSE) {
@@ -692,15 +692,19 @@ ASTNode Parser::parseArgList() {
             Token &t3 = consume();
             if (t3.type == TokenType::COMMA)
                 continue;
-            else if (t3.type == TokenType::PARENTHESIS_CLOSE)
+            else if (t3.type == TokenType::PARENTHESIS_CLOSE) {
+                node.updatePos(t3);
                 break;
+            }
             else {
                 createSyntaxError(EXPECTED_TOKEN_OR_TOKEN.format(',', ')'), t3);
                 break;
             }
         }
-    } else
+    } else {
+        node.updatePos(t1);
         consume();
+    }
 
     return node;
 }

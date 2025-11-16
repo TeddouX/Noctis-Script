@@ -79,16 +79,15 @@ void VM::executeNext() {
             Value obj = pop();
             const ValueType objTy = obj.ty;
 
-            if (!isObject(objTy)) {
-                error(TRYED_ACCESSING_MEMB_OF_INV_OB);
+            // Object is null
+            if (obj.ty == ValueType::INVALID) {
+                error(TRIED_ACCESSING_MEMB_OF_NULL, bytecode, ip);
                 return;
             }
 
-            // Object is null
-            if (obj.ty == ValueType::INVALID) {
-                dbgInfo->loc;
-                dbgInfo->mess;
-                dbgInfo->nodeType;
+            if (!isObject(objTy)) {
+                error(TRIED_ACCESING_MEMB_OF_INV_OBJ, bytecode, ip);
+                return;
             }
             
             if (isCPPObject(objTy))
@@ -106,8 +105,14 @@ void VM::executeNext() {
             Value val = pop();
             const ValueType objTy = obj.ty;
 
+            // Object is null
+            if (obj.ty == ValueType::INVALID) {
+                error(TRIED_ACCESSING_MEMB_OF_NULL, bytecode, ip);
+                return;
+            }
+
             if (!isObject(objTy)) {
-                error(TRYED_ACCESSING_MEMB_OF_INV_OB);
+                error(TRIED_ACCESING_MEMB_OF_INV_OBJ, bytecode, ip);
                 return;
             }
 
@@ -164,7 +169,7 @@ void VM::executeNext() {
                 case ValueType::FLOAT32: a.f32 += 1.0f; break;
                 case ValueType::FLOAT64: a.f64 += 1.0; break;
 
-                default: error(CANT_INC_OR_DEC_NON_NUM);
+                default: error(CANT_INC_OR_DEC_NOM_NUM, bytecode, ip);
             }
 #undef CASE_INC
 
@@ -191,7 +196,7 @@ void VM::executeNext() {
                 case ValueType::FLOAT32: a.f32 -= 1.0f; break;
                 case ValueType::FLOAT64: a.f64 -= 1.0; break;
 
-                default: error(CANT_INC_OR_DEC_NON_NUM);
+                default: error(CANT_INC_OR_DEC_NOM_NUM, bytecode, ip);
             }
 #undef CASE_DEC
 
@@ -202,7 +207,7 @@ void VM::executeNext() {
         INSTR(NOT): {
             Value v = pop();
             if (v.ty != ValueType::BOOL) {
-                error(CANT_INVERT_NON_BOOLEAN);
+                error(CANT_INVERT_NON_BOOLEAN, bytecode, ip);
                 break;
             }
 
@@ -239,7 +244,7 @@ void VM::executeNext() {
             ValueType castTy = static_cast<ValueType>(readWord<DWord>(bytes, ip + 1));
             if (!canPromoteType(val.ty, castTy)) {
                 // Might mess up the stack and cause weird errors
-                error(std::format(UNSAFE_CAST, ctx_->getTypeName(val.ty), ctx_->getTypeName(castTy)));
+                // error(std::format(UNSAFE_CAST, ctx_->getTypeName(val.ty), ctx_->getTypeName(castTy)));
                 break;
             }
             val.ty = castTy;
@@ -260,6 +265,13 @@ void VM::executeNext() {
             break;
         }
         INSTR(CALLMETHOD): {
+            Value obj = pop();
+            // Object is null
+            if (obj.ty == ValueType::INVALID) {
+                error(TRIED_CALLING_METHTOD_OF_NULL, bytecode, ip);
+                return;
+            }
+
             ip += 1;
 
             DWord objIdx = readWord<DWord>(bytes, ip);
@@ -271,6 +283,8 @@ void VM::executeNext() {
             ScriptObject *scriptObj = script_->getObject(objIdx);
             const ScriptFunction *method = scriptObj->getMethod(methodIdx);
 
+            push(obj);
+            
             sp_ -= method->numParams;
             prepareScriptFunction(method);
 
@@ -296,6 +310,12 @@ void VM::executeNext() {
         }
 
         INSTR(CALLCPPMETHOD): {
+            Value obj = pop();
+            if (obj.ty == ValueType::INVALID) {
+                error(TRIED_CALLING_METHTOD_OF_NULL, bytecode, ip);
+                return;
+            }
+
             ip += 1;
 
             DWord objIdx = readWord<DWord>(bytes, ip);
@@ -304,10 +324,12 @@ void VM::executeNext() {
             DWord methodIdx = readWord<DWord>(bytes, ip);
             ip += sizeof(DWord);
 
-            CPPObject *obj = ctx_->getCppObject(objIdx);
-            if (!obj) break;
-            const CPPMethod *method = obj->getMethod(methodIdx);
+            CPPObject *cppObj = ctx_->getCppObject(objIdx);
+            if (!cppObj) break;
+            const CPPMethod *method = cppObj->getMethod(methodIdx);
             if (!method) break;
+
+            push(obj);
 
             auto spIt = stack_.begin() + sp_;
             std::vector<Value> args(spIt - method->numParams, spIt);
@@ -349,7 +371,7 @@ void VM::executeNext() {
         }
 
         INSTR(NEW): {
-            DWord idx = readWord<DWord>(bytecode, ip + 1);
+            DWord idx = readWord<DWord>(bytes, ip + 1);
             ScriptObject *scriptObj = script_->getObject(idx);
             auto objVals = new std::vector<Value>;
             objVals->resize(scriptObj->getMemberCount());
@@ -369,7 +391,7 @@ void VM::executeNext() {
         }
 
         INSTR(CPPNEW): {
-            DWord objIdx = readWord<DWord>(bytecode, ip + 1);
+            DWord objIdx = readWord<DWord>(bytes, ip + 1);
             
             GarbageCollectorObj *gcObj = garbageCollector_->allocateObj();
             push(ctx_->callObjectNew(objIdx, gcObj));
@@ -378,7 +400,7 @@ void VM::executeNext() {
         }
 
         default:
-            error(INVALID_OR_CORRUPTED_BC);
+            error(INVALID_OR_CORRUPTED_BC, bytecode, ip);
             break;
     }
 
@@ -399,7 +421,8 @@ void VM::executeNext() {
 void VM::prepareScriptFunction(const ScriptFunction *fun) {
     CallFrame frame {
         .bytecode = &fun->bytecode,
-        .name = &fun->name,
+        .func = fun,
+        .isFunction = true,
         .bp = sp_,
         .numLocals = fun->numLocals,
         .ip = 0,
@@ -439,7 +462,7 @@ void VM::prepareFunction(const ScriptFunction *fun) {
 
 bool VM::computeGlobals() {
     if (!script_) {
-        error(NO_SCRIPT_ATTACHED);
+        error(NO_SCRIPT_ATTACHED, nullptr, 0);
         return false;
     }
 
@@ -447,7 +470,8 @@ bool VM::computeGlobals() {
     for (const auto &global : script_->getAllGlobalVariables()) {
         CallFrame cf {
             .bytecode = &global.bytecode,
-            .name = &global.name,
+            .gv = &global,
+            .isFunction = false,
             .stackSize = global.requiredStackSize,
         };
         
@@ -476,13 +500,14 @@ bool VM::execute() {
     hasError_ = false;
 
     if (!currFun_) {
-        error(NO_FUN_PREPD);
+        error(NO_FUN_PREPD, nullptr, 0);
         return false;
     }
 
     CallFrame baseFrame{
         .bytecode = &currFun_->bytecode,
-        .name = &currFun_->name
+        .func = currFun_,
+        .isFunction = true,
         .sp = currFun_->numLocals,
         .stackSize = currFun_->requiredStackSize + currFun_->numLocals,
     };
@@ -520,16 +545,17 @@ std::string VM::getStackStrRepr() const {
 }
 
 Value VM::pop() {
+    auto &lastFrame = callStack_.back();
     if (sp_ - 1 == UINT64_MAX) {
-        error(STACK_UNDERFLOW_EMPTY);
+        error(STACK_UNDERFLOW_EMPTY, lastFrame.bytecode, lastFrame.ip);
         return Value{};
     }
 
-    size_t frameBase = callStack_.back().bp;
-    size_t numLocals = callStack_.back().bp;
     if (currFun_ && !callStack_.empty()) {
-        if (sp_ > 1 && sp_ - 1 <= frameBase + numLocals) {
-            error(STACK_UNDERFLOW_STACK_FRAME);
+        size_t frameBase = lastFrame.bp;
+        size_t numLocals = lastFrame.isFunction ? lastFrame.func->numLocals : 0;
+        if (sp_ > 1 && sp_ - 1 < frameBase + numLocals) {
+            error(STACK_UNDERFLOW_STACK_FRAME, lastFrame.bytecode, lastFrame.ip);
             return Value{};
         }
     }
@@ -539,8 +565,9 @@ Value VM::pop() {
 }
 
 void VM::push(const Value &val) {
+    auto &lastFrame = callStack_.back();
     if (sp_ >= stack_.size()) {
-        error(STACK_OVERFLOW);
+        error(STACK_OVERFLOW, lastFrame.bytecode, lastFrame.ip);
         return;
     }
 
@@ -551,7 +578,23 @@ void VM::push(const Value &val) {
 void VM::error(const ErrInfo &errInfo, const Bytecode *bc, size_t ip) {
     hasError_ = true;
 
-    
+    if (!bc) {
+        lastError_ = Error(errInfo);
+        return;
+    }
+
+    auto &lastFrame = callStack_.back();
+    const std::string &lastFrameName = lastFrame.isFunction ? lastFrame.func->name : lastFrame.gv->name;  
+    auto formattedErrInfo = errInfo.format(lastFrameName);
+
+    if (bc->hasDebugInfo()) {
+        const auto &loc = bc->getLocationAt(ip);
+
+        lastError_ = Error(formattedErrInfo, script_->src);
+        lastError_.setLocation(loc);
+    }
+    else
+        lastError_ = Error(formattedErrInfo);
 }
 
 } // namespace NCSC

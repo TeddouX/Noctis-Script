@@ -140,14 +140,14 @@ int main() {
 
         NCSC::VM vm(script, gc);
         if (!vm.computeGlobals()) {
-            std::println("{}", vm.getLastError());
+            std::println("{}", vm.getLastError().getErrorMessage());
             exit(EXIT_FAILURE);
         }
 
         vm.prepareFunction(fun);
 
         if (!vm.execute()) {
-            std::println("{}", vm.getLastError());
+            std::println("{}", vm.getLastError().getErrorMessage());
 
             gc->cleanup();
             

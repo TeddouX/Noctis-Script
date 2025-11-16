@@ -45,6 +45,9 @@ std::string Error::getErrorMessageUnformatted(bool colored) const {
 }
 
 std::vector<std::string> Error::getErrorMessageLines(bool colored) const {
+    if (!initialized_)
+        return {};
+
     std::vector<std::string> lines;
 
     if (src_ == nullptr) {
@@ -98,7 +101,7 @@ std::vector<std::string> Error::getErrorMessageLines(bool colored) const {
         carets += isBeginning ? '^' : '-';
 
         if (len > 2)
-            carets += std::string(end - start - 2, '-');
+            carets += std::string(len - 2, '-');
         
         if (len > 1)
             carets += isEnd ? '^' : '-';

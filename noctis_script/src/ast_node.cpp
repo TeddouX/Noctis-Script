@@ -98,10 +98,13 @@ void ASTNode::addChild(const ASTNode &child) {
         location.col = child.location.col;
         location.colEnd = child.location.colEnd;
     } else {
-        location.lineEnd = std::max(location.lineEnd, child.location.lineEnd);
-        location.colEnd = std::max(location.colEnd, child.location.colEnd);
+        size_t biggestLineEnd = std::max(location.lineEnd, child.location.lineEnd);
+        bool lineEndChanged = biggestLineEnd != location.lineEnd;
+
+        location.lineEnd = biggestLineEnd;
+        location.colEnd = lineEndChanged ? child.location.colEnd : std::max(location.colEnd, child.location.colEnd);
     }
-   
+    
     children_.push_back(child); 
 }
 
