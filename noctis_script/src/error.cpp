@@ -45,9 +45,12 @@ std::string Error::getErrorMessageUnformatted(bool colored) const {
 }
 
 std::vector<std::string> Error::getErrorMessageLines(bool colored) const {
-    assert(src_ != nullptr);
-
     std::vector<std::string> lines;
+
+    if (src_ == nullptr) {
+        lines.push_back(getErrorMessageUnformatted(colored));
+        return lines;
+    }
 
     // Error message
     lines.push_back(getErrorMessageUnformatted(colored));

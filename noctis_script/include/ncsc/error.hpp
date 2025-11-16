@@ -5,7 +5,7 @@
 #include <string>
 
 #include "token.hpp"
-#include "script_node.hpp"
+#include "ast_node.hpp"
 #include "script_source.hpp"
 #include "ncsc.hpp"
 
@@ -33,6 +33,8 @@ struct ErrInfo {
 class NCSC_API Error {
 public:
     Error(const ErrInfo &errInfo, std::shared_ptr<ScriptSource> src);
+    Error(const ErrInfo &errInfo)
+        : info_(errInfo) {}
 
     void setLocation(Location loc) { loc_ = loc; }
 
@@ -47,6 +49,9 @@ private:
     ErrInfo info_;
     std::shared_ptr<ScriptSource> src_;
     Location loc_;
+
+    bool simpleError_;
+    std::string simpleErrorMessage_;
 };
 
 } // namespace NCSC

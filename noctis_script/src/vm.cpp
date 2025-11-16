@@ -19,26 +19,27 @@ VM::VM(std::shared_ptr<Script> script, std::shared_ptr<GarbageCollector> gc)
 void VM::executeNext() {
     CallFrame &currFrame = callStack_.back();
 
-    const auto &bytecode = *currFrame.bytecode;
+    const auto *bytecode = currFrame.bytecode;
+    const auto &bytes = bytecode->getBytes();
     QWord &ip = currFrame.ip;
     size_t &bp = currFrame.bp;
 
-    if (ip >= bytecode.size()) {
-        error("Bytecode ended without return");
+    if (ip >= bytes.size()) {
+        error(BC_ENDED_WOUT_RET, bytecode, ip);
         return;
     }
 
 #define INSTR(x) case NCSC::Instruction::x
 #define END_INSTR(numBytes) ip += numBytes; break
 
-    Instruction instr = static_cast<Instruction>(bytecode[ip]);
+    Instruction instr = static_cast<Instruction>(bytes[ip]);
     switch (instr) {
         INSTR(NOOP):
             END_INSTR(1);
         
         INSTR(PUSH): {
             size_t operandSize = 0;
-            push(Value::fromBytes(bytecode, ip + 1, operandSize));
+            push(Value::fromBytes(bytes, ip + 1, operandSize));
             END_INSTR(operandSize + 1);
         }
         INSTR(POP): {
@@ -53,34 +54,41 @@ void VM::executeNext() {
         }
 
         INSTR(LOADLOCAL): {
-            DWord idx = readWord<DWord>(bytecode, ip + 1);
+            DWord idx = readWord<DWord>(bytes, ip + 1);
             push(stack_[bp + idx]);
 
             END_INSTR(sizeof(DWord) + 1);
         }
         INSTR(STORELOCAL): {
-            DWord idx = readWord<DWord>(bytecode, ip + 1);
+            DWord idx = readWord<DWord>(bytes, ip + 1);
             stack_[bp + idx] = pop();
             END_INSTR(sizeof(DWord) + 1);
         }
         INSTR(LOADGLOBAL): {
-            DWord idx = readWord<DWord>(bytecode, ip + 1);
+            DWord idx = readWord<DWord>(bytes, ip + 1);
             push(globalVariables_[idx]);
             END_INSTR(sizeof(DWord) + 1);
         }
         INSTR(STOREGLOBAL): {
-            DWord idx = readWord<DWord>(bytecode, ip + 1);
+            DWord idx = readWord<DWord>(bytes, ip + 1);
             globalVariables_[idx] = pop();
             END_INSTR(sizeof(DWord) + 1);
         }
         INSTR(LOADMEMBER): {
-            DWord idx = readWord<DWord>(bytecode, ip + 1);
+            DWord idx = readWord<DWord>(bytes, ip + 1);
             Value obj = pop();
             const ValueType objTy = obj.ty;
 
             if (!isObject(objTy)) {
                 error(TRYED_ACCESSING_MEMB_OF_INV_OB);
                 return;
+            }
+
+            // Object is null
+            if (obj.ty == ValueType::INVALID) {
+                dbgInfo->loc;
+                dbgInfo->mess;
+                dbgInfo->nodeType;
             }
             
             if (isCPPObject(objTy))
@@ -93,7 +101,7 @@ void VM::executeNext() {
             END_INSTR(sizeof(DWord) + 1);
         }
         INSTR(STOREMEMBER): {
-            DWord idx = readWord<DWord>(bytecode, ip + 1);
+            DWord idx = readWord<DWord>(bytes, ip + 1);
             Value obj = pop();
             Value val = pop();
             const ValueType objTy = obj.ty;
@@ -204,13 +212,13 @@ void VM::executeNext() {
         }
 
         INSTR(JMP): {
-            ip = readWord<QWord>(bytecode, ip + 1);
+            ip = readWord<QWord>(bytes, ip + 1);
             END_INSTR(0);
         }
         INSTR(JMPFALSE): {
             Value v = pop();
             if (v.b == false) {
-                ip = readWord<QWord>(bytecode, ip + 1);
+                ip = readWord<QWord>(bytes, ip + 1);
                 
                 END_INSTR(0);
             } else
@@ -219,7 +227,7 @@ void VM::executeNext() {
         INSTR(JMPTRUE): {
             Value v = pop();
             if (v.b == true) {
-                ip = readWord<QWord>(bytecode, ip + 1);
+                ip = readWord<QWord>(bytes, ip + 1);
                 
                 END_INSTR(0);
             } else
@@ -228,7 +236,7 @@ void VM::executeNext() {
 
         INSTR(TYCAST): {
             Value val = pop();
-            ValueType castTy = static_cast<ValueType>(readWord<DWord>(bytecode, ip + 1));
+            ValueType castTy = static_cast<ValueType>(readWord<DWord>(bytes, ip + 1));
             if (!canPromoteType(val.ty, castTy)) {
                 // Might mess up the stack and cause weird errors
                 error(std::format(UNSAFE_CAST, ctx_->getTypeName(val.ty), ctx_->getTypeName(castTy)));
@@ -241,7 +249,7 @@ void VM::executeNext() {
         }
 
         INSTR(CALLSCRFUN): {
-            DWord idx = readWord<DWord>(bytecode, ip + 1);
+            DWord idx = readWord<DWord>(bytes, ip + 1);
             ip += 1 + sizeof(DWord);
 
             const ScriptFunction *fun = script_->getFunction(idx);
@@ -254,10 +262,10 @@ void VM::executeNext() {
         INSTR(CALLMETHOD): {
             ip += 1;
 
-            DWord objIdx = readWord<DWord>(bytecode, ip);
+            DWord objIdx = readWord<DWord>(bytes, ip);
             ip += sizeof(DWord);
 
-            DWord methodIdx = readWord<DWord>(bytecode, ip);
+            DWord methodIdx = readWord<DWord>(bytes, ip);
             ip += sizeof(DWord);
             
             ScriptObject *scriptObj = script_->getObject(objIdx);
@@ -270,7 +278,7 @@ void VM::executeNext() {
         }
 
         INSTR(CALLCPPFUN): {
-            DWord idx = readWord<DWord>(bytecode, ip + 1);
+            DWord idx = readWord<DWord>(bytes, ip + 1);
 
             const CPPFunction *fun = ctx_->getCppFunction(idx);
 
@@ -290,10 +298,10 @@ void VM::executeNext() {
         INSTR(CALLCPPMETHOD): {
             ip += 1;
 
-            DWord objIdx = readWord<DWord>(bytecode, ip);
+            DWord objIdx = readWord<DWord>(bytes, ip);
             ip += sizeof(DWord);
 
-            DWord methodIdx = readWord<DWord>(bytecode, ip);
+            DWord methodIdx = readWord<DWord>(bytes, ip);
             ip += sizeof(DWord);
 
             CPPObject *obj = ctx_->getCppObject(objIdx);
@@ -390,7 +398,8 @@ void VM::executeNext() {
 
 void VM::prepareScriptFunction(const ScriptFunction *fun) {
     CallFrame frame {
-        .bytecode = &fun->bytecode.getBytes(),
+        .bytecode = &fun->bytecode,
+        .name = &fun->name,
         .bp = sp_,
         .numLocals = fun->numLocals,
         .ip = 0,
@@ -437,7 +446,8 @@ bool VM::computeGlobals() {
     // Compute values for all global variables
     for (const auto &global : script_->getAllGlobalVariables()) {
         CallFrame cf {
-            .bytecode = &global.bytecode.getBytes(),
+            .bytecode = &global.bytecode,
+            .name = &global.name,
             .stackSize = global.requiredStackSize,
         };
         
@@ -471,7 +481,8 @@ bool VM::execute() {
     }
 
     CallFrame baseFrame{
-        .bytecode = &currFun_->bytecode.getBytes(),
+        .bytecode = &currFun_->bytecode,
+        .name = &currFun_->name
         .sp = currFun_->numLocals,
         .stackSize = currFun_->requiredStackSize + currFun_->numLocals,
     };
@@ -537,13 +548,10 @@ void VM::push(const Value &val) {
     sp_++;
 }
 
-void VM::error(std::string_view mess) {
+void VM::error(const ErrInfo &errInfo, const Bytecode *bc, size_t ip) {
     hasError_ = true;
 
-    const CallFrame &lastFrame = callStack_.back();
-    std::string location = std::format(" (in function '{}', bytecode location: {})", currFun_->name, lastFrame.ip);
-    lastError_ = std::string(mess) + location;
+    
 }
-
 
 } // namespace NCSC

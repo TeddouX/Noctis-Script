@@ -80,7 +80,7 @@ int main() {
     scriptCtx->registerObjectMember("z", &Vec3::z);
     scriptCtx->registerObjectMethod("AddMembers", &Vec3::addMembers);
 
-    NCSC::Compiler compiler(scriptCtx);
+    NCSC::Compiler compiler(scriptCtx, /*isDebug*/true);
     std::shared_ptr<NCSC::Script> script = compiler.compileScript(src);
     if (compiler.hasErrors()) {
         for (auto error : compiler.getErrors())

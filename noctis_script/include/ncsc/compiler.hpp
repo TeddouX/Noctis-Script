@@ -18,18 +18,18 @@ namespace NCSC
 
 class NCSC_API Compiler {
 public:
-    explicit Compiler(std::shared_ptr<ScriptContext> ctx, std::shared_ptr<ScriptSource> src = nullptr)
-        : ctx_(ctx), src_(src), tempCompiledBytecode_(src) {};
+    // If isDebug is true, no optimizations will be applied and debug info will be generated
+    // If isDebug is false, executing one of the compiled functions in the VM may lead to vague error messages
+    explicit Compiler(std::shared_ptr<ScriptContext> ctx, bool isDebug = false)
+        : ctx_(ctx), isDebug_(isDebug) {};
 
     static std::string disassemble(const Bytecode &bc);
 
     std::unique_ptr<Script> compileScript(std::shared_ptr<ScriptSource> source);
-    std::unique_ptr<Script> compileScript(const ASTNode &root);
+    std::unique_ptr<Script> compileScript(std::shared_ptr<ScriptSource> source, const ASTNode &root);
 
     bool hasErrors() { return !compileErrors_.empty(); }
     const std::vector<Error> &getErrors() const { return compileErrors_; }
-
-    void setSource(const std::shared_ptr<ScriptSource> &src) { src_ = src; }
 
 private:
     std::shared_ptr<ScriptContext> ctx_;
@@ -48,6 +48,8 @@ private:
 
     QWord tmpLabelNum_ = 0;
 
+    bool isDebug_;
+
     void enterNewScope();
     void exitScope();
     // Clear scopes and set currScope_ to nullptr
@@ -64,19 +66,18 @@ private:
     void resolveJumps(Bytecode &bc);
 
     // Add a byte to the bytecode of the current function
-    void emit(Byte byte);
-    void emit(const std::vector<Byte> &bytes);
-    void emit(Word w);
-    void emit(DWord dw);
-    void emit(QWord qw);
-
-    // Add an instruction to the bytecode of the current function
-    void emit(Instruction instr);
+    // node: the node from which that byte was emitted, nullptr if none
+    void emit(Byte byte, const ASTNode *node);
+    void emit(const std::vector<Byte> &bytes, const ASTNode *node);
+    void emit(Word w, const ASTNode *node);
+    void emit(DWord dw, const ASTNode *node);
+    void emit(QWord qw, const ASTNode *node);
+    void emit(Instruction instr, const ASTNode *node);
 
     void emitDbgInfo(const std::string &val, const ASTNode &node);
 
     // Sets tempCompiledBytecode to a new instance of Bytecode
-    void clearTmpBytecode() { tempCompiledBytecode_ = Bytecode(src_); }
+    void clearTmpBytecode() { tempCompiledBytecode_ = Bytecode(src_, isDebug_); }
 
     // Patch bytecode
     void patchBytecode(size_t location, Instruction instr, const std::vector<Byte> &operandBytes);
@@ -112,8 +113,8 @@ private:
         constexpr size_t bytesSize = getValueSize(T{}); 
         std::vector<Byte> bytes(bytesSize, 0);
         makeValueBytes(val, vtype, bytes, 0);
-        emit(Instruction::PUSH);
-        emit(bytes);
+        emit(Instruction::PUSH, &constant);
+        emit(bytes, &constant);
     }
 
     struct SymbolSearchRes {

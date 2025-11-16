@@ -3,7 +3,7 @@
 #pragma once
 #include <vector>
 
-#include "script_node.hpp"
+#include "ast_node.hpp"
 #include "error.hpp"
 #include "token.hpp"
 #include "ncsc.hpp"

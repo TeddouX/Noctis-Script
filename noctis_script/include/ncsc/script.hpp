@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 // Copyright (c) 2025, TeddouX (https://github.com/TeddouX/)
 #pragma once
-#include "script_node.hpp"
 #include "script_function.hpp"
 #include "script_context.hpp"
 #include "script_object.hpp"

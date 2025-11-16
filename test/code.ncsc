@@ -1,7 +1,14 @@
+obj Data {
+    pub Int x = 0;
+    pub Int y = 0;
+}
+
+obj Vec2 {
+    pub Data data;
+}
+
 fun Main() {
+    Vec2 vec = new Vec2();
 
-    Bool b = true;
-
-    Bool c = false;
-
+    vec.data.x;
 }
