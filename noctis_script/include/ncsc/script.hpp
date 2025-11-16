@@ -15,8 +15,8 @@ namespace NCSC
 {
     
 struct GlobalVar : public Variable {
-    // Global's bytecode shoudld get ran before executing any functions
-    std::vector<Byte> bytecode;
+    // Global's bytecode should get ran before executing any functions
+    Bytecode bytecode;
     size_t requiredStackSize = 0;
 };
 

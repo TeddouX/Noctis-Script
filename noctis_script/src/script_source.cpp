@@ -36,11 +36,11 @@ ScriptSource::ScriptSource(const std::string &source)
             );
             start = i + 1;
 
+            // Add an empty space if the source ends with a newline
             if (isLastChar && isNL) {
-                // Add a space if the source ends with an empty line
                 string_ += ' ';
                 i++;
-                
+
                 lines_.push_back({ start, i - start });
             }
         }

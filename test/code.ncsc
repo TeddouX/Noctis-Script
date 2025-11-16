@@ -1,10 +1,7 @@
-Bool function(Int a, Int b) {
-    return true;
-}
+fun Main() {
 
-Bool b = function(
-    1,
-    2,
-    3
-);
-Bool b = 111000;
+    Bool b = true;
+
+    Bool c = false;
+
+}

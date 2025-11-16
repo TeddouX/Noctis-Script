@@ -19,9 +19,9 @@ namespace NCSC
 class NCSC_API Compiler {
 public:
     explicit Compiler(std::shared_ptr<ScriptContext> ctx, std::shared_ptr<ScriptSource> src = nullptr)
-        : ctx_(ctx), src_(src) {};
+        : ctx_(ctx), src_(src), tempCompiledBytecode_(src) {};
 
-    static std::string disassemble(const std::vector<Byte> &bc);
+    static std::string disassemble(const Bytecode &bc);
 
     std::unique_ptr<Script> compileScript(std::shared_ptr<ScriptSource> source);
     std::unique_ptr<Script> compileScript(const ASTNode &root);
@@ -38,7 +38,7 @@ private:
     ScriptFunction *currFunction_ = nullptr;
     ScriptObject *currObject_ = nullptr;
 
-    std::vector<Byte> tempCompiledBytecode_;
+    Bytecode tempCompiledBytecode_;
 
     std::vector<Error> compileErrors_;
 
@@ -53,25 +53,28 @@ private:
     // Clear scopes and set currScope_ to nullptr
     void resetScopes();
 
-    void finalizeBc(std::vector<Byte> &bc);
+    void finalizeBc(Bytecode &bc);
 
     void createCompileError(const ErrInfo &info, const ASTNode &node);
 
-    size_t computeRequiredStackSize(const std::vector<Byte> &bc);
+    size_t computeRequiredStackSize(const Bytecode &bc);
     // Computes maximum number of local variables of the scope
     size_t computeMaxLocals(const Scope *scope);
 
-    void resolveJumps(std::vector<Byte> &bc);
+    void resolveJumps(Bytecode &bc);
 
     // Add a byte to the bytecode of the current function
-    void emit(Byte bytecode);
-    void emit(const std::vector<Byte> &bytecode);
+    void emit(Byte byte);
+    void emit(const std::vector<Byte> &bytes);
     void emit(Word w);
     void emit(DWord dw);
     void emit(QWord qw);
 
     // Add an instruction to the bytecode of the current function
     void emit(Instruction instr);
+
+    // Sets tempCompiledBytecode to a new instance of Bytecode
+    void clearTmpBytecode() { tempCompiledBytecode_ = Bytecode(src_); }
 
     // Patch bytecode
     void patchBytecode(size_t location, Instruction instr, const std::vector<Byte> &operandBytes);

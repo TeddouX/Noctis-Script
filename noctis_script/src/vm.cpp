@@ -390,7 +390,7 @@ void VM::executeNext() {
 
 void VM::prepareScriptFunction(const ScriptFunction *fun) {
     CallFrame frame {
-        .bytecode = &fun->bytecode,
+        .bytecode = &fun->bytecode.getBytes(),
         .bp = sp_,
         .numLocals = fun->numLocals,
         .ip = 0,
@@ -437,7 +437,7 @@ bool VM::computeGlobals() {
     // Compute values for all global variables
     for (const auto &global : script_->getAllGlobalVariables()) {
         CallFrame cf {
-            .bytecode = &global.bytecode,
+            .bytecode = &global.bytecode.getBytes(),
             .stackSize = global.requiredStackSize,
         };
         
@@ -471,7 +471,7 @@ bool VM::execute() {
     }
 
     CallFrame baseFrame{
-        .bytecode = &currFun_->bytecode,
+        .bytecode = &currFun_->bytecode.getBytes(),
         .sp = currFun_->numLocals,
         .stackSize = currFun_->requiredStackSize + currFun_->numLocals,
     };

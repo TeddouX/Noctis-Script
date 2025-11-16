@@ -79,16 +79,18 @@ static CheckErrorsRes checkErrors(const std::string &name) {
     auto isErrorInDefRange = [errors](DefinitionRange defRange, 
                             const std::string &errPref = "", uint32_t num = 0) -> const Error * {
         for (const auto &err : errors) {
-            // Is the error on the same line as the definition's start?
-            bool errAfterRangeBegin = err.getLine() == defRange.first.first 
-                // If yes, compare columns
-                ? err.getCol() > defRange.first.second
-                // Else, compare lines 
-                : err.getLine() > defRange.first.first;
+            const NCSC::Location &errLoc = err.getLocation();
 
-            bool errBeforeRangeEnd = err.getLine() == defRange.second.first 
-                ? err.getCol() < defRange.second.second
-                : err.getLine() < defRange.second.first;
+            // Is the error on the same line as the definition's start?
+            bool errAfterRangeBegin = errLoc.line == defRange.first.first 
+                // If yes, compare columns
+                ? errLoc.col > defRange.first.second
+                // Else, compare lines 
+                : errLoc.line > defRange.first.first;
+
+            bool errBeforeRangeEnd = errLoc.line == defRange.second.first 
+                ? errLoc.col < defRange.second.second
+                : errLoc.line < defRange.second.first;
 
             if (errAfterRangeBegin && errBeforeRangeEnd) {
                 // The caller expects and error        

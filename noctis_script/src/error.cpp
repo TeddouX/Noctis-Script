@@ -30,14 +30,6 @@ Error::Error(const ErrInfo &errInfo, std::shared_ptr<ScriptSource> src)
     assert(src != nullptr);
 }
 
-void Error::setLocation(size_t line, size_t lineEnd, size_t col, size_t colEnd) {
-    line_ = line;
-    lineEnd_ = lineEnd;
-
-    col_ = col;
-    colEnd_ = colEnd;
-}
-
 std::string Error::getErrorMessageUnformatted(bool colored) const {
     std::string mess = std::format("{} {}{}: {}", 
         info_.type, 
@@ -63,7 +55,7 @@ std::vector<std::string> Error::getErrorMessageLines(bool colored) const {
     // Helpers
 
     // The line header width is that of the biggest line
-    size_t headerWidth = formatSrcLineNumber(lineEnd_).size();
+    size_t headerWidth = formatSrcLineNumber(loc_.lineEnd).size();
     // Adds the content of line 'n' 
     auto pushSrcLine = [&](int n) {
         if (n >= 1 && n <= src_->numLines()) {
@@ -74,25 +66,26 @@ std::vector<std::string> Error::getErrorMessageLines(bool colored) const {
 
     // Makes the caret line for line 'n'
     auto makeCaretLine = [&](int lineNum) {
-        std::string text = src_->getLine(lineNum);
-        size_t len = text.size();
+        size_t lineContentSize = src_->getLine(lineNum).size();
 
         size_t start = 0;
-        size_t end = len;
+        size_t end = lineContentSize;
         bool isBeginning = false;
-        if (lineNum == line_) {
-            start = col_ - 1;
+        if (lineNum == loc_.line) {
+            start = loc_.col - 1;
             isBeginning = true;
         }
 
         bool isEnd = false;
-        if (lineNum == lineEnd_) {
-            end = colEnd_ - 1;
+        if (lineNum == loc_.lineEnd) {
+            end = loc_.colEnd - 1;
             isEnd = true;
         }
 
-        if (start >= end)
+        if (start > end)
             return;
+    
+        size_t len = end - start;
 
         std::string caret(headerWidth - 1, ' ');
         caret += "| ";
@@ -101,11 +94,10 @@ std::vector<std::string> Error::getErrorMessageLines(bool colored) const {
         std::string carets;
         carets += isBeginning ? '^' : '-';
 
-        if (end > start + 2) {
+        if (len > 2)
             carets += std::string(end - start - 2, '-');
-        }
         
-        if (start + 1 != end)
+        if (len > 1)
             carets += isEnd ? '^' : '-';
         
         caret += colored ? formatColor(ANSI_RED, false, carets) : carets;
@@ -114,16 +106,16 @@ std::vector<std::string> Error::getErrorMessageLines(bool colored) const {
     };
 
     // Before line
-    pushSrcLine(line_ - 1);
+    pushSrcLine(loc_.line - 1);
 
     // Error line(s)
-    for (int ln = line_; ln <= lineEnd_; ++ln) {
-        pushSrcLine(ln);
-        makeCaretLine(ln);
+    for (int i = loc_.line; i <= loc_.lineEnd; ++i) {
+        pushSrcLine(i);
+        makeCaretLine(i);
     }
 
     // After line
-    pushSrcLine(lineEnd_ + 1);
+    pushSrcLine(loc_.lineEnd + 1);
 
     // Location
     {
@@ -132,7 +124,7 @@ std::vector<std::string> Error::getErrorMessageLines(bool colored) const {
             !src_->fileName.empty() ? src_->fileName :
             "Unknown location";
 
-        lines.push_back(std::format("{}({},{})", file, line_, col_));
+        lines.push_back(std::format("{}({},{})", file, loc_.line, loc_.col));
     }
 
     return lines;

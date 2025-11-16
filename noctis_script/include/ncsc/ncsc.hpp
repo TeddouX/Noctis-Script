@@ -62,6 +62,10 @@ constexpr DWord INVALID_IDX = -1;
 typedef double float64_t;
 typedef float  float32_t;
 
+struct Location {
+    size_t line = 0, lineEnd = 0;
+    size_t col = 0, colEnd = 0;
+};
 
 template <typename T>
 inline T readWord(const std::vector<Byte> &bytes, size_t idx) {

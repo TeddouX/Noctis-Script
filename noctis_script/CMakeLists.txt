@@ -9,6 +9,7 @@ set(NCSC_SOURCES
     # -------------------
     #      Headers
     # -------------------
+    "include/ncsc/bytecode.hpp"
     "include/ncsc/compiler.hpp"
     "include/ncsc/error.hpp"
     "include/ncsc/function.hpp"

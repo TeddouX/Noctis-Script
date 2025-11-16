@@ -7,14 +7,16 @@
 namespace NCSC
 {
 
-void Optimizer::optimize(std::vector<Byte> &bc) {
+void Optimizer::optimize(Bytecode &bc) {
+    std::vector<Byte> &bytes = bc.bytes_;
+
     bool changed;
     do {
         changed = false;
 
-        for (size_t i = 0; i < bc.size();) {
+        for (size_t i = 0; i < bytes.size();) {
             for (auto &optimizationRule : rules_) {
-                if (optimizationRule.rule(bc, i)) {
+                if (optimizationRule.rule(bytes, i)) {
                     changed = true;
                     // Restart from the beginning
                     break;
@@ -24,7 +26,7 @@ void Optimizer::optimize(std::vector<Byte> &bc) {
             if (changed)
                 break;
             else
-                i += getInstructionSize(bc, i);
+                i += getInstructionSize(bytes, i);
         }
 
     } while(changed);

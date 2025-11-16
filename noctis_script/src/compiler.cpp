@@ -15,12 +15,13 @@ namespace NCSC
 
 static bool isComparisonOp(TokenType tty);
 
-std::string Compiler::disassemble(const std::vector<Byte>& bc) {
+std::string Compiler::disassemble(const Bytecode& bc) {
     std::ostringstream oss;
+    const std::vector<Byte> &bytes = bc.getBytes();
 
-    for (size_t i = 0; i < bc.size();) {
+    for (size_t i = 0; i < bytes.size();) {
         size_t offset = i;
-        Byte op = bc[i++];
+        Byte op = bytes[i++];
 
         Instruction instr = static_cast<Instruction>(op);
         auto it = INSTR_INFO.find(instr);
@@ -36,7 +37,7 @@ std::string Compiler::disassemble(const std::vector<Byte>& bc) {
             oss << " ";
 
             size_t size = 0;
-            Value val = Value::fromBytes(bc, i, size);
+            Value val = Value::fromBytes(bytes, i, size);
             
             oss << val.getStrRepr();
             
@@ -45,8 +46,8 @@ std::string Compiler::disassemble(const std::vector<Byte>& bc) {
         else if (instr == Instruction::CALLMETHOD || instr == Instruction::CALLCPPMETHOD) {
             oss << " ";
             
-            DWord objIdx    = readWord<DWord>(bc, i);
-            DWord methodIdx = readWord<DWord>(bc, i + sizeof(DWord));
+            DWord objIdx    = readWord<DWord>(bytes, i);
+            DWord methodIdx = readWord<DWord>(bytes, i + sizeof(DWord));
 
             oss << objIdx << " " << methodIdx;
 
@@ -55,9 +56,9 @@ std::string Compiler::disassemble(const std::vector<Byte>& bc) {
         else if (info.second > 0) {
             oss << " ";
             switch (info.second) {
-                case 2: oss << readWord<Word>(bc, i);  i += sizeof(Word);  break;
-                case 4: oss << readWord<DWord>(bc, i); i += sizeof(DWord); break;
-                case 8: oss << readWord<QWord>(bc, i); i += sizeof(QWord); break;
+                case 2: oss << readWord<Word>(bytes, i);  i += sizeof(Word);  break;
+                case 4: oss << readWord<DWord>(bytes, i); i += sizeof(DWord); break;
+                case 8: oss << readWord<QWord>(bytes, i); i += sizeof(QWord); break;
                 default: oss << "(invalid size)";
             }
         }
@@ -111,7 +112,7 @@ std::unique_ptr<Script> Compiler::compileScript(const ASTNode &root) {
                 gv->bytecode = tempCompiledBytecode_;
                 gv->requiredStackSize = computeRequiredStackSize(tempCompiledBytecode_);
 
-                tempCompiledBytecode_.clear();
+                clearTmpBytecode();
 
                 break;
             }
@@ -152,19 +153,19 @@ void Compiler::resetScopes() {
     nextScopeIdx_ = 0;
 }
 
-void Compiler::finalizeBc(std::vector<Byte> &bc) {
+void Compiler::finalizeBc(Bytecode &bc) {
     Optimizer::optimize(tempCompiledBytecode_);
     resolveJumps(bc);
 }
 
 void Compiler::createCompileError(const ErrInfo &info, const ASTNode &node) {
     Error err(info, src_);
-    err.setLocation(node.line, node.lineEnd, node.col, node.colEnd);
+    err.setLocation({ node.line, node.lineEnd, node.col, node.colEnd });
     compileErrors_.push_back(err);
 }
 
 void Compiler::emit(Byte byte) {
-    tempCompiledBytecode_.push_back(byte);
+    tempCompiledBytecode_.bytes_.push_back(byte);
 }
 
 void Compiler::emit(Instruction instr) {
@@ -207,8 +208,8 @@ void Compiler::patchBytecode(size_t location, Instruction instr, const std::vect
     tempBytes.push_back(static_cast<Byte>(instr));
     tempBytes.insert(tempBytes.end(), operandBytes.begin(), operandBytes.end());
 
-    tempCompiledBytecode_.insert(
-        tempCompiledBytecode_.begin() + location, 
+    tempCompiledBytecode_.bytes_.insert(
+        tempCompiledBytecode_.bytes_.begin() + location, 
         tempBytes.begin(), 
         tempBytes.end());
 }
@@ -252,12 +253,14 @@ void Compiler::compileFunction(const ASTNode &funcDecl, bool method) {
         
         currScope_->addLocalVar(thisVar);
         
-        currFunction_ = &me;
+        auto &method = currObject_->emplaceMethod(me);
+        currFunction_ = &method;
     } else {
         ScriptFunction fun;
         fun.numParams = 0;
 
-        currFunction_ = &fun;
+        auto &function = currScript_->emplaceFunction(fun);
+        currFunction_ = &function;
     }
     
     if (isConstructor) {
@@ -296,18 +299,7 @@ void Compiler::compileFunction(const ASTNode &funcDecl, bool method) {
 
         currScope_->addLocalVar(v);
         currFunction_->paramTypes.push_back(ty);   
-    }
-
-    // Safe as long as no other functions are added after this
-    if (method) {
-        auto &method = currObject_->emplaceMethod(*static_cast<const ScriptMethod *>(currFunction_));
-        // Update currFunction_ to point to the newly added method
-        currFunction_ = &method;
-    } 
-    else {
-        auto &function = currScript_->emplaceFunction(*currFunction_);
-        currFunction_ = &function;
-    }        
+    }     
 
     const ASTNode& statementBlock = funcDecl.lastChild();
     compileStatementBlock(statementBlock);
@@ -343,17 +335,19 @@ void Compiler::compileFunction(const ASTNode &funcDecl, bool method) {
         currFunction_->bytecode = tempCompiledBytecode_;
     }
     
-    tempCompiledBytecode_.clear();
+    clearTmpBytecode();
     currFunction_ = nullptr;
 }
 
-size_t Compiler::computeRequiredStackSize(const std::vector<Byte> &bc) {
+size_t Compiler::computeRequiredStackSize(const Bytecode &bc) {
+    const std::vector<Byte> &bytes = bc.bytes_;
+
     size_t maxSize = 0;
     size_t currSize = 0;
     ValueType lastPushedTy = ValueType::INVALID;
 
-    for (size_t i = 0; i < bc.size();) {
-        Instruction instr = static_cast<Instruction>(bc[i]);
+    for (size_t i = 0; i < bytes.size();) {
+        Instruction instr = static_cast<Instruction>(bytes[i]);
 
         switch (instr) {
             case Instruction::LOADLOCAL:
@@ -387,7 +381,7 @@ size_t Compiler::computeRequiredStackSize(const std::vector<Byte> &bc) {
 
             case Instruction::CALLSCRFUN:
             case Instruction::CALLCPPFUN: {
-                DWord idx = readWord<DWord>(bc, i + 1);
+                DWord idx = readWord<DWord>(bytes, i + 1);
                 const Function *func = instr == Instruction::CALLSCRFUN 
                     ? static_cast<Function *>(currScript_->getFunction(idx)) 
                     : static_cast<Function *>(ctx_->getCppFunction(idx));
@@ -402,8 +396,8 @@ size_t Compiler::computeRequiredStackSize(const std::vector<Byte> &bc) {
 
             case Instruction::CALLMETHOD:
             case Instruction::CALLCPPMETHOD: {
-                DWord objIdx = readWord<DWord>(bc, i + 1);
-                DWord methodIdx = readWord<DWord>(bc, i + 1 + sizeof(DWord));
+                DWord objIdx = readWord<DWord>(bytes, i + 1);
+                DWord methodIdx = readWord<DWord>(bytes, i + 1 + sizeof(DWord));
 
                 const Function *method = nullptr;
                 if (instr == Instruction::CALLMETHOD) {
@@ -428,7 +422,7 @@ size_t Compiler::computeRequiredStackSize(const std::vector<Byte> &bc) {
             default: break;
         }
 
-        i += getInstructionSize(bc, i);
+        i += getInstructionSize(bytes, i);
     }
 
     return maxSize;
@@ -440,17 +434,18 @@ size_t Compiler::computeMaxLocals(const Scope *scope) {
     return std::max(scope->localVariables.size(), computeMaxLocals(scope->parent));
 }
 
-void Compiler::resolveJumps(std::vector<Byte> &bc) {
+void Compiler::resolveJumps(Bytecode &bc) {
     std::unordered_map<QWord, size_t> jmpLocations;
+    std::vector<Byte> &bytes = bc.bytes_;
 
-    for (QWord i = 0; i < bc.size();) {
-        Instruction instr = static_cast<Instruction>(bc[i]);
+    for (QWord i = 0; i < bytes.size();) {
+        Instruction instr = static_cast<Instruction>(bytes[i]);
         
         switch (instr) {
             case Instruction::JMP:
             case Instruction::JMPFALSE:
             case Instruction::JMPTRUE: {
-                QWord jmpLabelNum = readWord<QWord>(bc, i + sizeof(Instruction));
+                QWord jmpLabelNum = readWord<QWord>(bytes, i + sizeof(Instruction));
                 jmpLocations.emplace(jmpLabelNum, i);
 
                 i += sizeof(QWord) + sizeof(Instruction);
@@ -458,7 +453,7 @@ void Compiler::resolveJumps(std::vector<Byte> &bc) {
             }
 
             case Instruction::LABEL: {
-                QWord labelNum = readWord<QWord>(bc, i + sizeof(Instruction));
+                QWord labelNum = readWord<QWord>(bytes, i + sizeof(Instruction));
                 size_t jmpIdx = jmpLocations.at(labelNum);
                 size_t operandIdx = jmpIdx + sizeof(Instruction);
 
@@ -466,15 +461,15 @@ void Compiler::resolveJumps(std::vector<Byte> &bc) {
                 makeBytes(i, operandBytes, 0);
 
                 // Patch the jump to point to the current idx 
-                std::copy(operandBytes.begin(), operandBytes.end(), bc.begin() + operandIdx);
+                std::copy(operandBytes.begin(), operandBytes.end(), bytes.begin() + operandIdx);
                 // Remove the LABEL instruction
                 constexpr size_t instrSize = sizeof(Instruction) + sizeof(QWord);
-                bc.erase(bc.begin() + i, bc.begin() + i + instrSize);
+                bytes.erase(bytes.begin() + i, bytes.begin() + i + instrSize);
                 break;
             }
 
             default:
-                i += getInstructionSize(bc, i);
+                i += getInstructionSize(bytes, i);
                 break;
         }
     }
@@ -700,9 +695,9 @@ void Compiler::compileObject(const ASTNode &obj) {
                 resolveJumps(tempCompiledBytecode_);
 
                 // Add the bytecode to the mever init method
-                auto &membInitBc = currObject_->getMethod(0)->bytecode; 
-                membInitBc.insert(membInitBc.end(), tempCompiledBytecode_.begin(), tempCompiledBytecode_.end());
-                tempCompiledBytecode_.clear();
+                auto &membInitBc = currObject_->getMethod(0)->bytecode.bytes_; 
+                membInitBc.insert(membInitBc.end(), tempCompiledBytecode_.bytes_.begin(), tempCompiledBytecode_.bytes_.end());
+                clearTmpBytecode();
 
                 break;
             }
@@ -732,7 +727,7 @@ void Compiler::compileObject(const ASTNode &obj) {
         defaultConstructor.requiredStackSize = 1;
         defaultConstructor.returnTy = currObject_->type;
 
-        tempCompiledBytecode_.clear();
+        clearTmpBytecode();
 
         // <membInit> takes a reference to 'this'
         emit(Instruction::LOADLOCAL);
@@ -746,16 +741,16 @@ void Compiler::compileObject(const ASTNode &obj) {
 
         emit(Instruction::RET);
 
-        defaultConstructor.bytecode = tempCompiledBytecode_;
+        defaultConstructor.bytecode.bytes_ = tempCompiledBytecode_.bytes_;
 
         currObject_->addMethod(defaultConstructor);
 
-        tempCompiledBytecode_.clear();
+        clearTmpBytecode();
     }
 
     // Optimize the member init method's bytecode
     ScriptMethod *membInitFinal = currObject_->getMethod(0);
-    membInitFinal->bytecode.push_back(static_cast<Byte>(Instruction::RETVOID));
+    membInitFinal->bytecode.bytes_.push_back(static_cast<Byte>(Instruction::RETVOID));
 
     finalizeBc(membInitFinal->bytecode);
     membInitFinal->requiredStackSize = computeRequiredStackSize(membInitFinal->bytecode);
