@@ -249,7 +249,7 @@ void Compiler::compileFunction(const ASTNode &funcDecl, bool method) {
     if (method && firstChild.type() == ASTNodeType::TOKEN)
         reTyNodeIdx = 1;
 
-    if (method && funcDecl.child(reTyNodeIdx).token().val == currObject_->name)
+    if (method && funcDecl.numChildren() - reTyNodeIdx == 3)
         // Constructor don't have a return type specified
         reTyNodeIdx -= 1;
 
@@ -570,6 +570,19 @@ Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, Object
         }
     }
 
+    if (currScript_) {
+        DWord scriptObjIdx = currScript_->getObjectIdx(name);
+        if (scriptObjIdx != INVALID_IDX) {
+            ScriptObject* scriptObj = currScript_->getObject(scriptObjIdx);
+            return SymbolSearchRes{
+                .obj = scriptObj,
+                .idx = scriptObjIdx,
+                .foundType = scriptObj->type,
+                .ty = SymbolSearchRes::OBJECT,
+            };
+        }
+    }
+
     // Member variable or function
     if (currObject_) {        
         DWord memberIdx = currObject_->getMemberIdx(name);
@@ -599,23 +612,12 @@ Compiler::SymbolSearchRes Compiler::searchSymbol(const std::string &name, Object
     if (currScript_) {
         DWord funIdx = currScript_->getFunctionIdx(name);
         if (funIdx != INVALID_IDX) {
-            Function *fun = currScript_->getFunction(funIdx);
+            Function* fun = currScript_->getFunction(funIdx);
             return SymbolSearchRes{
                 .fun = fun,
                 .idx = funIdx,
                 .foundType = fun->returnTy,
                 .ty = SymbolSearchRes::FUNCTION,
-            };
-        }
-
-        DWord scriptObjIdx = currScript_->getObjectIdx(name);
-        if (scriptObjIdx != INVALID_IDX) {
-            ScriptObject *scriptObj = currScript_->getObject(scriptObjIdx);
-            return SymbolSearchRes{
-                .obj = scriptObj,
-                .idx = scriptObjIdx,
-                .foundType = scriptObj->type,
-                .ty = SymbolSearchRes::OBJECT,
             };
         }
 
@@ -1583,20 +1585,24 @@ void Compiler::compileAssignment(const ASTNode &assignment) {
     if (assignment.numChildren() == 0)
         return;
 
+    const ASTNode &varTerm = assignment.child(0);
+    ValueType varTermType = getExpressionTermType(varTerm);
     // A simple statement like a function call
     if (assignment.numChildren() == 1) {
         compileExpressionTerm(assignment.child(0), ValueType::VOID);
+        
+        if (varTermType != ValueType::VOID)
+            emit(Instruction::POP, &assignment);
+
         return;
     }
 
-    const ASTNode &varTerm = assignment.child(0);
     
     // Load variable value
     TokenType opTokTy = assignment.child(1).token().type;
     if (opTokTy != TokenType::EQUAL)
         compileExpressionTerm(varTerm, ValueType::VOID);
     
-    ValueType varTermType = getExpressionTermType(varTerm);
     // Set the expected type to that of the loaded variable
     compileExpression(assignment.child(2), varTermType);
 

@@ -192,7 +192,7 @@ private:
     inline static ErrInfo NOT_A_TYPE                    { "Compilation error", "C", 18, "Not a type" };
     inline static ErrInfo NOT_A_FUNCTION                { "Compilation error", "C", 19, "Not a function" };
     inline static ErrInfo NOT_AN_OBJ                    { "Compilation error", "C", 20, "Not a constructible object" };
-    inline static ErrInfo CONSTRUCTOR_SHOULDNT_RET      { "Compilation error", "C", 21, "The compiler shouldn't return" };
+    inline static ErrInfo CONSTRUCTOR_SHOULDNT_RET      { "Compilation error", "C", 21, "The constructor shouldn't return" };
     inline static ErrInfo SYMBOL_ALREADY_EXISTS         { "Compilation error", "C", 22, "This symbol was already defined somewhere else" };
     inline static ErrInfo TY_IS_NOT_AN_OBJECT           { "Compilation error", "C", 23, "Type {} is not an object" };
     inline static ErrInfo NOT_A_MEMBER                  { "Compilation error", "C", 24, "Not a member variable of {}" };

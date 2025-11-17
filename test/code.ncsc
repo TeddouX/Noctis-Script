@@ -1,16 +1,15 @@
-obj Data {
-    pub Int x = 0;
-    pub Int y = 0;
-
-    pub fun thisIsAMethod() {}
-}
-
 obj Vec2 {
-    pub Data data;
+    pub Int x;
+
+    pub Vec2() {
+
+    }
+
+    pub Vec2 addToX(Int i) {
+        blablabla();
+    }
 }
 
 fun Main() {
-    Vec2 object = null;
-    // object.data = new Data();
-    object.data.x = 10;
+    Vec2 object = new Vec2();
 }

@@ -60,7 +60,7 @@ int main() {
     auto tokens = NCSC::Lexer(src).tokenizeAll();
     NCSC::Parser parser(tokens, src);
     auto rootNode = parser.parseAll();
-    // std::println("{}", rootNode.getStrRepr());
+    std::println("{}", rootNode.getStrRepr());
     if (parser.hasErrors()) {
         for (auto error : parser.getErrors()) 
             std::println("{}", error.getErrorMessage());
