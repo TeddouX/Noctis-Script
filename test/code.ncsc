@@ -10,7 +10,7 @@ obj Vec2 {
 }
 
 fun Main() {
-    Vec2 vec = new Vec2();
-    vec.data.thisIsAMethod
-    ();
+    Vec2 object = new Vec2();
+    // object.data = new Data();
+    object.data.x = 10;
 }

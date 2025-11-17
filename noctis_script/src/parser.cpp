@@ -737,6 +737,10 @@ ASTNode Parser::parseExpressionValue() {
             return node;
         }
     }
+    else if (t.type == TokenType::NULL_KWD) {
+        node.addChild(parseToken(t));
+        consume();
+    }
     else {
         consume();
         createSyntaxError(EXPECTED_EXPRESSION_VALUE, t);

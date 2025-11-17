@@ -21,6 +21,8 @@ std::string Compiler::disassemble(const Bytecode& bc) {
 
     for (size_t i = 0; i < bytes.size();) {
         size_t offset = i;
+
+        Location loc = bc.getLocationAt(i);
         Byte op = bytes[i++];
 
         Instruction instr = static_cast<Instruction>(op);
@@ -62,6 +64,9 @@ std::string Compiler::disassemble(const Bytecode& bc) {
                 default: oss << "(invalid size)";
             }
         }
+
+        if (bc.hasDebugInfo())
+            oss << std::format(" ({}, {}) -> ({}, {})", loc.line, loc.col, loc.lineEnd, loc.colEnd);
 
         oss << "\n";
     }
@@ -180,9 +185,9 @@ void Compiler::emit(Byte byte, const ASTNode *node) {
 
     if (isDebug_ && node) {
         auto &locEntries = tempCompiledBytecode_.locationEntries_;
-        if (locEntries.empty() 
-         || locEntries.back().loc.line < node->location.line 
-         || locEntries.back().loc.col < node->location.col)
+        // if (locEntries.empty() 
+        //  || locEntries.back().loc.line < node->location.line 
+        //  || locEntries.back().loc.col < node->location.col)
             locEntries.push_back({ bytes.size(), node->location });
     }
 
@@ -1628,6 +1633,23 @@ void Compiler::compileExpressionValue(const ASTNode &exprVal, ValueType expected
         compileVariableAccess(firstChild, expectedTy);
     else if (firstChild.type() == ASTNodeType::CONSTRUCT_CALL)
         compileConstructCall(firstChild, expectedTy);
+    else if (firstChild.type() == ASTNodeType::TOKEN && firstChild.token().type == TokenType::NULL_KWD) {
+        if (!hasMask(expectedTy, ValueType::OBJ_MASK)) {
+            createCompileError(EXPECTED_TYPE_INSTEAD_GOT.format(
+                ctx_->getTypeName(expectedTy), 
+                "null"), exprVal);
+            return;
+        }
+
+        // Invalid is null
+        Value val{ .ty = ValueType::INVALID };
+        std::vector<Byte> bytes;
+        bytes.resize(val.getSize());
+        val.getBytes(bytes, 0);
+
+        emit(Instruction::PUSH, &exprVal);
+        emit(bytes, &exprVal);
+    }
 }
 
 void Compiler::compileConstructCall(const ASTNode &constructCall, ValueType expectedTy) {

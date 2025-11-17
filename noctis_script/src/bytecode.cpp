@@ -18,8 +18,11 @@ Location Bytecode::getLocationAt(size_t byteIdx) const {
         }
     );
 
-    if (it == locationEntries_.end())
-        return locationEntries_.back().loc;
+    if (it == locationEntries_.end()) {
+        if (locationEntries_.size() > 0)
+            return locationEntries_.back().loc;
+        return {};
+    }
     else if (it == locationEntries_.begin())
         return it->loc;
     else
