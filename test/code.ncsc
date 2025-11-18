@@ -5,11 +5,12 @@ obj Vec2 {
 
     }
 
-    pub Vec2 addToX(Int i) {
-        blablabla();
+    pub fun addToX(Int i) {
+        x += i;
     }
 }
 
 fun Main() {
-    Vec2 object = new Vec2();
+    Int i = 0;
+    i++;
 }

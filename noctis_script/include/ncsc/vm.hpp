@@ -52,7 +52,7 @@ public:
         hasError_ = false;
 
         if (!currFun_) {
-            error(std::string(NO_FUN_PREPD));
+            error(NO_FUN_PREPD);
             return false;
         }
 
@@ -65,11 +65,11 @@ public:
     template <typename T>
     bool getFunctionReturn(T &val) {
         if (!executionFinished_) {
-            error(std::string(NO_SCRIPT_EXECUTED));
+            error(NO_SCRIPT_EXECUTED);
             return false;
         }
         else if (currFun_->returnTy == ValueType::VOID) {
-            error(std::format(FUN_HAS_VOID_RET_TY_SO_NO_VAL, currFun_->name));
+            error(FUN_HAS_VOID_RET_TY_SO_NO_VAL.format(currFun_->name));
             return false;
         }
         else if (hasError_)
@@ -79,7 +79,7 @@ public:
         Value top = pop();
 
         if (!canPromoteType(top.ty, givenTy)) {
-            error(std::format(PASSED_TY_DONT_MATCH_W_PASSED_TY, currFun_->name));
+            error(PASSED_TY_DONT_MATCH_W_PASSED_TY.format(currFun_->name));
             return false;
         }
 
@@ -133,7 +133,7 @@ private:
             return false;
         
         if (idx + 1 > currFun_->numParams) {
-            error(std::format(TOO_MANY_ARGS, idx + 1, currFun_->name, currFun_->numParams));
+            error(TOO_MANY_ARGS.format(idx + 1, currFun_->name, currFun_->numParams));
             return false;
         }
 
@@ -141,7 +141,7 @@ private:
         ValueType paramType = currFun_->paramTypes[idx];
 
         if (!canPromoteType(givenTy, paramType)) {
-            error(std::format(ARG_DONT_MATCH_WITH_PARAM, idx, script_->ctx->getTypeName(paramType)));
+            error(ARG_DONT_MATCH_WITH_PARAM.format(idx, script_->ctx->getTypeName(paramType)));
             return false;
         }
 
@@ -173,7 +173,7 @@ private:
     inline static ErrInfo STACK_UNDERFLOW_EMPTY = { "Execution error", "E", 6, "Stack underflow (empty stack) (in {})" };
     inline static ErrInfo STACK_UNDERFLOW_STACK_FRAME = { "Execution error", "E", 7, "Stack underflow (below current frame) (in {})" };
     inline static ErrInfo STACK_OVERFLOW = { "Execution error", "E", 8, "Stack overflow (in {})" };
-    inline static ErrInfo TRIED_CALLING_METHTOD_OF_NULL = { "Execution error", "E", 8, "Calling a method of an object that is null (in {})" };
+    inline static ErrInfo TRIED_CALLING_METHTOD_OF_NULL = { "Execution error", "E", 9, "Calling a method of an object that is null (in {})" };
     
 };
  

@@ -423,16 +423,20 @@ ASTNode Parser::parseFunction(bool isMethod) {
             Token &t3 = consume();
             if (t3.type == TokenType::COMMA)
                 continue;
-            else if (t3.type == TokenType::PARENTHESIS_CLOSE) 
+            else if (t3.type == TokenType::PARENTHESIS_CLOSE)
                 break;
             else {
                 createSyntaxError(EXPECTED_TOKEN_OR_TOKEN.format(',', ')'), t3);
                 break;
             }
+            
+            node.setPos(t3);
         }
     }
-    else
+    else {
         consume();
+        node.setPos(t2);
+    }
 
     node.addChild(argListNode);           CHECK_SYNTAX_ERROR;
     node.addChild(parseStatementBlock()); CHECK_SYNTAX_ERROR;
@@ -693,13 +697,14 @@ ASTNode Parser::parseArgList() {
             if (t3.type == TokenType::COMMA)
                 continue;
             else if (t3.type == TokenType::PARENTHESIS_CLOSE) {
-                node.updatePos(t3);
                 break;
             }
             else {
                 createSyntaxError(EXPECTED_TOKEN_OR_TOKEN.format(',', ')'), t3);
                 break;
             }
+
+            node.updatePos(t3);
         }
     } else {
         node.updatePos(t1);
@@ -736,10 +741,6 @@ ASTNode Parser::parseExpressionValue() {
             createSyntaxError(EXPECTED_TOKEN.format('('), t1);
             return node;
         }
-    }
-    else if (t.type == TokenType::NULL_KWD) {
-        node.addChild(parseToken(t));
-        consume();
     }
     else {
         consume();
@@ -805,6 +806,7 @@ bool isConstantValue(TokenType type) {
         case TokenType::FLOAT_CONSTANT:
         case TokenType::TRUE_KWD:
         case TokenType::FALSE_KWD:
+        case TokenType::NULL_KWD:
             return true;
         default:
             return false;

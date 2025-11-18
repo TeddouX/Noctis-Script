@@ -164,18 +164,18 @@ void Compiler::resetScopes() {
 
 void Compiler::finalizeBc(Bytecode &bc) {
     if (!isDebug_)
-        Optimizer::optimize(tempCompiledBytecode_);
+        Optimizer::optimize(bc);
     
     resolveJumps(bc);
 }
 
 void Compiler::createCompileError(const ErrInfo &info, const ASTNode &node) {
     Error err(info, src_);
-    err.setLocation({ 
-        node.location.line, 
-        node.location.lineEnd, 
-        node.location.col, 
-        node.location.colEnd 
+    err.setLocation({
+        node.location.line,
+        node.location.col,
+        node.location.lineEnd,
+        node.location.colEnd
     });
     compileErrors_.push_back(err);
 }
@@ -386,11 +386,6 @@ size_t Compiler::computeRequiredStackSize(const Bytecode &bc) {
                 maxSize = std::max(maxSize, ++currSize);
                 break;
 
-            case Instruction::STORELOCAL: 
-            case Instruction::STOREGLOBAL: 
-                currSize--;
-                break;
-            
             case Instruction::ADD:
             case Instruction::SUB:
             case Instruction::MUL:
@@ -401,6 +396,11 @@ size_t Compiler::computeRequiredStackSize(const Bytecode &bc) {
             case Instruction::CMPGE:
             case Instruction::CMPEQ:
             case Instruction::CMPNE:
+            case Instruction::STORELOCAL: 
+            case Instruction::STOREGLOBAL: 
+                currSize--;
+                break;
+        
             case Instruction::STOREMEMBER:
                 currSize -= 2;
                 break;
@@ -974,6 +974,9 @@ void Compiler::compileBinaryOp(const ASTNode &op, ValueType expectedType) {
 void Compiler::compileConstantPush(const ASTNode &constant, ValueType expectedType) {
     assert(constant.type() == ASTNodeType::CONSTANT);
 
+    if (expectedType == ValueType::VOID)
+        return;
+
     TokenType constTokTy = constant.token().type; 
     const std::string &constTokVal = constant.token().val;
     if (constTokTy == TokenType::FLOAT_CONSTANT) {
@@ -1039,6 +1042,22 @@ void Compiler::compileConstantPush(const ASTNode &constant, ValueType expectedTy
             emitIntConstant<int8_t>("1", constant, ValueType::BOOL);
         else 
             emitIntConstant<int8_t>("0", constant, ValueType::BOOL);
+    } else if (constTokTy == TokenType::NULL_KWD) {
+        if (!hasMask(expectedType, ValueType::OBJ_MASK)) {
+            createCompileError(EXPECTED_TYPE_INSTEAD_GOT.format(
+                ctx_->getTypeName(expectedType), 
+                "null"), constant);
+            return;
+        }
+
+        // Invalid is null
+        Value val{ .ty = ValueType::INVALID };
+        std::vector<Byte> bytes;
+        bytes.resize(val.getSize());
+        val.getBytes(bytes, 0);
+
+        emit(Instruction::PUSH, &constant);
+        emit(bytes, &constant);
     }
 }
 
@@ -1406,6 +1425,9 @@ void Compiler::compileFunctionCall(const ASTNode &funCall, ValueType expectedTyp
         return;
     }
 
+    if (expectedType == ValueType::VOID)
+        return;
+
     DWord idx = sres.idx;
     const Function* fun;
     if (sres.ty == SymbolSearchRes::FUNCTION)
@@ -1478,6 +1500,9 @@ void Compiler::compileVariableAccess(const ASTNode &varAccess, ValueType expecte
         createCompileError(NOT_A_VAR, varAccess);
         return;
     }
+
+    if (expectedType == ValueType::VOID)
+        return;
 
     ValueType varType = sres.var->type;
     if (!canPromoteType(varType, clearMask(expectedType, ValueType::REF_MASK))) {
@@ -1586,18 +1611,13 @@ void Compiler::compileAssignment(const ASTNode &assignment) {
         return;
 
     const ASTNode &varTerm = assignment.child(0);
-    ValueType varTermType = getExpressionTermType(varTerm);
     // A simple statement like a function call
     if (assignment.numChildren() == 1) {
-        compileExpressionTerm(assignment.child(0), ValueType::VOID);
-        
-        if (varTermType != ValueType::VOID)
-            emit(Instruction::POP, &assignment);
-
+        compileExpressionTerm(varTerm, ValueType::VOID);
         return;
     }
-
     
+    ValueType varTermType = getExpressionTermType(varTerm);
     // Load variable value
     TokenType opTokTy = assignment.child(1).token().type;
     if (opTokTy != TokenType::EQUAL)
@@ -1639,23 +1659,6 @@ void Compiler::compileExpressionValue(const ASTNode &exprVal, ValueType expected
         compileVariableAccess(firstChild, expectedTy);
     else if (firstChild.type() == ASTNodeType::CONSTRUCT_CALL)
         compileConstructCall(firstChild, expectedTy);
-    else if (firstChild.type() == ASTNodeType::TOKEN && firstChild.token().type == TokenType::NULL_KWD) {
-        if (!hasMask(expectedTy, ValueType::OBJ_MASK)) {
-            createCompileError(EXPECTED_TYPE_INSTEAD_GOT.format(
-                ctx_->getTypeName(expectedTy), 
-                "null"), exprVal);
-            return;
-        }
-
-        // Invalid is null
-        Value val{ .ty = ValueType::INVALID };
-        std::vector<Byte> bytes;
-        bytes.resize(val.getSize());
-        val.getBytes(bytes, 0);
-
-        emit(Instruction::PUSH, &exprVal);
-        emit(bytes, &exprVal);
-    }
 }
 
 void Compiler::compileConstructCall(const ASTNode &constructCall, ValueType expectedTy) {
@@ -1667,6 +1670,9 @@ void Compiler::compileConstructCall(const ASTNode &constructCall, ValueType expe
         createCompileError(NOT_AN_OBJ, constructCall);
         return;
     }
+
+    if (expectedTy == ValueType::VOID)
+        return;
 
     if (clearMask(expectedTy, ValueType::REF_MASK) != sres.foundType) {
         createCompileError(EXPECTED_TYPE_INSTEAD_GOT.format(

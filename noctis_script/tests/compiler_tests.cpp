@@ -58,39 +58,35 @@ static CheckErrorsRes checkErrors(const std::string &name) {
     // ---- Check if the errors are being thrown 
     // ---- in the right locations
     
-    // Line, col
-    using Location = std::pair<size_t, size_t>;
-    // Def start, Def end
-    using DefinitionRange = std::pair<Location, Location>;
-    
-    std::unordered_map<const std::string *, DefinitionRange> functionsDefs;
+    std::unordered_map<const std::string *, Location> functionsDefs;
     
     for (const auto &child : rootNode.children()) {
         if (child.type() == ASTNodeType::FUNCTION) {
-            Location start(child.location.line, child.location.col);
-            Location end(child.location.lineEnd, child.location.colEnd);
-
             const std::string &funcName = child.child(1).token().val;
-
-            functionsDefs.emplace(&funcName, DefinitionRange{start, end});
+            functionsDefs.emplace(&funcName, Location{
+                child.location.line, 
+                child.location.col, 
+                child.location.lineEnd, 
+                child.location.colEnd
+            });
         }
     }
 
-    auto isErrorInDefRange = [errors](DefinitionRange defRange, 
+    auto isErrorInDefRange = [errors](Location defRange, 
                             const std::string &errPref = "", uint32_t num = 0) -> const Error * {
         for (const auto &err : errors) {
-            const NCSC::Location &errLoc = err.getLocation();
+            const Location &errLoc = err.getLocation();
 
             // Is the error on the same line as the definition's start?
-            bool errAfterRangeBegin = errLoc.line == defRange.first.first 
+            bool errAfterRangeBegin = errLoc.line == defRange.line 
                 // If yes, compare columns
-                ? errLoc.col > defRange.first.second
+                ? errLoc.col > defRange.col
                 // Else, compare lines 
-                : errLoc.line > defRange.first.first;
+                : errLoc.line > defRange.line;
 
-            bool errBeforeRangeEnd = errLoc.line == defRange.second.first 
-                ? errLoc.col < defRange.second.second
-                : errLoc.line < defRange.second.first;
+            bool errBeforeRangeEnd = errLoc.line == defRange.lineEnd 
+                ? errLoc.col < defRange.colEnd
+                : errLoc.line < defRange.lineEnd;
 
             if (errAfterRangeBegin && errBeforeRangeEnd) {
                 // The caller expects and error        

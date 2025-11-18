@@ -239,6 +239,9 @@ void VM::executeNext() {
                 END_INSTR(1 + sizeof(QWord));
         }
 
+        // Ts not even used vro 🥀
+        // scared to remove it tbh, might disturb the programming deity that makes the VM work
+        // i now consider this as an offering for him/her
         INSTR(TYCAST): {
             Value val = pop();
             ValueType castTy = static_cast<ValueType>(readWord<DWord>(bytes, ip + 1));
@@ -264,14 +267,7 @@ void VM::executeNext() {
 
             break;
         }
-        INSTR(CALLMETHOD): {
-            Value obj = pop();
-            // Object is null
-            if (obj.ty == ValueType::INVALID) {
-                error(TRIED_CALLING_METHTOD_OF_NULL, bytecode, ip);
-                return;
-            }
-
+       INSTR(CALLMETHOD): {
             ip += 1;
 
             DWord objIdx = readWord<DWord>(bytes, ip);
@@ -279,17 +275,27 @@ void VM::executeNext() {
 
             DWord methodIdx = readWord<DWord>(bytes, ip);
             ip += sizeof(DWord);
-            
+           
             ScriptObject *scriptObj = script_->getObject(objIdx);
             const ScriptFunction *method = scriptObj->getMethod(methodIdx);
 
-            push(obj);
-            
+            if (!method || sp_ < method->numParams) {
+                error(INVALID_OR_CORRUPTED_BC, bytecode, ip);
+                return;
+            }
+
+            const Value &obj = stack_[sp_ - method->numParams];
+            std::println("{}", ctx_->getTypeName(obj.ty));
+            if (obj.ty == ValueType::INVALID) {
+                error(TRIED_CALLING_METHTOD_OF_NULL, bytecode, ip);
+                return;
+            }
+
             sp_ -= method->numParams;
             prepareScriptFunction(method);
-
+           
             break;
-        }
+       }
 
         INSTR(CALLCPPFUN): {
             DWord idx = readWord<DWord>(bytes, ip + 1);
@@ -310,12 +316,6 @@ void VM::executeNext() {
         }
 
         INSTR(CALLCPPMETHOD): {
-            Value obj = pop();
-            if (obj.ty == ValueType::INVALID) {
-                error(TRIED_CALLING_METHTOD_OF_NULL, bytecode, ip);
-                return;
-            }
-
             ip += 1;
 
             DWord objIdx = readWord<DWord>(bytes, ip);
@@ -329,7 +329,11 @@ void VM::executeNext() {
             const CPPMethod *method = cppObj->getMethod(methodIdx);
             if (!method) break;
 
-            push(obj);
+            Value obj = stack_[sp_ - method->numParams];
+            if (obj.ty == ValueType::INVALID) {
+                error(TRIED_CALLING_METHTOD_OF_NULL, bytecode, ip);
+                return;
+            }
 
             auto spIt = stack_.begin() + sp_;
             std::vector<Value> args(spIt - method->numParams, spIt);
@@ -545,16 +549,21 @@ std::string VM::getStackStrRepr() const {
 }
 
 Value VM::pop() {
-    auto &lastFrame = callStack_.back();
-    if (sp_ - 1 == UINT64_MAX) {
-        error(STACK_UNDERFLOW_EMPTY, lastFrame.bytecode, lastFrame.ip);
+    if (sp_ == 0) {
+        const Bytecode *bc = callStack_.empty() ? nullptr : callStack_.back().bytecode;
+
+        size_t ip = callStack_.empty() ? 0 : callStack_.back().ip;
+        error(STACK_UNDERFLOW_EMPTY, bc, ip);
+
         return Value{};
     }
 
     if (currFun_ && !callStack_.empty()) {
+        const auto &lastFrame = callStack_.back();
         size_t frameBase = lastFrame.bp;
         size_t numLocals = lastFrame.isFunction ? lastFrame.func->numLocals : 0;
-        if (sp_ > 1 && sp_ - 1 < frameBase + numLocals) {
+
+        if (sp_ - 1 < frameBase + numLocals) {
             error(STACK_UNDERFLOW_STACK_FRAME, lastFrame.bytecode, lastFrame.ip);
             return Value{};
         }
@@ -565,9 +574,10 @@ Value VM::pop() {
 }
 
 void VM::push(const Value &val) {
-    auto &lastFrame = callStack_.back();
+    const Bytecode *bc = callStack_.empty() ? nullptr : callStack_.back().bytecode;
+    size_t ip = callStack_.empty() ? 0 : callStack_.back().ip;
     if (sp_ >= stack_.size()) {
-        error(STACK_OVERFLOW, lastFrame.bytecode, lastFrame.ip);
+        error(STACK_OVERFLOW, bc, ip);
         return;
     }
 
