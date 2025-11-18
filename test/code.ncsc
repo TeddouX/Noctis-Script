@@ -1,19 +1,16 @@
-obj v { pub v() {} }
+obj Vec2 {
+    pub Int x = 0;
 
-Bool returnsTrue() { 
-    printHello(10);
-    return true; 
-}
+    pub Vec2() {
 
-Bool returnsFalse() { 
-    printHello(11);
-    return false; 
+    }
+
+    pub fun addToX(Int i) {
+        x += i;
+    }
 }
 
 fun Main() {
-    if (true) {
-        printHello(0);
-    }
-
-    printHello(1);
+    Int i = 0;
+    i++;
 }

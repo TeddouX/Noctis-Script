@@ -50,45 +50,43 @@ static CheckErrorsRes checkErrors(const std::string &name) {
             parser.getErrors()[0].getErrorMessage(true) 
         };
 
-    Compiler compiler(scriptCtx, src);
-    compiler.compileScript(rootNode);
+    Compiler compiler(scriptCtx, false);
+    compiler.compileScript(src, rootNode);
     const std::vector<Error> &errors = compiler.getErrors();
 
 
     // ---- Check if the errors are being thrown 
     // ---- in the right locations
     
-    // Line, col
-    using Location = std::pair<uint32_t, uint32_t>;
-    // Def start, Def end
-    using DefinitionRange = std::pair<Location, Location>;
-    
-    std::unordered_map<const std::string *, DefinitionRange> functionsDefs;
+    std::unordered_map<const std::string *, Location> functionsDefs;
     
     for (const auto &child : rootNode.children()) {
         if (child.type() == ASTNodeType::FUNCTION) {
-            Location start(child.line, child.col);
-            Location end(child.lineEnd, child.colEnd);
-
             const std::string &funcName = child.child(1).token().val;
-
-            functionsDefs.emplace(&funcName, DefinitionRange{start, end});
+            functionsDefs.emplace(&funcName, Location{
+                child.location.line, 
+                child.location.col, 
+                child.location.lineEnd, 
+                child.location.colEnd
+            });
         }
     }
 
-    auto isErrorInDefRange = [errors](DefinitionRange defRange, 
+    auto isErrorInDefRange = [errors](Location defRange, 
                             const std::string &errPref = "", uint32_t num = 0) -> const Error * {
         for (const auto &err : errors) {
-            // Is the error on the same line as the definition's start?
-            bool errAfterRangeBegin = err.getLine() == defRange.first.first 
-                // If yes, compare columns
-                ? err.getCol() > defRange.first.second
-                // Else, compare lines 
-                : err.getLine() > defRange.first.first;
+            const Location &errLoc = err.getLocation();
 
-            bool errBeforeRangeEnd = err.getLine() == defRange.second.first 
-                ? err.getCol() < defRange.second.second
-                : err.getLine() < defRange.second.first;
+            // Is the error on the same line as the definition's start?
+            bool errAfterRangeBegin = errLoc.line == defRange.line 
+                // If yes, compare columns
+                ? errLoc.col > defRange.col
+                // Else, compare lines 
+                : errLoc.line > defRange.line;
+
+            bool errBeforeRangeEnd = errLoc.line == defRange.lineEnd 
+                ? errLoc.col < defRange.colEnd
+                : errLoc.line < defRange.lineEnd;
 
             if (errAfterRangeBegin && errBeforeRangeEnd) {
                 // The caller expects and error        

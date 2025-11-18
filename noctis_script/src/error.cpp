@@ -7,6 +7,12 @@
 namespace NCSC
 {
 
+static constexpr int ANSI_RED = 31;
+
+static std::string formatSrcLineNumber(size_t lineNum) {
+    return std::to_string(lineNum) + " | ";
+}
+
 static std::string formatColor(int col, bool bold, std::string str) {
     std::stringstream sstream;
 
@@ -24,56 +30,108 @@ Error::Error(const ErrInfo &errInfo, std::shared_ptr<ScriptSource> src)
     assert(src != nullptr);
 }
 
-void Error::setLocation(size_t line, size_t col, size_t colEnd) {
-    line_ = line;
-    col_ = col;
-    colEnd_ = colEnd;
-}
-
 std::string Error::getErrorMessageUnformatted(bool colored) const {
-    std::string mess = std::format("{} {}{}: {}", info_.type, info_.numPrefix, info_.num, info_.mess);
+    std::string mess = std::format("{} {}{}: {}", 
+        info_.type, 
+        info_.numPrefix, 
+        info_.num, 
+        info_.mess);
+    
     if (colored)
         // Red, Bold
-        mess = formatColor(31, true, mess);
+        mess = formatColor(ANSI_RED, true, mess);
 
     return mess;
 }
 
 std::vector<std::string> Error::getErrorMessageLines(bool colored) const {
-    assert(src_ != nullptr);
+    if (!initialized_)
+        return {};
 
     std::vector<std::string> lines;
-    lines.push_back(getErrorMessageUnformatted(colored));
-    
-    std::string srcLineNumber = std::to_string(line_) + " ";
-    std::string srcLine = srcLineNumber + src_->getLine(line_);
-    lines.push_back(srcLine);
-    
-    // Int blabla = a(1,);
-    //                ^--
-    std::stringstream caretSstream;
-    if (colEnd_ != 0) {
-        caretSstream << std::setw(srcLineNumber.size() + col_);
-        caretSstream << "^";
-        for (size_t i = 0; i < colEnd_ - col_ - 1; i++)
-            caretSstream << '-'; 
+
+    if (src_ == nullptr) {
+        lines.push_back(getErrorMessageUnformatted(colored));
+        return lines;
     }
 
-    std::string caret = caretSstream.str();
-    if (colored)
-        // Red, not bold
-        caret = formatColor(31, false, caret);
-    
-    lines.push_back(caret);
+    // Error message
+    lines.push_back(getErrorMessageUnformatted(colored));
 
-    constexpr std::string_view locationFormat = "{}({},{})";
-    std::string locStr = "Unknown location";
-    if (!src_->filePath.empty())
-        locStr = std::format(locationFormat, src_->filePath.string(), line_, col_);
-    else if (!src_->fileName.empty())
-        locStr = std::format(locationFormat, src_->fileName, line_, col_);
+    // Helpers
+
+    // The line header width is that of the biggest line
+    size_t headerWidth = formatSrcLineNumber(loc_.lineEnd).size();
+    // Adds the content of line 'n' 
+    auto pushSrcLine = [&](int n) {
+        if (n >= 1 && n <= src_->numLines()) {
+            std::string nStr = std::to_string(n);
+            lines.push_back(nStr + std::string(headerWidth - 1 - nStr.size(), ' ') + "| " + src_->getLine(n));
+        }
+    };
+
+    // Makes the caret line for line 'n'
+    auto makeCaretLine = [&](int lineNum) {
+        size_t lineContentSize = src_->getLine(lineNum).size();
+
+        size_t start = 0;
+        size_t end = lineContentSize;
+        bool isBeginning = false;
+        if (lineNum == loc_.line) {
+            start = loc_.col - 1;
+            isBeginning = true;
+        }
+
+        bool isEnd = false;
+        if (lineNum == loc_.lineEnd) {
+            end = loc_.colEnd - 1;
+            isEnd = true;
+        }
+
+        if (start > end)
+            return;
     
-    lines.push_back(locStr);
+        size_t len = end - start;
+
+        std::string caret(headerWidth - 1, ' ');
+        caret += "| ";
+        caret += std::string(start, ' ');
+
+        std::string carets;
+        carets += isBeginning ? '^' : '-';
+
+        if (len > 2)
+            carets += std::string(len - 2, '-');
+        
+        if (len > 1)
+            carets += isEnd ? '^' : '-';
+        
+        caret += colored ? formatColor(ANSI_RED, false, carets) : carets;
+        
+        lines.push_back(caret);
+    };
+
+    // Before line
+    pushSrcLine(loc_.line - 1);
+
+    // Error line(s)
+    for (int i = loc_.line; i <= loc_.lineEnd; ++i) {
+        pushSrcLine(i);
+        makeCaretLine(i);
+    }
+
+    // After line
+    pushSrcLine(loc_.lineEnd + 1);
+
+    // Location
+    {
+        std::string file =
+            !src_->filePath.empty() ? src_->filePath.string() :
+            !src_->fileName.empty() ? src_->fileName :
+            "Unknown location";
+
+        lines.push_back(std::format("{}({},{})", file, loc_.line, loc_.col));
+    }
 
     return lines;
 }

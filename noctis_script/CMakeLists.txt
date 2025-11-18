@@ -9,6 +9,8 @@ set(NCSC_SOURCES
     # -------------------
     #      Headers
     # -------------------
+    "include/ncsc/ast_node.hpp"
+    "include/ncsc/bytecode.hpp"
     "include/ncsc/compiler.hpp"
     "include/ncsc/error.hpp"
     "include/ncsc/function.hpp"
@@ -20,7 +22,6 @@ set(NCSC_SOURCES
     "include/ncsc/scope.hpp"
     "include/ncsc/script_context.hpp"
     "include/ncsc/script_function.hpp"
-    "include/ncsc/script_node.hpp"
     "include/ncsc/script_object.hpp"
     "include/ncsc/script_source.hpp"
     "include/ncsc/script.hpp"
@@ -33,6 +34,8 @@ set(NCSC_SOURCES
     # -------------------
     #    Source files
     # -------------------
+    "src/ast_node.cpp"
+    "src/bytecode.cpp"
     "src/compiler.cpp"
     "src/error.cpp"
     "src/garbage_collector.cpp"
@@ -42,7 +45,6 @@ set(NCSC_SOURCES
     "src/parser.cpp"
     "src/scope.cpp"
     "src/script_context.cpp"
-    "src/script_node.cpp"
     "src/script_object.cpp"
     "src/script_source.cpp"
     "src/token.cpp"

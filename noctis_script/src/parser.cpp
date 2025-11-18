@@ -75,7 +75,7 @@ void Parser::createSyntaxError(const ErrInfo &info, const Token &tok) {
     hasSyntaxError_ = true;
 
     Error err(info, src_);
-    err.setLocation(tok.line, tok.col, tok.col + tok.getLength());
+    err.setLocation({ tok.line, tok.line, tok.col, tok.col + tok.getLength() });
     syntaxErrors_.push_back(err);
 }
 
@@ -423,16 +423,20 @@ ASTNode Parser::parseFunction(bool isMethod) {
             Token &t3 = consume();
             if (t3.type == TokenType::COMMA)
                 continue;
-            else if (t3.type == TokenType::PARENTHESIS_CLOSE) 
+            else if (t3.type == TokenType::PARENTHESIS_CLOSE)
                 break;
             else {
                 createSyntaxError(EXPECTED_TOKEN_OR_TOKEN.format(',', ')'), t3);
                 break;
             }
+            
+            node.setPos(t3);
         }
     }
-    else
+    else {
         consume();
+        node.setPos(t2);
+    }
 
     node.addChild(argListNode);           CHECK_SYNTAX_ERROR;
     node.addChild(parseStatementBlock()); CHECK_SYNTAX_ERROR;
@@ -682,7 +686,7 @@ ASTNode Parser::parseArgList() {
         createSyntaxError(EXPECTED_TOKEN.format('('), t);
         return node;
     }
-    node.setPos(t);
+    node.updatePos(t);
 
     Token &t1 = peek(0); 
     if (t1.type != TokenType::PARENTHESIS_CLOSE) {
@@ -692,15 +696,20 @@ ASTNode Parser::parseArgList() {
             Token &t3 = consume();
             if (t3.type == TokenType::COMMA)
                 continue;
-            else if (t3.type == TokenType::PARENTHESIS_CLOSE)
+            else if (t3.type == TokenType::PARENTHESIS_CLOSE) {
                 break;
+            }
             else {
                 createSyntaxError(EXPECTED_TOKEN_OR_TOKEN.format(',', ')'), t3);
                 break;
             }
+
+            node.updatePos(t3);
         }
-    } else
+    } else {
+        node.updatePos(t1);
         consume();
+    }
 
     return node;
 }
@@ -797,6 +806,7 @@ bool isConstantValue(TokenType type) {
         case TokenType::FLOAT_CONSTANT:
         case TokenType::TRUE_KWD:
         case TokenType::FALSE_KWD:
+        case TokenType::NULL_KWD:
             return true;
         default:
             return false;

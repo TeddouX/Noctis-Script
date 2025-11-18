@@ -7,17 +7,18 @@
 #include "ncsc.hpp"
 #include "value_type.hpp"
 #include "function.hpp"
+#include "bytecode.hpp"
 
 namespace NCSC
 {
     
 struct ScriptFunction : public virtual Function {
-    std::vector<Byte> bytecode;
+    Bytecode bytecode;
     // Locals + Parameters
-    DWord  numLocals = 0;
+    DWord numLocals = 0;
     
     // Required stack size to run the function in the VM
-    // not counting locals
+    // Not counting locals
     size_t requiredStackSize = 0;
 };
 

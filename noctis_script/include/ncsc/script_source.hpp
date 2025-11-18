@@ -21,6 +21,7 @@ public:
 
     std::string getLine(size_t line);
     const std::string &getString() const { return string_; }
+    size_t numLines() const { return lines_.size(); }
 
 private:
     explicit ScriptSource(const std::string &source);

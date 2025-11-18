@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BSD-2-Clause
 // Copyright (c) 2025, TeddouX (https://github.com/TeddouX/)
 #pragma once
-#include "script_node.hpp"
 #include "script_function.hpp"
 #include "script_context.hpp"
+#include "script_source.hpp"
 #include "script_object.hpp"
 #include "named_utils.hpp"
 #include "variable.hpp"
@@ -15,8 +15,8 @@ namespace NCSC
 {
     
 struct GlobalVar : public Variable {
-    // Global's bytecode shoudld get ran before executing any functions
-    std::vector<Byte> bytecode;
+    // Global's bytecode should get ran before executing any functions
+    Bytecode bytecode;
     size_t requiredStackSize = 0;
 };
 
@@ -25,6 +25,8 @@ public:
     Script() = default;
 
     std::shared_ptr<ScriptContext> ctx;
+    std::shared_ptr<ScriptSource> src;
+    
     DWord numGlobalVariables = 0;
     
     NCSC_GETTERS_SETTERS_FOR_NAMED_VECTOR(Function, functions_, ScriptFunction)

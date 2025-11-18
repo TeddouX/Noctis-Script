@@ -77,6 +77,7 @@ enum class TokenType : uint8_t {
     PUBLIC_KWD,  // public
     PRIVATE_KWD, // private
     NEW_KWD,     // new
+    NULL_KWD,    // null
 
     TRUE_KWD,  // true
     FALSE_KWD, // false
@@ -179,6 +180,7 @@ const std::unordered_map<std::string, TokenType> tokensStringToTok = {
     { "pub",        TokenType::PUBLIC_KWD, },
     { "priv",       TokenType::PRIVATE_KWD, },
     { "new",        TokenType::NEW_KWD, },
+    { "null",       TokenType::NULL_KWD, },
 };
 
 } // namespace NCSC

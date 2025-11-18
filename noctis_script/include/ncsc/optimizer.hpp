@@ -3,6 +3,7 @@
 #pragma once
 #include "ncsc.hpp"
 #include "instructions.hpp"
+#include "bytecode.hpp"
 
 #include <functional>
 #include <array>
@@ -12,7 +13,7 @@ namespace NCSC
 
 class NCSC_API Optimizer {
 public:
-    static void optimize(std::vector<Byte> &bc);
+    static void optimize(Bytecode &bc);
 
 private:
     static bool constantFolding(std::vector<Byte> &bc, size_t &idx);

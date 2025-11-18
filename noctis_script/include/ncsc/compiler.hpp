@@ -18,18 +18,18 @@ namespace NCSC
 
 class NCSC_API Compiler {
 public:
-    explicit Compiler(std::shared_ptr<ScriptContext> ctx, std::shared_ptr<ScriptSource> src = nullptr)
-        : ctx_(ctx), src_(src) {};
+    // If isDebug is true, no optimizations will be applied and debug info will be generated
+    // If isDebug is false, executing one of the compiled functions in the VM may lead to vague error messages
+    explicit Compiler(std::shared_ptr<ScriptContext> ctx, bool isDebug = false)
+        : ctx_(ctx), isDebug_(isDebug) {};
 
-    static std::string disassemble(const std::vector<Byte> &bc);
+    static std::string disassemble(const Bytecode &bc);
 
     std::unique_ptr<Script> compileScript(std::shared_ptr<ScriptSource> source);
-    std::unique_ptr<Script> compileScript(const ASTNode &root);
+    std::unique_ptr<Script> compileScript(std::shared_ptr<ScriptSource> source, const ASTNode &root);
 
     bool hasErrors() { return !compileErrors_.empty(); }
     const std::vector<Error> &getErrors() const { return compileErrors_; }
-
-    void setSource(const std::shared_ptr<ScriptSource> &src) { src_ = src; }
 
 private:
     std::shared_ptr<ScriptContext> ctx_;
@@ -38,7 +38,7 @@ private:
     ScriptFunction *currFunction_ = nullptr;
     ScriptObject *currObject_ = nullptr;
 
-    std::vector<Byte> tempCompiledBytecode_;
+    Bytecode tempCompiledBytecode_;
 
     std::vector<Error> compileErrors_;
 
@@ -48,30 +48,34 @@ private:
 
     QWord tmpLabelNum_ = 0;
 
+    bool isDebug_;
+
     void enterNewScope();
     void exitScope();
     // Clear scopes and set currScope_ to nullptr
     void resetScopes();
 
-    void finalizeBc(std::vector<Byte> &bc);
+    void finalizeBc(Bytecode &bc);
 
     void createCompileError(const ErrInfo &info, const ASTNode &node);
 
-    size_t computeRequiredStackSize(const std::vector<Byte> &bc);
+    size_t computeRequiredStackSize(const Bytecode &bc);
     // Computes maximum number of local variables of the scope
     size_t computeMaxLocals(const Scope *scope);
 
-    void resolveJumps(std::vector<Byte> &bc);
+    void resolveJumps(Bytecode &bc);
 
     // Add a byte to the bytecode of the current function
-    void emit(Byte bytecode);
-    void emit(const std::vector<Byte> &bytecode);
-    void emit(Word w);
-    void emit(DWord dw);
-    void emit(QWord qw);
+    // node: the node from which that byte was emitted, nullptr if none
+    void emit(Byte byte, const ASTNode *node);
+    void emit(const std::vector<Byte> &bytes, const ASTNode *node);
+    void emit(Word w, const ASTNode *node);
+    void emit(DWord dw, const ASTNode *node);
+    void emit(QWord qw, const ASTNode *node);
+    void emit(Instruction instr, const ASTNode *node);
 
-    // Add an instruction to the bytecode of the current function
-    void emit(Instruction instr);
+    // Sets tempCompiledBytecode to a new instance of Bytecode
+    void clearTmpBytecode() { tempCompiledBytecode_ = Bytecode(src_, isDebug_); }
 
     // Patch bytecode
     void patchBytecode(size_t location, Instruction instr, const std::vector<Byte> &operandBytes);
@@ -107,8 +111,8 @@ private:
         constexpr size_t bytesSize = getValueSize(T{}); 
         std::vector<Byte> bytes(bytesSize, 0);
         makeValueBytes(val, vtype, bytes, 0);
-        emit(Instruction::PUSH);
-        emit(bytes);
+        emit(Instruction::PUSH, &constant);
+        emit(bytes, &constant);
     }
 
     struct SymbolSearchRes {
@@ -188,7 +192,7 @@ private:
     inline static ErrInfo NOT_A_TYPE                    { "Compilation error", "C", 18, "Not a type" };
     inline static ErrInfo NOT_A_FUNCTION                { "Compilation error", "C", 19, "Not a function" };
     inline static ErrInfo NOT_AN_OBJ                    { "Compilation error", "C", 20, "Not a constructible object" };
-    inline static ErrInfo CONSTRUCTOR_SHOULDNT_RET      { "Compilation error", "C", 21, "The compiler shouldn't return" };
+    inline static ErrInfo CONSTRUCTOR_SHOULDNT_RET      { "Compilation error", "C", 21, "The constructor shouldn't return" };
     inline static ErrInfo SYMBOL_ALREADY_EXISTS         { "Compilation error", "C", 22, "This symbol was already defined somewhere else" };
     inline static ErrInfo TY_IS_NOT_AN_OBJECT           { "Compilation error", "C", 23, "Type {} is not an object" };
     inline static ErrInfo NOT_A_MEMBER                  { "Compilation error", "C", 24, "Not a member variable of {}" };

@@ -5,6 +5,7 @@
 #include "script.hpp"
 #include "value.hpp"
 #include "garbage_collector.hpp"
+#include "error.hpp"
 
 #include <memory>
 #include <deque>
@@ -15,8 +16,13 @@ namespace NCSC
 {
 
 struct CallFrame {
-    const std::vector<Byte> *bytecode;
-    
+    const Bytecode *bytecode;
+    union {
+        const ScriptFunction *func = nullptr;
+        const GlobalVar *gv;
+    };
+    bool isFunction = true;
+
     size_t bp = 0;
     DWord numLocals = 0;
 
@@ -38,7 +44,7 @@ public:
     bool execute();
     std::string getStackStrRepr() const;
 
-    const std::string &getLastError() { return lastError_; }
+    const Error &getLastError() { return lastError_; }
 
     // Returns true on success
     template <typename... Args>
@@ -46,7 +52,7 @@ public:
         hasError_ = false;
 
         if (!currFun_) {
-            error(std::string(NO_FUN_PREPD));
+            error(NO_FUN_PREPD, nullptr, 0);
             return false;
         }
 
@@ -59,11 +65,11 @@ public:
     template <typename T>
     bool getFunctionReturn(T &val) {
         if (!executionFinished_) {
-            error(std::string(NO_SCRIPT_EXECUTED));
+            error(NO_SCRIPT_EXECUTED, nullptr, 0);
             return false;
         }
         else if (currFun_->returnTy == ValueType::VOID) {
-            error(std::format(FUN_HAS_VOID_RET_TY_SO_NO_VAL, currFun_->name));
+            error(FUN_HAS_VOID_RET_TY_SO_NO_VAL.format(currFun_->name), nullptr, 0);
             return false;
         }
         else if (hasError_)
@@ -73,7 +79,7 @@ public:
         Value top = pop();
 
         if (!canPromoteType(top.ty, givenTy)) {
-            error(std::format(PASSED_TY_DONT_MATCH_W_PASSED_TY, currFun_->name));
+            error(PASSED_TY_DONT_MATCH_W_PASSED_TY.format(currFun_->name), nullptr, 0);
             return false;
         }
 
@@ -108,12 +114,12 @@ private:
     std::vector<Value> globalVariables_;
 
     bool hasError_ = false;
-    std::string lastError_;
+    Error lastError_;
 
     Value pop();
     void push(const Value &val);
 
-    void error(std::string_view mess);
+    void error(const ErrInfo &errInfo, const Bytecode *bc, size_t ip);
 
     void executeNext();
 
@@ -127,7 +133,7 @@ private:
             return false;
         
         if (idx + 1 > currFun_->numParams) {
-            error(std::format(TOO_MANY_ARGS, idx + 1, currFun_->name, currFun_->numParams));
+            error(TOO_MANY_ARGS.format(idx + 1, currFun_->name, currFun_->numParams), nullptr, 0);
             return false;
         }
 
@@ -135,7 +141,7 @@ private:
         ValueType paramType = currFun_->paramTypes[idx];
 
         if (!canPromoteType(givenTy, paramType)) {
-            error(std::format(ARG_DONT_MATCH_WITH_PARAM, idx, script_->ctx->getTypeName(paramType)));
+            error(ARG_DONT_MATCH_WITH_PARAM.format(idx, script_->ctx->getTypeName(paramType)), nullptr, 0);
             return false;
         }
 
@@ -149,25 +155,26 @@ private:
     }
 
     // Preparation errors
-    inline static constexpr std::string_view NO_FUN_PREPD                     = "Preparation error P0: No function prepared";
-    inline static constexpr std::string_view TOO_MANY_ARGS                    = "Preparation error P1: Too many arguments ({} or more) for function {} ({})";
-    inline static constexpr std::string_view ARG_DONT_MATCH_WITH_PARAM        = "Preparation error P3: Argument at index {} can't be converted to match parameter ({})";
-    inline static constexpr std::string_view NO_SCRIPT_ATTACHED               = "Preparation error P4: No script attached to the VM";
-    inline static constexpr std::string_view NO_SCRIPT_EXECUTED               = "Preparation error P5: No script executed";
-    inline static constexpr std::string_view FUN_HAS_VOID_RET_TY_SO_NO_VAL    = "Preparation error P6: Function {} has void return type, so there is no return value";
-    inline static constexpr std::string_view PASSED_TY_DONT_MATCH_W_PASSED_TY = "Preparation error P7: Passed type can't converted to {}'s return type";
+    inline static ErrInfo NO_FUN_PREPD                     = { "Preparation error", "P", 0, "No function prepared" };
+    inline static ErrInfo TOO_MANY_ARGS                    = { "Preparation error", "P", 1, "Too many arguments ({} or more) for function {} ({})" };
+    inline static ErrInfo ARG_DONT_MATCH_WITH_PARAM        = { "Preparation error", "P", 3, "Argument at index {} can't be converted to match parameter ({})" };
+    inline static ErrInfo NO_SCRIPT_ATTACHED               = { "Preparation error", "P", 4, "No script attached to the VM" };
+    inline static ErrInfo NO_SCRIPT_EXECUTED               = { "Preparation error", "P", 5, "No script executed" };
+    inline static ErrInfo FUN_HAS_VOID_RET_TY_SO_NO_VAL    = { "Preparation error", "P", 6, "Function {} has void return type, so there is no return value" };
+    inline static ErrInfo PASSED_TY_DONT_MATCH_W_PASSED_TY = { "Preparation error", "P", 7, "Passed type can't converted to {}'s return type" };
 
     // Execution errors
-    inline static constexpr std::string_view UNSAFE_CAST                        = "Execution error E0: Unsafe cast {} to {}";
-    inline static constexpr std::string_view STACK_UNDERFLOW_EMPTY              = "Execution error E1: Stack underflow (empty stack)";
-    inline static constexpr std::string_view STACK_UNDERFLOW_STACK_FRAME        = "Execution error E2: Stack underflow (below current frame)";
-    inline static constexpr std::string_view STACK_OVERFLOW                     = "Execution error E3: Stack overflow";
-    inline static constexpr std::string_view TRIED_ACCESSING_VAL_OF_INVALID_REF = "Execution error E4: Tried accessing the value of an invalid reference";
-    inline static constexpr std::string_view INVALID_OR_CORRUPTED_BC            = "Execution error E5: Encounterd invalid or corrupted bytecode";
-    inline static constexpr std::string_view CANT_INC_OR_DEC_NON_NUM            = "Execution error E6: Can't increment or decrement non numeric type";
-    inline static constexpr std::string_view CANT_INVERT_NON_BOOLEAN            = "Execution error E7: Can't invert a non boolean type";
-    inline static constexpr std::string_view TRYED_SETTING_VAL_OF_INVALID_REF   = "Execution error E8: Tried setting the value of an invalid reference";
-    inline static constexpr std::string_view TRYED_ACCESSING_MEMB_OF_INV_OB     = "Execution error E9: Tried accessing a member of an invalid object";
+    inline static ErrInfo BC_ENDED_WOUT_RET = { "Execution error", "E", 0, "Bytecode ended without returning (in {})" };
+    inline static ErrInfo TRIED_ACCESING_MEMB_OF_INV_OBJ = { "Execution error", "E", 1, "Accessing a member of an invalid object (in {})" };
+    inline static ErrInfo TRIED_ACCESSING_MEMB_OF_NULL = { "Execution error", "E", 2, "Accessing a member of an object that is null (in {})" };
+    inline static ErrInfo CANT_INC_OR_DEC_NOM_NUM = { "Execution error", "E", 3, "Can't increment or decrement a non numeric or uninitialized value (in {})" };
+    inline static ErrInfo CANT_INVERT_NON_BOOLEAN = { "Execution error", "E", 4, "Can't invert a non boolean or uninitialized value (in {})" };
+    inline static ErrInfo INVALID_OR_CORRUPTED_BC = { "Execution error", "E", 5, "Encountered invalid or corrupted bytecode (in {})" };
+    inline static ErrInfo STACK_UNDERFLOW_EMPTY = { "Execution error", "E", 6, "Stack underflow (empty stack) (in {})" };
+    inline static ErrInfo STACK_UNDERFLOW_STACK_FRAME = { "Execution error", "E", 7, "Stack underflow (below current frame) (in {})" };
+    inline static ErrInfo STACK_OVERFLOW = { "Execution error", "E", 8, "Stack overflow (in {})" };
+    inline static ErrInfo TRIED_CALLING_METHTOD_OF_NULL = { "Execution error", "E", 9, "Calling a method of an object that is null (in {})" };
+    
 };
  
 } // namespace NCSC
