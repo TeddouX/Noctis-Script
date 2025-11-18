@@ -415,7 +415,7 @@ size_t Compiler::computeRequiredStackSize(const Bytecode &bc) {
                 if (!func) break;
 
                 currSize -= func->numParams;
-                currSize += func->returnTy == ValueType::VOID ? 0 : 1;
+                maxSize = std::max(maxSize, func->returnTy == ValueType::VOID ? 0ULL : 1ULL);
 
                 break;
             }
@@ -491,6 +491,13 @@ void Compiler::resolveJumps(Bytecode &bc) {
                 // Remove the LABEL instruction
                 constexpr size_t instrSize = sizeof(Instruction) + sizeof(QWord);
                 bytes.erase(bytes.begin() + i, bytes.begin() + i + instrSize);
+
+                // Shift debug location offsets for instructions after the removed label
+                for (auto &entry : bc.locationEntries_) {
+                    if (entry.offset >= i + instrSize)
+                        entry.offset -= instrSize;
+                }
+
                 break;
             }
 
@@ -1134,8 +1141,7 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
         // Store the value back in the variable
         compileStore(exprTerm);
 
-        if (expectedTy != ValueType::VOID)
-            compileExpressionValue(exprValue, expectedTy, true);
+        compileExpressionValue(exprValue, expectedTy, true);
 
         lastTypeOnStack = sres.foundType;
 
@@ -1215,8 +1221,7 @@ void Compiler::compileExpressionTerm(const ASTNode &exprTerm, ValueType expected
         
         // One for the increment and store and another one left on the stack, 
         // if the caller expects a value
-        if (expectedTy != ValueType::VOID)
-            emit(Instruction::DUP, &errNode);
+        emit(Instruction::DUP, &errNode);
 
         if (op == TokenType::PLUS_PLUS) 
             emit(Instruction::INC, &errNode);
@@ -1425,9 +1430,6 @@ void Compiler::compileFunctionCall(const ASTNode &funCall, ValueType expectedTyp
         return;
     }
 
-    if (expectedType == ValueType::VOID)
-        return;
-
     DWord idx = sres.idx;
     const Function* fun;
     if (sres.ty == SymbolSearchRes::FUNCTION)
@@ -1500,9 +1502,6 @@ void Compiler::compileVariableAccess(const ASTNode &varAccess, ValueType expecte
         createCompileError(NOT_A_VAR, varAccess);
         return;
     }
-
-    if (expectedType == ValueType::VOID)
-        return;
 
     ValueType varType = sres.var->type;
     if (!canPromoteType(varType, clearMask(expectedType, ValueType::REF_MASK))) {
@@ -1611,13 +1610,17 @@ void Compiler::compileAssignment(const ASTNode &assignment) {
         return;
 
     const ASTNode &varTerm = assignment.child(0);
+    ValueType varTermType = getExpressionTermType(varTerm);
     // A simple statement like a function call
     if (assignment.numChildren() == 1) {
         compileExpressionTerm(varTerm, ValueType::VOID);
+
+        if (varTermType != ValueType::VOID)
+            emit(Instruction::POP, &assignment);
+
         return;
     }
     
-    ValueType varTermType = getExpressionTermType(varTerm);
     // Load variable value
     TokenType opTokTy = assignment.child(1).token().type;
     if (opTokTy != TokenType::EQUAL)
@@ -1670,9 +1673,6 @@ void Compiler::compileConstructCall(const ASTNode &constructCall, ValueType expe
         createCompileError(NOT_AN_OBJ, constructCall);
         return;
     }
-
-    if (expectedTy == ValueType::VOID)
-        return;
 
     if (clearMask(expectedTy, ValueType::REF_MASK) != sres.foundType) {
         createCompileError(EXPECTED_TYPE_INSTEAD_GOT.format(

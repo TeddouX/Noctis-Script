@@ -167,7 +167,7 @@ void VM::executeNext() {
                 CASE_INC(UINT64, ui64)
 
                 case ValueType::FLOAT32: a.f32 += 1.0f; break;
-                case ValueType::FLOAT64: a.f64 += 1.0; break;
+                case ValueType::FLOAT64: a.f64 += 1.0;  break;
 
                 default: error(CANT_INC_OR_DEC_NOM_NUM, bytecode, ip);
             }
@@ -277,6 +277,12 @@ void VM::executeNext() {
             ip += sizeof(DWord);
            
             ScriptObject *scriptObj = script_->getObject(objIdx);
+
+            if (!scriptObj) {
+                error(INVALID_OR_CORRUPTED_BC, bytecode, ip);
+                return;
+            }
+
             const ScriptFunction *method = scriptObj->getMethod(methodIdx);
 
             if (!method || sp_ < method->numParams) {
@@ -285,7 +291,6 @@ void VM::executeNext() {
             }
 
             const Value &obj = stack_[sp_ - method->numParams];
-            std::println("{}", ctx_->getTypeName(obj.ty));
             if (obj.ty == ValueType::INVALID) {
                 error(TRIED_CALLING_METHTOD_OF_NULL, bytecode, ip);
                 return;
@@ -325,9 +330,16 @@ void VM::executeNext() {
             ip += sizeof(DWord);
 
             CPPObject *cppObj = ctx_->getCppObject(objIdx);
-            if (!cppObj) break;
+            if (!cppObj) {
+                error(INVALID_OR_CORRUPTED_BC, bytecode, ip);
+                return;
+            }
+
             const CPPMethod *method = cppObj->getMethod(methodIdx);
-            if (!method) break;
+            if (!method || sp_ < method->numParams) {
+                error(INVALID_OR_CORRUPTED_BC, bytecode, ip);
+                return;
+            }
 
             Value obj = stack_[sp_ - method->numParams];
             if (obj.ty == ValueType::INVALID) {

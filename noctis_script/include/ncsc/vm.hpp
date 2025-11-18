@@ -52,7 +52,7 @@ public:
         hasError_ = false;
 
         if (!currFun_) {
-            error(NO_FUN_PREPD);
+            error(NO_FUN_PREPD, nullptr, 0);
             return false;
         }
 
@@ -65,11 +65,11 @@ public:
     template <typename T>
     bool getFunctionReturn(T &val) {
         if (!executionFinished_) {
-            error(NO_SCRIPT_EXECUTED);
+            error(NO_SCRIPT_EXECUTED, nullptr, 0);
             return false;
         }
         else if (currFun_->returnTy == ValueType::VOID) {
-            error(FUN_HAS_VOID_RET_TY_SO_NO_VAL.format(currFun_->name));
+            error(FUN_HAS_VOID_RET_TY_SO_NO_VAL.format(currFun_->name), nullptr, 0);
             return false;
         }
         else if (hasError_)
@@ -79,7 +79,7 @@ public:
         Value top = pop();
 
         if (!canPromoteType(top.ty, givenTy)) {
-            error(PASSED_TY_DONT_MATCH_W_PASSED_TY.format(currFun_->name));
+            error(PASSED_TY_DONT_MATCH_W_PASSED_TY.format(currFun_->name), nullptr, 0);
             return false;
         }
 
@@ -133,7 +133,7 @@ private:
             return false;
         
         if (idx + 1 > currFun_->numParams) {
-            error(TOO_MANY_ARGS.format(idx + 1, currFun_->name, currFun_->numParams));
+            error(TOO_MANY_ARGS.format(idx + 1, currFun_->name, currFun_->numParams), nullptr, 0);
             return false;
         }
 
@@ -141,7 +141,7 @@ private:
         ValueType paramType = currFun_->paramTypes[idx];
 
         if (!canPromoteType(givenTy, paramType)) {
-            error(ARG_DONT_MATCH_WITH_PARAM.format(idx, script_->ctx->getTypeName(paramType)));
+            error(ARG_DONT_MATCH_WITH_PARAM.format(idx, script_->ctx->getTypeName(paramType)), nullptr, 0);
             return false;
         }
 
@@ -167,8 +167,8 @@ private:
     inline static ErrInfo BC_ENDED_WOUT_RET = { "Execution error", "E", 0, "Bytecode ended without returning (in {})" };
     inline static ErrInfo TRIED_ACCESING_MEMB_OF_INV_OBJ = { "Execution error", "E", 1, "Accessing a member of an invalid object (in {})" };
     inline static ErrInfo TRIED_ACCESSING_MEMB_OF_NULL = { "Execution error", "E", 2, "Accessing a member of an object that is null (in {})" };
-    inline static ErrInfo CANT_INC_OR_DEC_NOM_NUM = { "Execution error", "E", 3, "Can't increment or decrement a non numeric value (in {})" };
-    inline static ErrInfo CANT_INVERT_NON_BOOLEAN = { "Execution error", "E", 4, "Can't invert a non boolean value (in {})" };
+    inline static ErrInfo CANT_INC_OR_DEC_NOM_NUM = { "Execution error", "E", 3, "Can't increment or decrement a non numeric or uninitialized value (in {})" };
+    inline static ErrInfo CANT_INVERT_NON_BOOLEAN = { "Execution error", "E", 4, "Can't invert a non boolean or uninitialized value (in {})" };
     inline static ErrInfo INVALID_OR_CORRUPTED_BC = { "Execution error", "E", 5, "Encountered invalid or corrupted bytecode (in {})" };
     inline static ErrInfo STACK_UNDERFLOW_EMPTY = { "Execution error", "E", 6, "Stack underflow (empty stack) (in {})" };
     inline static ErrInfo STACK_UNDERFLOW_STACK_FRAME = { "Execution error", "E", 7, "Stack underflow (below current frame) (in {})" };
