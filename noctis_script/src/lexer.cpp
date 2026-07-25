@@ -2,6 +2,8 @@
 
 #include <optional>
 #include <cctype>
+#include <print>
+
 
 namespace NCSC
 {
@@ -13,15 +15,31 @@ auto tokenize(const std::string &source) -> std::vector<Token>
     std::size_t line{0};
     std::size_t column{0};
 
-    auto advance = [&](std::size_t amount) -> void {
+    auto advance = [&](std::size_t amount = 1) -> void 
+    {
         curr_idx += amount;
         column += amount;
+    };
+
+    auto match_next = [&](char next, TokenType single, TokenType combined) -> void
+    {
+        advance();
+
+        if (curr_idx < source.size() && source.at(curr_idx) == next) {
+            advance();
+
+            tokens.push_back(Token{combined});
+        }
+        else
+            tokens.push_back(Token{single});
     };
 
 
     while (curr_idx < source.length())
     {
         char curr_char = source[curr_idx];
+
+        std::println("{}", curr_char);
 
         // Skip whitespaces
         if (curr_char == ' ' or curr_char == '\t' or curr_char == '\n')
@@ -35,7 +53,7 @@ auto tokenize(const std::string &source) -> std::vector<Token>
                 continue;
             }
 
-            advance(1);
+            advance();
 
             continue;
         }
@@ -93,9 +111,9 @@ auto tokenize(const std::string &source) -> std::vector<Token>
 
             if (has_point and not has_digits) 
             {
-                advance(1);
+                advance();
 
-                tokens.push_back(Token{TokenType::DOT, ""});
+                tokens.push_back(Token{TokenType::DOT});
                 
                 continue;
             }
@@ -118,10 +136,79 @@ auto tokenize(const std::string &source) -> std::vector<Token>
             continue;
         }
 
+        switch (curr_char)
+        {
+            // + ++ +=
+            case '+':
+                advance();
+                
+                if (curr_idx >= source.size()) {
+                    tokens.push_back(Token{TokenType::PLUS});
+                    continue;
+                }
+                
+                switch (source[curr_idx])
+                {
+                    case '+': 
+                        advance();
+                        tokens.push_back(Token{TokenType::PLUS_PLUS});  
+                        break;
+
+                    case '=': 
+                        tokens.push_back(Token{TokenType::PLUS_EQUAL});
+                        advance();
+                        break;
+                    
+                    default: 
+                        tokens.push_back(Token{TokenType::PLUS});
+                        break;
+                }
+
+                continue;
+
+            // - -- -=
+            case '-':
+                advance();
+                
+                if (curr_idx >= source.size())
+                    tokens.push_back(Token{TokenType::MINUS});
+                
+                switch (source[curr_idx])
+                {
+                    case '-': 
+                        tokens.push_back(Token{TokenType::MINUS_MINUS});  
+                        advance();
+                        break;
+                 
+                    case '=': 
+                        tokens.push_back(Token{TokenType::MINUS_EQUAL});
+                        advance();
+                        break;
+                 
+                    default: 
+                        tokens.push_back(Token{TokenType::MINUS});
+                        break;
+                }
+
+                continue;
+            
+            // * *=
+            case '*':
+                match_next('=', TokenType::STAR, TokenType::STAR_EQUAL);
+                continue;
+
+            // / /=
+            case '/':
+                match_next('=', TokenType::SLASH, TokenType::SLASH_EQUAL);
+                continue;
+        }
+
         tokens.push_back(Token{TokenType::INVALID, std::string{curr_char}});
         
-        advance(1);
+        advance();
     }
+
+    tokens.push_back(Token{TokenType::END_OF_FILE});
 
     return tokens;
 }

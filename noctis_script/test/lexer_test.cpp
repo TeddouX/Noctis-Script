@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <print>
 
 #include "noctis_script/lexer.hpp"
 
@@ -71,4 +72,34 @@ TEST(LexerTest, AddsTrailingZeroesToFloats)
     tokens = tokenize("1.");
     ASSERT_EQ(tokens[0].type, TokenType::FLOAT_CONSTANT);
     ASSERT_EQ(tokens[0].value, "1.0");
+}
+
+TEST(LexerTest, TokenizesArithmeticOperators)
+{
+    auto tokens = tokenize("+ - * /");
+
+    ASSERT_EQ(tokens[0].type, TokenType::PLUS);
+    ASSERT_EQ(tokens[1].type, TokenType::MINUS);
+    ASSERT_EQ(tokens[2].type, TokenType::STAR);
+    ASSERT_EQ(tokens[3].type, TokenType::SLASH);
+}
+
+TEST(LexerTest, TokenizesArithmeticAssignOperators)
+{
+    auto tokens = tokenize("+= -= *= /=");
+
+    for (auto token : tokens) std::println(std::cerr, "{}", (int)token.type);
+
+    ASSERT_EQ(tokens[0].type, TokenType::PLUS_EQUAL);
+    ASSERT_EQ(tokens[1].type, TokenType::MINUS_EQUAL);
+    ASSERT_EQ(tokens[2].type, TokenType::STAR_EQUAL);
+    ASSERT_EQ(tokens[3].type, TokenType::SLASH_EQUAL);
+}
+
+TEST(LexerTest, TokenizesIncAndDecOperators)
+{
+    auto tokens = tokenize("++ --");
+
+    ASSERT_EQ(tokens[0].type, TokenType::PLUS_PLUS);
+    ASSERT_EQ(tokens[1].type, TokenType::MINUS_MINUS);
 }
