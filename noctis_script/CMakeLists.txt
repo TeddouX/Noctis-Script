@@ -1,59 +1,23 @@
-# SPDX-License-Identifier: BSD-2-Clause
-# Copyright (c) 2025, TeddouX (https://github.com/TeddouX/)
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 4.4)
 project(NoctisScript)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+set(NCSC_INCLUDE_DIR "include/noctis_script")
 
 set(NCSC_SOURCES
     # -------------------
     #      Headers
     # -------------------
-    "include/ncsc/ast_node.hpp"
-    "include/ncsc/bytecode.hpp"
-    "include/ncsc/compiler.hpp"
-    "include/ncsc/error.hpp"
-    "include/ncsc/function.hpp"
-    "include/ncsc/garbage_collector.hpp"
-    "include/ncsc/instructions.hpp"
-    "include/ncsc/lexer.hpp"
-    "include/ncsc/ncsc.hpp"
-    "include/ncsc/parser.hpp"
-    "include/ncsc/scope.hpp"
-    "include/ncsc/script_context.hpp"
-    "include/ncsc/script_function.hpp"
-    "include/ncsc/script_object.hpp"
-    "include/ncsc/script_source.hpp"
-    "include/ncsc/script.hpp"
-    "include/ncsc/token.hpp"
-    "include/ncsc/value_type.hpp"
-    "include/ncsc/value.hpp"
-    "include/ncsc/variable.hpp"
-    "include/ncsc/vm.hpp"
+    "${NCSC_INCLUDE_DIR}/lexer.hpp"
+    "${NCSC_INCLUDE_DIR}/token.hpp"
+
 
     # -------------------
     #    Source files
     # -------------------
-    "src/ast_node.cpp"
-    "src/bytecode.cpp"
-    "src/compiler.cpp"
-    "src/error.cpp"
-    "src/garbage_collector.cpp"
-    "src/instructions.cpp"
     "src/lexer.cpp"
-    "src/optimizer.cpp"
-    "src/parser.cpp"
-    "src/scope.cpp"
-    "src/script_context.cpp"
-    "src/script_object.cpp"
-    "src/script_source.cpp"
-    "src/token.cpp"
-    "src/value_type.cpp"
-    "src/value.cpp"
-    "src/vm.cpp"
 )
-
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${NCSC_SOURCES})
 
 add_library(NoctisScript SHARED ${NCSC_SOURCES})
 
@@ -65,6 +29,8 @@ target_compile_definitions(NoctisScript
 target_include_directories(NoctisScript 
     PUBLIC 
         "include"
+    PRIVATE
+        "include/noctis_script"
 )
 
 
@@ -81,10 +47,7 @@ FetchContent_MakeAvailable(googletest)
 enable_testing()
 
 add_executable(NCSCTests
-    tests/compiler_tests.cpp
-    tests/lexer_tests.cpp
-    tests/parser_tests.cpp
-    tests/value_type_tests.cpp
+    "test/lexer_test.cpp"
 )
 
 target_link_libraries(NCSCTests
