@@ -17,6 +17,9 @@ enum class TokenType
     STAR,           // *
     SLASH,          // /
 
+    DOT,            // .
+
+    // Special chars
     END_OF_FILE,
 };
 
