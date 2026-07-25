@@ -17,6 +17,7 @@ set(NCSC_SOURCES
     #    Source files
     # -------------------
     "src/lexer.cpp"
+    "src/token.cpp"
 )
 
 add_library(NoctisScript SHARED ${NCSC_SOURCES})

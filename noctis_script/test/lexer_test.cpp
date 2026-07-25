@@ -103,3 +103,32 @@ TEST(LexerTest, TokenizesIncAndDecOperators)
     ASSERT_EQ(tokens[0].type, TokenType::PLUS_PLUS);
     ASSERT_EQ(tokens[1].type, TokenType::MINUS_MINUS);
 }
+
+TEST(LexerTest, TokenizesWithCorrectColumn)
+{
+    auto tokens = tokenize("a b");
+    ASSERT_EQ(tokens[0].column, 1);
+    ASSERT_EQ(tokens[0].line, 1);
+
+    ASSERT_EQ(tokens[1].column, 3);
+    ASSERT_EQ(tokens[1].line, 1);
+}
+
+TEST(LexerTest, TokenizesWithCorrectLine)
+{
+    auto tokens = tokenize("a b\nc\nd e");
+    ASSERT_EQ(tokens[0].column, 1);
+    ASSERT_EQ(tokens[0].line, 1);
+
+    ASSERT_EQ(tokens[1].column, 3);
+    ASSERT_EQ(tokens[1].line, 1);
+
+    ASSERT_EQ(tokens[2].column, 1);
+    ASSERT_EQ(tokens[2].line, 2);
+
+    ASSERT_EQ(tokens[3].column, 1);
+    ASSERT_EQ(tokens[3].line, 3);
+
+    ASSERT_EQ(tokens[4].column, 3);
+    ASSERT_EQ(tokens[4].line, 3);
+}

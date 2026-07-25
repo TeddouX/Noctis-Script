@@ -12,8 +12,8 @@ auto tokenize(const std::string &source) -> std::vector<Token>
 {
     std::vector<Token> tokens{};
     std::size_t curr_idx{0};
-    std::size_t line{0};
-    std::size_t column{0};
+    std::size_t line{1};
+    std::size_t column{1};
 
     auto advance = [&](std::size_t amount = 1) -> void 
     {
@@ -21,17 +21,22 @@ auto tokenize(const std::string &source) -> std::vector<Token>
         column += amount;
     };
 
+    auto append_token = [&](TokenType type, const std::string &value = "") -> void 
+    {
+        Token tok{type, line, column, value};
+        tokens.push_back(tok);
+    };
+
     auto match_next = [&](char next, TokenType single, TokenType combined) -> void
     {
-        advance();
-
-        if (curr_idx < source.size() && source.at(curr_idx) == next) {
-            advance();
-
-            tokens.push_back(Token{combined});
+        if (curr_idx + 1 < source.size() && source.at(curr_idx + 1) == next) {
+            append_token(combined);
+            advance(2);
         }
-        else
-            tokens.push_back(Token{single});
+        else {
+            append_token(single);
+            advance(1);
+        }
     };
 
 
@@ -48,13 +53,12 @@ auto tokenize(const std::string &source) -> std::vector<Token>
             {
                 curr_idx++;
                 line++;
-                column = 0;
+                column = 1;
 
                 continue;
             }
 
             advance();
-
             continue;
         }
 
@@ -74,9 +78,8 @@ auto tokenize(const std::string &source) -> std::vector<Token>
 
             std::string value = source.substr(curr_idx, len);
 
+            append_token(TokenType::ID, value);
             advance(len);
-
-            tokens.push_back(Token{TokenType::ID, value});
 
             continue;
         }
@@ -111,9 +114,8 @@ auto tokenize(const std::string &source) -> std::vector<Token>
 
             if (has_point and not has_digits) 
             {
+                append_token(TokenType::DOT);
                 advance();
-
-                tokens.push_back(Token{TokenType::DOT});
                 
                 continue;
             }
@@ -129,8 +131,8 @@ auto tokenize(const std::string &source) -> std::vector<Token>
             }
             
             auto type = has_point ? TokenType::FLOAT_CONSTANT : TokenType::INT_CONSTANT;
-            tokens.push_back(Token{type, value});
             
+            append_token(type, value);
             advance(len);
             
             continue;
@@ -140,27 +142,28 @@ auto tokenize(const std::string &source) -> std::vector<Token>
         {
             // + ++ +=
             case '+':
-                advance();
-                
-                if (curr_idx >= source.size()) {
-                    tokens.push_back(Token{TokenType::PLUS});
+                if (curr_idx + 1 >= source.size()) {
+                    append_token(TokenType::PLUS);
+                    advance();
+
                     continue;
                 }
                 
-                switch (source[curr_idx])
+                switch (source[curr_idx + 1])
                 {
                     case '+': 
-                        advance();
-                        tokens.push_back(Token{TokenType::PLUS_PLUS});  
+                        append_token(TokenType::PLUS_PLUS);  
+                        advance(2);
                         break;
 
                     case '=': 
-                        tokens.push_back(Token{TokenType::PLUS_EQUAL});
-                        advance();
+                        append_token(TokenType::PLUS_EQUAL);
+                        advance(2);
                         break;
                     
                     default: 
-                        tokens.push_back(Token{TokenType::PLUS});
+                        append_token(TokenType::PLUS);
+                        advance();
                         break;
                 }
 
@@ -168,25 +171,28 @@ auto tokenize(const std::string &source) -> std::vector<Token>
 
             // - -- -=
             case '-':
-                advance();
+                if (curr_idx + 1 >= source.size()) {
+                    append_token(TokenType::MINUS);
+                    advance();
+
+                    continue;
+                }
                 
-                if (curr_idx >= source.size())
-                    tokens.push_back(Token{TokenType::MINUS});
-                
-                switch (source[curr_idx])
+                switch (source[curr_idx + 1])
                 {
                     case '-': 
-                        tokens.push_back(Token{TokenType::MINUS_MINUS});  
-                        advance();
+                        append_token(TokenType::MINUS_MINUS);  
+                        advance(2);
                         break;
                  
                     case '=': 
-                        tokens.push_back(Token{TokenType::MINUS_EQUAL});
-                        advance();
+                        append_token(TokenType::MINUS_EQUAL);
+                        advance(2);
                         break;
                  
                     default: 
-                        tokens.push_back(Token{TokenType::MINUS});
+                        append_token(TokenType::MINUS);
+                        advance();
                         break;
                 }
 
@@ -203,12 +209,11 @@ auto tokenize(const std::string &source) -> std::vector<Token>
                 continue;
         }
 
-        tokens.push_back(Token{TokenType::INVALID, std::string{curr_char}});
-        
         advance();
+        append_token(TokenType::INVALID);
     }
 
-    tokens.push_back(Token{TokenType::END_OF_FILE});
+    append_token(TokenType::END_OF_FILE);
 
     return tokens;
 }
