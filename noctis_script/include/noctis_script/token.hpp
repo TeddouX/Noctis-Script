@@ -38,6 +38,20 @@ enum class TokenType
 
     DOT,                // .
 
+    LET_KWD,            // let
+
+    INT8_KWD,    // int8
+    INT16_KWD,   // int16
+    INT32_KWD,   // int32 | int
+    INT64_KWD,   // int64
+    UINT8_KWD,   // uint8
+    UINT16_KWD,  // uint16
+    UINT32_KWD,  // uint32 | uint
+    UINT64_KWD,  // uint64
+    FLOAT32_KWD, // float32 | float
+    FLOAT64_KWD, // float64 | double
+    BOOL_KWD,    // bool
+
     // Special chars
     END_OF_FILE,
 };
@@ -45,17 +59,24 @@ enum class TokenType
 
 struct Token 
 {
-    TokenType   type{TokenType::INVALID};
-    std::string value{""};
+    TokenType   type;
+    std::string value;
 
-    std::size_t line{0};
-    std::size_t column{0};
+    std::size_t line;
+    std::size_t column;
 
+    Token()
+        : type{TokenType::INVALID}
+        , value{}
+        , line{0}
+        , column{0}
+    {}
+    
     Token(TokenType type, std::size_t line, std::size_t column, const std::string &value = "")
-        : type(type)
-        , value(value)
-        , line(line)
-        , column(column)
+        : type{type}
+        , value{value}
+        , line{line}
+        , column{column}
     {}
 
     auto to_string() const -> const std::string &;
@@ -87,6 +108,25 @@ const std::unordered_map<TokenType, std::string> TOKENS_TO_STRING = {
     { TokenType::LESS_THAN_EQUAL,    "<=" },
 
     { TokenType::DOT,                "."  }
+};
+
+const std::unordered_map<std::string, TokenType> RESERVED_TOKENS = {
+    { "let",        TokenType::LET_KWD },
+    { "int8",       TokenType::INT8_KWD},
+    { "int16",      TokenType::INT16_KWD},
+    { "int32",      TokenType::INT32_KWD},
+    { "int",        TokenType::INT32_KWD},
+    { "int64",      TokenType::INT64_KWD},
+    { "uint8",      TokenType::UINT8_KWD},
+    { "uint16",     TokenType::UINT16_KWD},
+    { "uint32",     TokenType::UINT32_KWD},
+    { "uint",       TokenType::UINT32_KWD},
+    { "uint64",     TokenType::UINT64_KWD},
+    { "float32",    TokenType::FLOAT32_KWD},
+    { "float",      TokenType::FLOAT32_KWD},
+    { "float64",    TokenType::FLOAT64_KWD},
+    { "double",     TokenType::FLOAT64_KWD},
+    { "bool",       TokenType::BOOL_KWD},
 };
 
 } // namespace NCSC

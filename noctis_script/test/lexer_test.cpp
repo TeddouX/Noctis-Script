@@ -132,3 +132,12 @@ TEST(LexerTest, TokenizesWithCorrectLine)
     ASSERT_EQ(tokens[4].column, 3);
     ASSERT_EQ(tokens[4].line, 3);
 }
+
+TEST(LexerTest, TokenizesAllReservedTokens)
+{
+    for (const auto &[tok_str, tok_ty] : RESERVED_TOKENS) 
+    {
+        auto tokens = tokenize(tok_str);
+        ASSERT_EQ(tokens[0].type, tok_ty);
+    }
+}

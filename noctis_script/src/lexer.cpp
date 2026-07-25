@@ -2,7 +2,6 @@
 
 #include <optional>
 #include <cctype>
-#include <print>
 
 
 namespace NCSC
@@ -44,8 +43,6 @@ auto tokenize(const std::string &source) -> std::vector<Token>
     {
         char curr_char = source[curr_idx];
 
-        std::println("{}", curr_char);
-
         // Skip whitespaces
         if (curr_char == ' ' or curr_char == '\t' or curr_char == '\n')
         {
@@ -61,6 +58,7 @@ auto tokenize(const std::string &source) -> std::vector<Token>
             advance();
             continue;
         }
+
 
         // ID
         if (std::isalpha(curr_char) or curr_char == '_')
@@ -78,11 +76,20 @@ auto tokenize(const std::string &source) -> std::vector<Token>
 
             std::string value = source.substr(curr_idx, len);
 
+            auto it = RESERVED_TOKENS.find(value);
+            if (it != RESERVED_TOKENS.end()) {
+                append_token(it->second);
+                advance(len);
+
+                continue;
+            }
+
             append_token(TokenType::ID, value);
             advance(len);
 
             continue;
         }
+
 
         // Numbers
         if (std::isdigit(curr_char) or curr_char == '.')
@@ -138,11 +145,14 @@ auto tokenize(const std::string &source) -> std::vector<Token>
             continue;
         }
 
+
+        // Operators
         switch (curr_char)
         {
             // + ++ +=
             case '+':
-                if (curr_idx + 1 >= source.size()) {
+                if (curr_idx + 1 >= source.size()) 
+                {
                     append_token(TokenType::PLUS);
                     advance();
 
@@ -171,7 +181,8 @@ auto tokenize(const std::string &source) -> std::vector<Token>
 
             // - -- -=
             case '-':
-                if (curr_idx + 1 >= source.size()) {
+                if (curr_idx + 1 >= source.size()) 
+                {
                     append_token(TokenType::MINUS);
                     advance();
 
@@ -209,8 +220,8 @@ auto tokenize(const std::string &source) -> std::vector<Token>
                 continue;
         }
 
-        advance();
         append_token(TokenType::INVALID);
+        advance();
     }
 
     append_token(TokenType::END_OF_FILE);

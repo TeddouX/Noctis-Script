@@ -9,14 +9,18 @@ set(NCSC_SOURCES
     # -------------------
     #      Headers
     # -------------------
+    "${NCSC_INCLUDE_DIR}/ast_node.hpp"
     "${NCSC_INCLUDE_DIR}/lexer.hpp"
+    "${NCSC_INCLUDE_DIR}/parser.hpp"
     "${NCSC_INCLUDE_DIR}/token.hpp"
 
 
     # -------------------
     #    Source files
     # -------------------
+    "src/ast_node.cpp"
     "src/lexer.cpp"
+    "src/parser.cpp"
     "src/token.cpp"
 )
 
@@ -48,6 +52,7 @@ FetchContent_MakeAvailable(googletest)
 enable_testing()
 
 add_executable(NCSCTests
+    "test/ast_node_test.cpp"
     "test/lexer_test.cpp"
 )
 
