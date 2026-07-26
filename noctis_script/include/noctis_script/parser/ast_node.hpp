@@ -1,8 +1,8 @@
 #pragma once
 #include <vector>
 
-#include "token.hpp"
-#include "location.hpp"
+#include "../lexer/token.hpp"
+#include "../location.hpp"
 
 
 namespace NCSC

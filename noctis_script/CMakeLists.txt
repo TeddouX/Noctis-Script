@@ -9,20 +9,20 @@ set(NCSC_SOURCES
     # -------------------
     #      Headers
     # -------------------
-    "${NCSC_INCLUDE_DIR}/ast_node.hpp"
-    "${NCSC_INCLUDE_DIR}/lexer.hpp"
+    "${NCSC_INCLUDE_DIR}/lexer/lexer.hpp"
+    "${NCSC_INCLUDE_DIR}/lexer/token.hpp"
+    "${NCSC_INCLUDE_DIR}/parser/ast_node.hpp"
+    "${NCSC_INCLUDE_DIR}/parser/parser.hpp"
     "${NCSC_INCLUDE_DIR}/location.hpp"
-    "${NCSC_INCLUDE_DIR}/parser.hpp"
-    "${NCSC_INCLUDE_DIR}/token.hpp"
 
 
     # -------------------
     #    Source files
     # -------------------
-    "src/ast_node.cpp"
-    "src/lexer.cpp"
-    "src/parser.cpp"
-    "src/token.cpp"
+    "src/lexer/lexer.cpp"
+    "src/lexer/token.cpp"
+    "src/parser/ast_node.cpp"
+    "src/parser/parser.cpp"
 )
 
 add_library(NoctisScript SHARED ${NCSC_SOURCES})

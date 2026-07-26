@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <print>
 
-#include "noctis_script/lexer.hpp"
+#include "noctis_script/lexer/lexer.hpp"
 
 
 using namespace NCSC;
