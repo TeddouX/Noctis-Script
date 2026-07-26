@@ -146,9 +146,51 @@ auto tokenize(const std::string &source) -> std::vector<Token>
         }
 
 
-        // Operators
         switch (curr_char)
         {
+            case ':':
+                append_token(TokenType::COLON);
+                advance();
+                continue;
+            
+            case ',':
+                append_token(TokenType::COMMA);
+                advance();
+                continue;
+            
+            case '(':
+                append_token(TokenType::COLON);
+                advance();
+                continue;
+            
+            case ')':
+                append_token(TokenType::COLON);
+                advance();
+                continue;
+
+            case '{':
+                append_token(TokenType::COLON);
+                advance();
+                continue;
+
+            case '}':
+                append_token(TokenType::COLON);
+                advance();
+                continue;
+
+            case ';':
+                append_token(TokenType::SEMICOLON);
+                advance();
+                continue;
+
+            case '&':
+                match_next('&', TokenType::BINARY_AND, TokenType::LOGICAL_AND);
+                continue;
+
+            case '|':
+                match_next('|', TokenType::BINARY_OR, TokenType::LOGICAL_OR);
+                continue;
+
             // + ++ +=
             case '+':
                 if (curr_idx + 1 >= source.size()) 

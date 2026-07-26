@@ -12,6 +12,20 @@ enum class ASTNodeType
 {
     ROOT,
     VARIABLE_DECLARATION,
+    IDENTIFIER,
+    EXPRESSION,
+    EXPRESSION_TERM,
+    EXPRESSION_VALUE,
+    EXPRESSION_PREOP,
+    EXPRESSION_POSTOP,
+    TOKEN,
+    BINOP,
+    ASSIGNMENT,
+    FUNCTION_CALL,
+    ARGUMENT_LIST,
+    CONSTANT,
+    CONSTRUCT_CALL,
+    DATA_TYPE,
 };
 
 class ASTNode
@@ -21,6 +35,7 @@ public:
 
     auto add_child(const ASTNode &child) -> void;
     auto set_token(const Token &token) -> void;
+    auto update_location(const Token &token) -> void;
     auto set_location(const Location &location) -> void;
 
     auto type() const -> ASTNodeType;
@@ -29,11 +44,15 @@ public:
     auto location() const -> const Location &;
 
 private:
-    ASTNodeType m_type;
-    Token       m_token;
-    Location    m_location;
+    friend class Parser;
 
-    std::vector<ASTNode> m_children;
+    ASTNodeType type_;
+    Token       token_;
+    Location    location_;
+
+    bool has_loc_been_set_;
+
+    std::vector<ASTNode> children_;
 };
 
 } // namespace NCSC

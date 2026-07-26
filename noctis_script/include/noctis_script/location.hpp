@@ -14,8 +14,8 @@ struct Location
     std::size_t column_end;
 
     Location()
-        : line{0}, line_end{0}
-        , column{0}, column_end{0}
+        : line{0zu}, line_end{0zu}
+        , column{0zu}, column_end{0zu}
     {}
 
     Location(
