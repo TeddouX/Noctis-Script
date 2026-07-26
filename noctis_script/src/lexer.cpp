@@ -2,6 +2,7 @@
 
 #include <optional>
 #include <cctype>
+#include <print>
 
 
 namespace NCSC
@@ -159,22 +160,32 @@ auto tokenize(const std::string &source) -> std::vector<Token>
                 continue;
             
             case '(':
-                append_token(TokenType::COLON);
+                append_token(TokenType::PARENTHESIS_OPEN);
                 advance();
                 continue;
             
             case ')':
-                append_token(TokenType::COLON);
+                append_token(TokenType::PARENTHESIS_CLOSE);
                 advance();
                 continue;
 
             case '{':
-                append_token(TokenType::COLON);
+                append_token(TokenType::BRACE_OPEN);
                 advance();
                 continue;
 
             case '}':
-                append_token(TokenType::COLON);
+                append_token(TokenType::BRACE_CLOSE);
+                advance();
+                continue;
+
+            case '[':
+                append_token(TokenType::BRACKET_OPEN);
+                advance();
+                continue;
+
+            case ']':
+                append_token(TokenType::BRACKET_CLOSE);
                 advance();
                 continue;
 
@@ -189,6 +200,10 @@ auto tokenize(const std::string &source) -> std::vector<Token>
 
             case '|':
                 match_next('|', TokenType::BINARY_OR, TokenType::LOGICAL_OR);
+                continue;
+
+            case '=':
+                match_next('=', TokenType::EQUAL, TokenType::EQUAL_EQUAL);
                 continue;
 
             // + ++ +=

@@ -2,11 +2,23 @@
 
 namespace NCSC
 {
+
+auto Token::is_valid() const -> bool
+{
+    return type != TokenType::INVALID;
+}
+
 auto Token::to_string() const -> const std::string &
 {
     auto it = TOKENS_TO_STRING.find(type);
     if (it != TOKENS_TO_STRING.end())
         return it->second;
+
+    for (const auto &[tok_str, tok_ty] : RESERVED_TOKENS)
+    {
+        if (tok_ty == type)
+            return tok_str;
+    }
 
     return value;
 }

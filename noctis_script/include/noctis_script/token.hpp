@@ -103,6 +103,8 @@ struct Token
         , column{column}
     {}
 
+    auto is_valid() const -> bool;
+
     auto to_string() const -> const std::string &;
     auto length() const -> std::size_t;
 
@@ -116,6 +118,8 @@ struct Token
     // Returns -1 if the token isn't an operator
     auto get_operator_precedence() const -> int;
 };
+
+inline static Token INVALID_TOKEN = Token{};
 
 const std::unordered_map<TokenType, std::string> TOKENS_TO_STRING = {
     { TokenType::PLUS,               "+"  },

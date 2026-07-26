@@ -1,8 +1,10 @@
 #include "parser.hpp"
 
 #include <print>
+#include <iostream>
 
-#define CHECK_SYNTAX_ERROR() if (has_syntax_error_) return node
+#define CHECK_SYNTAX_ERROR_RET_VALUE(ret) if (has_syntax_error_) return ret
+#define CHECK_SYNTAX_ERROR() CHECK_SYNTAX_ERROR_RET_VALUE(node)
 
 
 namespace NCSC
@@ -10,6 +12,7 @@ namespace NCSC
     
 Parser::Parser(const std::vector<Token> &tokens)
     : tokens_{tokens}
+    , has_syntax_error_{false}
     , curr_token_idx_{0zu}
 {}
 
@@ -17,13 +20,23 @@ auto Parser::parse() -> ASTNode
 {
     ASTNode root{ASTNodeType::ROOT};
 
-    while (curr_token_idx_ < tokens_.size())
+    while (curr_token_idx_ < tokens_.size() and not has_syntax_error_)
     {
         const Token &curr_tok = tokens_[curr_token_idx_];
-
-        if (curr_tok.type == TokenType::LET_KWD)
+        
+        if (curr_tok.type == TokenType::END_OF_FILE)
+            break;
+        else if (curr_tok.type == TokenType::LET_KWD)
             root.add_child(parse_variable_declaration());
+        else
+            create_syntax_error(std::format("Unexpected token '{}'", curr_tok.to_string()));
+
+        // has_syntax_error_ = false;
     }
+
+    std::println(std::cerr, "{}", root.ast_string());
+
+    return root;
 }
 
 auto Parser::consume() -> const Token &
@@ -33,7 +46,7 @@ auto Parser::consume() -> const Token &
         std::println("Unexpected end of tokens");
         has_syntax_error_ = true;
 
-        return Token{};
+        return INVALID_TOKEN;
     }
 
     return tokens_[curr_token_idx_++];
@@ -46,7 +59,7 @@ auto Parser::peek(std::size_t amount) -> const Token &
         std::println("Unexpected end of tokens");
         has_syntax_error_ = true;
 
-        return Token{};
+        return INVALID_TOKEN;
     }
 
     return tokens_[curr_token_idx_ + amount];
@@ -61,10 +74,14 @@ auto Parser::create_syntax_error(const std::string &error) -> void
 auto Parser::is_function_call() -> bool 
 {
     const Token &t = peek();
+    CHECK_SYNTAX_ERROR_RET_VALUE(false);
+
     if (t.type != TokenType::ID)
         return false;
     
     const Token &t1 = peek(1);
+    CHECK_SYNTAX_ERROR_RET_VALUE(false);
+
     return t.type == TokenType::PARENTHESIS_OPEN;
 }
 
@@ -73,6 +90,7 @@ auto Parser::parse_variable_declaration() -> ASTNode
     ASTNode node{ASTNodeType::VARIABLE_DECLARATION};
 
     const Token &let_tok = consume();
+    CHECK_SYNTAX_ERROR();
     if (let_tok.type != TokenType::LET_KWD) 
     {
         create_syntax_error("Expected 'let' as a the first token of a variable declaration.");
@@ -83,30 +101,42 @@ auto Parser::parse_variable_declaration() -> ASTNode
     CHECK_SYNTAX_ERROR();
 
     const Token &t = consume();
+    CHECK_SYNTAX_ERROR();
     if (t.type != TokenType::COLON)
     {
         create_syntax_error("Expected ':'");
-        return;
+        return node;
     }
 
     node.add_child(parse_type());
     CHECK_SYNTAX_ERROR();
 
     const Token &t1 = peek();
+    CHECK_SYNTAX_ERROR();
     if (t1.type != TokenType::SEMICOLON) 
     {
-        node.add_child(parse_assignment(false)); 
+        const Token &t2 = consume();
+        CHECK_SYNTAX_ERROR();
+
+        if (t2.type != TokenType::EQUAL)
+        {
+            create_syntax_error("Expected an '='");
+            return node;
+        }
+
+        node.add_child(parse_expression());
         CHECK_SYNTAX_ERROR();
     }
 
     const Token &t2 = consume();
+    CHECK_SYNTAX_ERROR();
     if (t2.type != TokenType::SEMICOLON)
         create_syntax_error("Expected a semicolon");
 
     return node;
 }
 
-auto Parser::parse_assignment(bool allow_compound_ops) -> ASTNode
+auto Parser::parse_assignment() -> ASTNode
 {
     ASTNode node{ASTNodeType::ASSIGNMENT};
 
@@ -114,6 +144,7 @@ auto Parser::parse_assignment(bool allow_compound_ops) -> ASTNode
     CHECK_SYNTAX_ERROR();
 
     const Token &t = peek(0);
+    CHECK_SYNTAX_ERROR();
     if (t.type == TokenType::SEMICOLON)
         return node;
 
@@ -139,6 +170,7 @@ auto Parser::parse_expression() -> ASTNode
     for (;;) 
     {
         const Token &t1 = peek();
+        CHECK_SYNTAX_ERROR();
         if (t1.is_binary_operator()) 
         {
             consume();
@@ -205,10 +237,12 @@ auto Parser::parse_expression_term() -> ASTNode
     for (;;) 
     {
         const Token &t = peek(0);
+        CHECK_SYNTAX_ERROR();
         if (not t.is_expression_pre_operator())
             break;
         
         node.add_child(parse_expression_pre_operator());
+        CHECK_SYNTAX_ERROR();
     }
 
     node.add_child(parse_expression_value());
@@ -217,10 +251,12 @@ auto Parser::parse_expression_term() -> ASTNode
     for (;;) 
     {
         const Token &t = peek(0);
+        CHECK_SYNTAX_ERROR();
         if (not t.is_expression_post_operator()) 
             break;
         
         node.add_child(parse_expression_post_operator());
+        CHECK_SYNTAX_ERROR();
     }
 
     return node;
@@ -231,6 +267,7 @@ auto Parser::parse_assignment_operator(bool allow_compound_ops) -> ASTNode
     ASTNode node{ASTNodeType::BINOP};
 
     const Token &op = consume();
+    CHECK_SYNTAX_ERROR();
     if (not allow_compound_ops and op.type != TokenType::EQUAL) 
     {
         create_syntax_error("Expected '='");
@@ -251,6 +288,7 @@ auto Parser::parse_expression_pre_operator() -> ASTNode
     ASTNode node(ASTNodeType::EXPRESSION_PREOP);
 
     const Token &t = consume();
+    CHECK_SYNTAX_ERROR();
     node.set_token(t);
 
     return node;
@@ -261,6 +299,7 @@ auto Parser::parse_expression_value() -> ASTNode
     ASTNode node(ASTNodeType::EXPRESSION_VALUE);
 
     const Token &t = peek();
+    CHECK_SYNTAX_ERROR();
     if (t.is_constant_value()) 
     {
         node.add_child(parse_constant()); 
@@ -291,6 +330,7 @@ auto Parser::parse_expression_value() -> ASTNode
         CHECK_SYNTAX_ERROR();
 
         const Token &t1 = consume();
+        CHECK_SYNTAX_ERROR();
         if (t1.type != TokenType::PARENTHESIS_CLOSE) 
         {
             create_syntax_error("Expected token '('");
@@ -311,11 +351,13 @@ auto Parser::parse_expression_post_operator() -> ASTNode
     ASTNode node(ASTNodeType::EXPRESSION_POSTOP);
 
     const Token &t = peek();
+    CHECK_SYNTAX_ERROR();
     if (t.type == TokenType::DOT) 
     {
         for (;;)
         {
             const Token &t1 = peek();
+            CHECK_SYNTAX_ERROR();
             if (t1.type == TokenType::DOT)
                 consume();
             else
@@ -335,8 +377,8 @@ auto Parser::parse_expression_post_operator() -> ASTNode
     }
     else
     {
+        node.add_child(parse_token(t));
         consume();
-        node.set_token(t);
     }
 
     return node;
@@ -354,6 +396,7 @@ auto Parser::parse_identifier() -> ASTNode
     ASTNode node(ASTNodeType::IDENTIFIER);
 
     const Token &t = consume();
+    CHECK_SYNTAX_ERROR();
     if (t.type != TokenType::ID) 
     {
         create_syntax_error("Expected an identifier");
@@ -383,6 +426,7 @@ auto Parser::parse_argument_list() -> ASTNode
     ASTNode node(ASTNodeType::ARGUMENT_LIST);
 
     const Token &t = consume();
+    CHECK_SYNTAX_ERROR();
     if (t.type != TokenType::PARENTHESIS_OPEN) 
     {
         create_syntax_error("Expected token '('");
@@ -392,6 +436,7 @@ auto Parser::parse_argument_list() -> ASTNode
     node.update_location(t);
 
     const Token &t1 = peek(0); 
+    CHECK_SYNTAX_ERROR();
     if (t1.type != TokenType::PARENTHESIS_CLOSE) 
     {
         for (;;) 
@@ -400,6 +445,7 @@ auto Parser::parse_argument_list() -> ASTNode
             CHECK_SYNTAX_ERROR();
 
             const Token &t3 = consume();
+            CHECK_SYNTAX_ERROR();
             if (t3.type == TokenType::COMMA)
                 continue;
             else if (t3.type == TokenType::PARENTHESIS_CLOSE)
@@ -426,6 +472,7 @@ auto Parser::parse_constant() -> ASTNode
     ASTNode node(ASTNodeType::CONSTANT);
 
     const Token &t = consume();
+    CHECK_SYNTAX_ERROR();
     if (not t.is_constant_value()) 
     {
         create_syntax_error("Expected a constant value");
@@ -442,6 +489,7 @@ auto Parser::parse_construct_call() -> ASTNode
     ASTNode node(ASTNodeType::CONSTRUCT_CALL);
 
     const Token &t = consume();
+    CHECK_SYNTAX_ERROR();
     if (t.type != TokenType::NEW_KWD) 
     {
         create_syntax_error("Expected 'new'");
@@ -462,6 +510,7 @@ auto Parser::parse_type() -> ASTNode
     ASTNode node(ASTNodeType::DATA_TYPE);
 
     const Token &t = consume();
+    CHECK_SYNTAX_ERROR();
     if (not t.is_data_type()) 
     {
         create_syntax_error("Expected a data type");

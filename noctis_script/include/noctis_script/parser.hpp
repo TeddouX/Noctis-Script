@@ -29,7 +29,7 @@ private:
     auto is_function_call() -> bool;
 
     auto parse_variable_declaration() -> ASTNode;
-    auto parse_assignment(bool allow_compound_ops) -> ASTNode;
+    auto parse_assignment() -> ASTNode;
     auto parse_expression() -> ASTNode;
     auto parse_expression_term() -> ASTNode;
     auto parse_assignment_operator(bool allow_compound_ops) -> ASTNode;

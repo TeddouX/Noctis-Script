@@ -43,6 +43,9 @@ public:
     auto children() const -> const std::vector<ASTNode> &;
     auto location() const -> const Location &;
 
+    auto ast_string(bool is_root = true, const std::string &prefix = "", bool is_last = false) const -> std::string;
+    auto to_string() const -> std::string;
+
 private:
     friend class Parser;
 
