@@ -146,54 +146,16 @@ auto tokenize(const std::string &source) -> std::vector<Token>
             continue;
         }
 
+        auto single_char_token_it = SINGLE_CHAR_TOKENS.find(curr_char);
+        if (single_char_token_it != SINGLE_CHAR_TOKENS.end())
+        {
+            append_token(single_char_token_it->second);
+            advance();
+            continue;
+        }
 
         switch (curr_char)
         {
-            case ':':
-                append_token(TokenType::COLON);
-                advance();
-                continue;
-            
-            case ',':
-                append_token(TokenType::COMMA);
-                advance();
-                continue;
-            
-            case '(':
-                append_token(TokenType::PARENTHESIS_OPEN);
-                advance();
-                continue;
-            
-            case ')':
-                append_token(TokenType::PARENTHESIS_CLOSE);
-                advance();
-                continue;
-
-            case '{':
-                append_token(TokenType::BRACE_OPEN);
-                advance();
-                continue;
-
-            case '}':
-                append_token(TokenType::BRACE_CLOSE);
-                advance();
-                continue;
-
-            case '[':
-                append_token(TokenType::BRACKET_OPEN);
-                advance();
-                continue;
-
-            case ']':
-                append_token(TokenType::BRACKET_CLOSE);
-                advance();
-                continue;
-
-            case ';':
-                append_token(TokenType::SEMICOLON);
-                advance();
-                continue;
-
             case '&':
                 match_next('&', TokenType::BINARY_AND, TokenType::LOGICAL_AND);
                 continue;

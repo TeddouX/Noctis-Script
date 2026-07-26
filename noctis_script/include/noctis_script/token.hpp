@@ -121,6 +121,20 @@ struct Token
 
 inline static Token INVALID_TOKEN = Token{};
 
+const std::unordered_map<char, TokenType> SINGLE_CHAR_TOKENS = {
+    { ',', TokenType::COMMA },
+    { ':', TokenType::COLON },
+    { ';', TokenType::SEMICOLON },
+
+    { '(', TokenType::PARENTHESIS_OPEN },
+    { '{', TokenType::BRACE_OPEN },
+    { '[', TokenType::BRACKET_OPEN },
+    
+    { ')', TokenType::PARENTHESIS_CLOSE },
+    { '}', TokenType::BRACE_CLOSE },
+    { ']', TokenType::BRACKET_CLOSE }
+};
+
 const std::unordered_map<TokenType, std::string> TOKENS_TO_STRING = {
     { TokenType::PLUS,               "+"  },
     { TokenType::MINUS,              "-"  },
