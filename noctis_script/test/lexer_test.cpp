@@ -74,34 +74,19 @@ TEST(LexerTest, AddsTrailingZeroesToFloats)
     ASSERT_EQ(tokens[0].value, "1.0");
 }
 
-TEST(LexerTest, TokenizesArithmeticOperators)
+TEST(LexerTest, TokenizesEverything)
 {
-    auto tokens = tokenize("+ - * /");
+    for (const auto &[tok_ty, tok_str] : TOKENS_TO_STRING)
+    {
+        auto tokens = tokenize(tok_str);
 
-    ASSERT_EQ(tokens[0].type, TokenType::PLUS);
-    ASSERT_EQ(tokens[1].type, TokenType::MINUS);
-    ASSERT_EQ(tokens[2].type, TokenType::STAR);
-    ASSERT_EQ(tokens[3].type, TokenType::SLASH);
-}
+        TokenType replaced_type = tok_ty;
+        auto it = REPLACED_TOKENS.find(tok_ty);
+        if (it != REPLACED_TOKENS.end())
+            replaced_type = it->second;
 
-TEST(LexerTest, TokenizesArithmeticAssignOperators)
-{
-    auto tokens = tokenize("+= -= *= /=");
-
-    for (auto token : tokens) std::println(std::cerr, "{}", (int)token.type);
-
-    ASSERT_EQ(tokens[0].type, TokenType::PLUS_EQUAL);
-    ASSERT_EQ(tokens[1].type, TokenType::MINUS_EQUAL);
-    ASSERT_EQ(tokens[2].type, TokenType::STAR_EQUAL);
-    ASSERT_EQ(tokens[3].type, TokenType::SLASH_EQUAL);
-}
-
-TEST(LexerTest, TokenizesIncAndDecOperators)
-{
-    auto tokens = tokenize("++ --");
-
-    ASSERT_EQ(tokens[0].type, TokenType::PLUS_PLUS);
-    ASSERT_EQ(tokens[1].type, TokenType::MINUS_MINUS);
+        ASSERT_EQ(tokens[0].type, replaced_type);
+    }
 }
 
 TEST(LexerTest, TokenizesWithCorrectColumn)
@@ -138,6 +123,12 @@ TEST(LexerTest, TokenizesAllReservedTokens)
     for (const auto &[tok_str, tok_ty] : RESERVED_TOKENS) 
     {
         auto tokens = tokenize(tok_str);
-        ASSERT_EQ(tokens[0].type, tok_ty);
+
+        TokenType replaced_type = tok_ty;
+        auto it = REPLACED_TOKENS.find(tok_ty);
+        if (it != REPLACED_TOKENS.end())
+            replaced_type = it->second;
+
+        ASSERT_EQ(tokens[0].type, replaced_type);
     }
 }

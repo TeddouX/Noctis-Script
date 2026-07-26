@@ -28,7 +28,13 @@ private:
 
     auto is_function_call() -> bool;
 
-    auto parse_variable_declaration() -> ASTNode;
+    auto parse_variable_declaration(bool is_inside_obj) -> ASTNode;
+    auto parse_function_declaration(bool is_inside_obj) -> ASTNode;
+    auto parse_statement_block() -> ASTNode;
+    auto parse_statement() -> ASTNode;
+    auto parse_simple_statement() -> ASTNode;
+    auto parse_if_statement(bool is_elif) -> ASTNode;
+    auto parse_return_statement() -> ASTNode;
     auto parse_assignment() -> ASTNode;
     auto parse_expression() -> ASTNode;
     auto parse_expression_term() -> ASTNode;

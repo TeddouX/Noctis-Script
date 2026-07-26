@@ -27,7 +27,9 @@ auto Parser::parse() -> ASTNode
         if (curr_tok.type == TokenType::END_OF_FILE)
             break;
         else if (curr_tok.type == TokenType::LET_KWD)
-            root.add_child(parse_variable_declaration());
+            root.add_child(parse_variable_declaration(false));
+        else if (curr_tok.type == TokenType::FUNC_KWD)
+            root.add_child(parse_function_declaration(false));
         else
             create_syntax_error(std::format("Unexpected token '{}'", curr_tok.to_string()));
 
@@ -82,10 +84,10 @@ auto Parser::is_function_call() -> bool
     const Token &t1 = peek(1);
     CHECK_SYNTAX_ERROR_RET_VALUE(false);
 
-    return t.type == TokenType::PARENTHESIS_OPEN;
+    return t1.type == TokenType::PARENTHESIS_OPEN;
 }
 
-auto Parser::parse_variable_declaration() -> ASTNode
+auto Parser::parse_variable_declaration(bool is_inside_obj) -> ASTNode
 {
     ASTNode node{ASTNodeType::VARIABLE_DECLARATION};
 
@@ -136,6 +138,264 @@ auto Parser::parse_variable_declaration() -> ASTNode
     return node;
 }
 
+auto Parser::parse_function_declaration(bool is_inside_obj) -> ASTNode
+{
+    ASTNode node(ASTNodeType::FUNCTION_DECLARATION);
+
+    const Token &t = peek(0);
+    if (is_inside_obj && t.is_access_modifier()) 
+    {
+        const Token &t1 = consume();
+        node.add_child(parse_token(t1));
+    }
+
+    const Token &t1 = consume();
+    if (t1.type != TokenType::FUNC_KWD) 
+    {
+        create_syntax_error("Expected 'func'");
+        return node;
+    }
+    
+    // Function name
+    node.add_child(parse_identifier()); 
+    CHECK_SYNTAX_ERROR();
+
+    const Token &t2 = consume();
+    if (t2.type != TokenType::PARENTHESIS_OPEN) 
+    {
+        create_syntax_error("Expected '('");
+        return node; 
+    }
+
+    const Token &t3 = peek();
+
+    ASTNode param_list_node(ASTNodeType::PARAMETER_LIST);
+    // The function has parameters
+    if (t3.type != TokenType::PARENTHESIS_CLOSE) 
+    {
+        for (;;) 
+        {
+            param_list_node.add_child(parse_identifier()); 
+            CHECK_SYNTAX_ERROR();
+
+            const Token &t4 = consume();
+            if (t4.type != TokenType::COLON)
+            {
+                create_syntax_error("Expected ':'");
+                return node;
+            }
+
+            param_list_node.add_child(parse_type());       
+            CHECK_SYNTAX_ERROR();
+
+            const Token &t5 = consume();
+            if (t5.type == TokenType::COMMA)
+            {
+                continue;
+            }
+            else if (t5.type == TokenType::PARENTHESIS_CLOSE)
+            {
+                break;
+            }
+            else 
+            {
+                create_syntax_error("Expected ',' or ')'");
+                return node;
+            }
+            
+            // node.update_location(t5);
+        }
+    }
+    else {
+        consume();
+        node.update_location(t3);
+    }
+
+    node.add_child(param_list_node);
+    CHECK_SYNTAX_ERROR();
+
+    const Token &t4 = consume();
+    if (t4.type != TokenType::ARROW)
+    {
+        create_syntax_error("Expected '->'");
+        return node;
+    }
+
+    node.add_child(parse_type());
+    CHECK_SYNTAX_ERROR();
+
+    node.add_child(parse_statement_block()); 
+    CHECK_SYNTAX_ERROR();
+
+    return node;
+}
+
+auto Parser::parse_statement_block() -> ASTNode 
+{
+    ASTNode node(ASTNodeType::STATEMENT_BLOCK);
+
+    const Token &t = consume();
+    if (t.type != TokenType::BRACE_OPEN) 
+    {
+        create_syntax_error("Expected '{'");
+        return node;
+    }
+
+    node.update_location(t);
+
+    for (;;) 
+    {
+        const Token &t1 = peek(0);
+        if (t1.type == TokenType::BRACE_CLOSE)
+        {
+            consume();
+
+            node.update_location(t1);
+
+            break;
+        } 
+        else if (t1.type == TokenType::END_OF_FILE)
+        {
+            create_syntax_error("Unexpected end of file");
+            break;
+        } 
+        else
+        {
+            node.add_child(parse_statement());
+        }
+
+        if (has_syntax_error_) 
+            break;
+    }
+
+    return node;
+}
+
+auto Parser::parse_statement() -> ASTNode
+{
+    const Token &t = peek();
+    if (t.type == TokenType::IF_KWD)
+        return parse_if_statement(false);
+    else if (t.type == TokenType::RETURN_KWD)
+        return parse_return_statement();
+    else if (t.type == TokenType::LET_KWD)
+        return parse_variable_declaration(false);
+    else
+        return parse_simple_statement();
+}
+
+auto Parser::parse_simple_statement() -> ASTNode 
+{
+    const Token &t = peek();
+    // Just a semicolon is alright
+    if (t.type == TokenType::SEMICOLON) {
+        consume();
+        return ASTNode{ASTNodeType::ASSIGNMENT};
+    }
+
+    ASTNode node = parse_assignment(); 
+    CHECK_SYNTAX_ERROR();
+
+    const Token &t1 = consume();
+    if (t1.type != TokenType::SEMICOLON)
+        create_syntax_error("Expected a semicolon");
+
+    return node;
+}
+
+auto Parser::parse_if_statement(bool is_elif) -> ASTNode 
+{
+    ASTNode node(is_elif ? ASTNodeType::ELIF_BRANCH : ASTNodeType::IF_STATEMENT);
+
+    const Token &t = consume();
+    node.update_location(t);
+
+    if (not is_elif and t.type != TokenType::IF_KWD) 
+    {
+        create_syntax_error("Expected 'if'");
+        return node;
+    }
+    else if (is_elif and t.type != TokenType::ELIF_KWD)
+    {
+        create_syntax_error("Expected 'elif'");
+        return node;
+    }
+
+    node.add_child(parse_expression());     
+    CHECK_SYNTAX_ERROR();
+
+    node.add_child(parse_statement_block()); 
+    CHECK_SYNTAX_ERROR();
+
+    // Let the parent if handle other elif or else branches
+    if (is_elif)
+        return node;
+
+    for (;;)
+    {
+        const Token &t2 = peek();
+        if (t2.type == TokenType::ELIF_KWD)
+        {
+            node.add_child(parse_if_statement(true));
+            CHECK_SYNTAX_ERROR();
+        }
+        else if (t2.type == TokenType::ELSE_KWD)
+        {
+            consume();
+
+            ASTNode else_branch_node{ASTNodeType::ELSE_BRANCH};
+            else_branch_node.update_location(t2);
+
+            else_branch_node.add_child(parse_statement_block());
+            CHECK_SYNTAX_ERROR();
+
+            node.add_child(else_branch_node);
+
+            break;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    return node;
+}
+
+auto Parser::parse_return_statement() -> ASTNode
+{
+    ASTNode node(ASTNodeType::RETURN_STATEMENT);
+    
+    const Token &t = consume();
+    node.update_location(t);
+    if (t.type != TokenType::RETURN_KWD) 
+    {
+        create_syntax_error("Expected 'return");
+        return node;
+    } 
+
+    const Token &t1 = peek(0);
+    // void return
+    if (t1.type == TokenType::SEMICOLON) 
+    {
+        consume();
+    }
+    // value return
+    else 
+    {
+        node.add_child(parse_expression());
+
+        const Token &t2 = consume();
+        if (t2.type != TokenType::SEMICOLON) 
+        {
+            create_syntax_error("Expected a semicolon");
+            return node;
+        }
+    }
+
+    return node;
+}
+
 auto Parser::parse_assignment() -> ASTNode
 {
     ASTNode node{ASTNodeType::ASSIGNMENT};
@@ -167,7 +427,7 @@ auto Parser::parse_expression() -> ASTNode
 
     // Has multiple terms 
     bool complex_expr = false;
-    for (;;) 
+    for (;;)
     {
         const Token &t1 = peek();
         CHECK_SYNTAX_ERROR();

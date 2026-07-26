@@ -29,11 +29,45 @@ auto tokenize(const std::string &source) -> std::vector<Token>
 
     auto match_next = [&](char next, TokenType single, TokenType combined) -> void
     {
-        if (curr_idx + 1 < source.size() && source.at(curr_idx + 1) == next) {
+        if (curr_idx + 1 < source.size() && source.at(curr_idx + 1) == next) 
+        {
             append_token(combined);
             advance(2);
         }
-        else {
+        else 
+        {
+            append_token(single);
+            advance(1);
+        }
+    };
+
+    auto match_next_2 = [&](
+        char next, char next_2, 
+        TokenType single, 
+        TokenType combined, TokenType combined_2
+    ) -> void
+    {
+        if (curr_idx + 1 >= source.size()) 
+        {
+            append_token(single);
+            advance(1);
+
+            return;
+        }
+        
+        char source_next = source.at(curr_idx + 1);
+        if (source_next == next)
+        {
+            append_token(combined);
+            advance(2);
+        }
+        else if (source_next == next_2)
+        {
+            append_token(combined_2);
+            advance(2);
+        }
+        else
+        {
             append_token(single);
             advance(1);
         }
@@ -79,7 +113,13 @@ auto tokenize(const std::string &source) -> std::vector<Token>
 
             auto it = RESERVED_TOKENS.find(value);
             if (it != RESERVED_TOKENS.end()) {
-                append_token(it->second);
+                TokenType reserved_token_type = it->second;
+
+                auto replaced_tokens_it = REPLACED_TOKENS.find(reserved_token_type);
+                if (replaced_tokens_it != REPLACED_TOKENS.end())
+                    reserved_token_type = replaced_tokens_it->second;
+
+                append_token(reserved_token_type);
                 advance(len);
 
                 continue;
@@ -156,46 +196,44 @@ auto tokenize(const std::string &source) -> std::vector<Token>
 
         switch (curr_char)
         {
+            // ! !=
+            case '!':
+                match_next('=', TokenType::NOT, TokenType::NOT_EQUAL);
+                continue;
+
+            // > >=
+            case '>':
+                match_next('=', TokenType::GREATER_THAN, TokenType::GREATER_THAN_EQUAL);
+                continue;
+
+            // < <=
+            case '<':
+                match_next('=', TokenType::LESS_THAN, TokenType::LESS_THAN_EQUAL);
+                continue;
+
+            // & &= &&
             case '&':
-                match_next('&', TokenType::BINARY_AND, TokenType::LOGICAL_AND);
+                match_next_2('=', '&', TokenType::BINARY_AND, TokenType::BIN_AND_EQUAL, TokenType::LOGICAL_AND);
                 continue;
 
+            // | |= ||
             case '|':
-                match_next('|', TokenType::BINARY_OR, TokenType::LOGICAL_OR);
+                match_next_2('=', '|', TokenType::BINARY_OR, TokenType::BIN_OR_EQUAL, TokenType::LOGICAL_OR);
                 continue;
 
+            // = ==
             case '=':
                 match_next('=', TokenType::EQUAL, TokenType::EQUAL_EQUAL);
                 continue;
 
+            // ^ ^=
+            case '^':
+                match_next('=', TokenType::XOR, TokenType::XOR_EQUAL);
+                continue;
+
             // + ++ +=
             case '+':
-                if (curr_idx + 1 >= source.size()) 
-                {
-                    append_token(TokenType::PLUS);
-                    advance();
-
-                    continue;
-                }
-                
-                switch (source[curr_idx + 1])
-                {
-                    case '+': 
-                        append_token(TokenType::PLUS_PLUS);  
-                        advance(2);
-                        break;
-
-                    case '=': 
-                        append_token(TokenType::PLUS_EQUAL);
-                        advance(2);
-                        break;
-                    
-                    default: 
-                        append_token(TokenType::PLUS);
-                        advance();
-                        break;
-                }
-
+                match_next_2('+', '=', TokenType::PLUS, TokenType::PLUS_PLUS, TokenType::PLUS_EQUAL);
                 continue;
 
             // - -- -=
@@ -217,6 +255,11 @@ auto tokenize(const std::string &source) -> std::vector<Token>
                  
                     case '=': 
                         append_token(TokenType::MINUS_EQUAL);
+                        advance(2);
+                        break;
+
+                    case '>':
+                        append_token(TokenType::ARROW);
                         advance(2);
                         break;
                  

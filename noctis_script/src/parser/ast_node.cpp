@@ -104,24 +104,30 @@ auto ASTNode::to_string() const -> std::string
 {
     switch (type_)
     {
-        using enum ASTNodeType;
-        case ROOT:                  return "<ROOT>";
-        case VARIABLE_DECLARATION:  return "<VARIABLE_DECLARATION>";
-        case IDENTIFIER:            return "<IDENTIFIER>";
-        case EXPRESSION:            return "<EXPRESSION>";
-        case EXPRESSION_TERM:       return "<EXPRESSION_TERM>";
-        case EXPRESSION_VALUE:      return "<EXPRESSION_VALUE>";
-        case EXPRESSION_PREOP:      return "<EXPRESSION_PREOP>";
-        case EXPRESSION_POSTOP:     return "<EXPRESSION_POSTOP>";
-        case TOKEN:                 return "<TOKEN>";
-        case BINOP:                 return "<BINOP>";
-        case ASSIGNMENT:            return "<ASSIGNMENT>";
-        case FUNCTION_CALL:         return "<FUNCTION_CALL>";
-        case ARGUMENT_LIST:         return "<ARGUMENT_LIST>";
-        case CONSTANT:              return "<CONSTANT>";
-        case CONSTRUCT_CALL:        return "<CONSTRUCT_CALL>";
-        case DATA_TYPE:             return "<DATA_TYPE>";
-        default:                    return "<UNKNOWN>";
+        case ASTNodeType::ROOT:                     return "<ROOT>";
+        case ASTNodeType::VARIABLE_DECLARATION:     return "<VARIABLE_DECLARATION>";
+        case ASTNodeType::IDENTIFIER:               return "<IDENTIFIER>";
+        case ASTNodeType::EXPRESSION:               return "<EXPRESSION>";
+        case ASTNodeType::EXPRESSION_TERM:          return "<EXPRESSION_TERM>";
+        case ASTNodeType::EXPRESSION_VALUE:         return "<EXPRESSION_VALUE>";
+        case ASTNodeType::EXPRESSION_PREOP:         return "<EXPRESSION_PREOP>";
+        case ASTNodeType::EXPRESSION_POSTOP:        return "<EXPRESSION_POSTOP>";
+        case ASTNodeType::TOKEN:                    return "<TOKEN>";
+        case ASTNodeType::BINOP:                    return "<BINOP>";
+        case ASTNodeType::ASSIGNMENT:               return "<ASSIGNMENT>";
+        case ASTNodeType::FUNCTION_CALL:            return "<FUNCTION_CALL>";
+        case ASTNodeType::ARGUMENT_LIST:            return "<ARGUMENT_LIST>";
+        case ASTNodeType::CONSTANT:                 return "<CONSTANT>";
+        case ASTNodeType::CONSTRUCT_CALL:           return "<CONSTRUCT_CALL>";
+        case ASTNodeType::DATA_TYPE:                return "<DATA_TYPE>";
+        case ASTNodeType::FUNCTION_DECLARATION:     return "<FUNCTION_DECLARATION>";
+        case ASTNodeType::PARAMETER_LIST:           return "<PARAMETER_LIST>";
+        case ASTNodeType::STATEMENT_BLOCK:          return "<STATEMENT_BLOCK>";
+        case ASTNodeType::IF_STATEMENT:             return "<IF_STATEMENT>";
+        case ASTNodeType::RETURN_STATEMENT:         return "<RETURN_STATEMENT>";
+        case ASTNodeType::ELIF_BRANCH:              return "<ELIF_BRANCH>";
+        case ASTNodeType::ELSE_BRANCH:              return "<ELSE_BRANCH>";
+        default:                                    return "<UNKNOWN>";
     }
 }
 

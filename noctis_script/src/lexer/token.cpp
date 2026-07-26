@@ -14,12 +14,6 @@ auto Token::to_string() const -> const std::string &
     if (it != TOKENS_TO_STRING.end())
         return it->second;
 
-    for (const auto &[tok_str, tok_ty] : RESERVED_TOKENS)
-    {
-        if (tok_ty == type)
-            return tok_str;
-    }
-
     return value;
 }
 
@@ -56,7 +50,7 @@ auto Token::is_binary_operator() const -> bool
         case TokenType::LESS_THAN:
         case TokenType::LESS_THAN_EQUAL:
         case TokenType::EQUAL_EQUAL:
-        case TokenType::EXCLAMATION_EQUAL:
+        case TokenType::NOT_EQUAL:
         case TokenType::LOGICAL_AND:
         case TokenType::LOGICAL_OR:
             return true;
@@ -71,7 +65,7 @@ auto Token::is_expression_pre_operator() const -> bool
     {
         case TokenType::PLUS_PLUS:
         case TokenType::MINUS_MINUS:
-        case TokenType::EXCLAMATION_MARK: 
+        case TokenType::NOT: 
             return true;
         default: 
             return false;
@@ -84,6 +78,7 @@ auto Token::is_expression_post_operator() const -> bool
     {
         case TokenType::PLUS_PLUS:
         case TokenType::MINUS_MINUS:
+        case TokenType::DOT:
             return true;
         default:
             return false;
@@ -121,6 +116,7 @@ auto Token::is_data_type() const -> bool
         case TokenType::FLOAT64_KWD:
         case TokenType::BOOL_KWD:
         case TokenType::CHAR_KWD:
+        case TokenType::VOID_KWD:
         // Custom types (will get checked by the compiler)
         case TokenType::ID:
             return true;
@@ -128,6 +124,19 @@ auto Token::is_data_type() const -> bool
             return false;
     }
 }
+
+auto Token::is_access_modifier() const -> bool
+{
+    switch (type)
+    {
+        case TokenType::PUBLIC_KWD:
+        case TokenType::PRIVATE_KWD:
+            return true;
+        default:
+            return false;
+    }
+}
+
 
 auto Token::get_operator_precedence() const -> int
 {
@@ -154,7 +163,7 @@ auto Token::get_operator_precedence() const -> int
 
         // Equality comparisons
         case TokenType::EQUAL_EQUAL:
-        case TokenType::EXCLAMATION_EQUAL:
+        case TokenType::NOT_EQUAL:
             return 6;
         
         default:
