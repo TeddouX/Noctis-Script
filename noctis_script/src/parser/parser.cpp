@@ -35,12 +35,12 @@ auto Parser::parse() -> ASTNode
     return root;
 }
 
-auto Parser::has_errors() const -> bool
+auto Parser::has_syntax_errors() const -> bool
 {
     return not syntax_errors_.empty();
 }
 
-auto Parser::get_errors() const -> const std::vector<Error> &
+auto Parser::get_syntax_errors() const -> const std::vector<Error> &
 {
     return syntax_errors_;
 }

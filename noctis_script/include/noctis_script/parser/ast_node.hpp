@@ -58,13 +58,13 @@ public:
 private:
     friend class Parser;
 
-    ASTNodeType type_;
-    Token       token_;
-    Location    location_;
+    ASTNodeType             type_;
+    Token                   token_;
+    Location                location_;
 
-    bool has_loc_been_set_;
+    bool                    has_loc_been_set_;
 
-    std::vector<ASTNode> children_;
+    std::vector<ASTNode>    children_;
 };
 
 } // namespace NCSC
