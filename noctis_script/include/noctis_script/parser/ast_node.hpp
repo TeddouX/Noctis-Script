@@ -33,6 +33,8 @@ enum class ASTNodeType
     RETURN_STATEMENT,
     ELIF_BRANCH,
     ELSE_BRANCH,
+    OBJ_DECLARATION,
+    DECLARATION_BODY,
 };
 
 class ASTNode

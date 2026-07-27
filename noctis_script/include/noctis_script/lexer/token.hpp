@@ -61,7 +61,7 @@ enum class TokenType
 
     ARROW,              // ->
 
-    LET_KWD,            // let
+    VAR_KWD,            // var
     FUNC_KWD,           // func
     PUBLIC_KWD,         // public
     PRIVATE_KWD,        // private
@@ -76,6 +76,7 @@ enum class TokenType
     AND_KWD,            // and
     OR_KWD,             // or
     NOT_KWD,            // not
+    OBJ_KWD,            // obj
 
     INT8_KWD,           // int8
     INT16_KWD,          // int16
@@ -123,13 +124,13 @@ struct Token
     auto to_string() const -> const std::string &;
     auto length() const -> std::size_t;
 
-    auto is_assignment_operator() const -> bool;
-    auto is_binary_operator() const -> bool;
-    auto is_expression_pre_operator() const -> bool;
-    auto is_expression_post_operator() const -> bool;
-    auto is_constant_value() const -> bool;
-    auto is_data_type() const -> bool;
-    auto is_access_modifier() const -> bool;
+    auto is_assignment_operator()       const -> bool;
+    auto is_binary_operator()           const -> bool;
+    auto is_expression_pre_operator()   const -> bool;
+    auto is_expression_post_operator()  const -> bool;
+    auto is_constant_value()            const -> bool;
+    auto is_data_type()                 const -> bool;
+    auto is_access_modifier()           const -> bool;
     
     // Returns -1 if the token isn't an operator
     auto get_operator_precedence() const -> int;
@@ -200,7 +201,7 @@ const std::unordered_map<TokenType, std::string> TOKENS_TO_STRING = {
 
     { TokenType::ARROW,                 "->"        },
 
-    { TokenType::LET_KWD,               "let"       },
+    { TokenType::VAR_KWD,               "var"       },
     { TokenType::FUNC_KWD,              "func"      },
     { TokenType::PUBLIC_KWD,            "public"    },
     { TokenType::PRIVATE_KWD,           "private"   },
@@ -215,6 +216,7 @@ const std::unordered_map<TokenType, std::string> TOKENS_TO_STRING = {
     { TokenType::AND_KWD,               "and"       },
     { TokenType::OR_KWD,                "or"        },
     { TokenType::NOT_KWD,               "not"       },
+    { TokenType::OBJ_KWD,               "obj"       },
 
     { TokenType::INT8_KWD,              "int8"      },
     { TokenType::INT16_KWD,             "int16"     },
@@ -232,7 +234,7 @@ const std::unordered_map<TokenType, std::string> TOKENS_TO_STRING = {
 };
 
 const std::unordered_map<std::string, TokenType> RESERVED_TOKENS = {
-    { "let",        TokenType::LET_KWD      },
+    { "var",        TokenType::VAR_KWD      },
     { "func",       TokenType::FUNC_KWD     }, 
     { "public",     TokenType::PUBLIC_KWD   },
     { "private",    TokenType::PRIVATE_KWD  },
@@ -247,6 +249,7 @@ const std::unordered_map<std::string, TokenType> RESERVED_TOKENS = {
     { "and",        TokenType::AND_KWD      }, 
     { "or",         TokenType::OR_KWD       },  
     { "not",        TokenType::NOT_KWD      }, 
+    { "obj",        TokenType::OBJ_KWD      },
 
     { "int8",       TokenType::INT8_KWD     },
     { "int16",      TokenType::INT16_KWD    },

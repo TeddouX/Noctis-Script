@@ -28,8 +28,12 @@ private:
 
     auto is_function_call() -> bool;
 
+    // Parses functions declaration, object declarartion and global variable declarations
+    // Can be used to parse the body of an object
+    auto parse_declaration_body(bool is_inside_obj) -> ASTNode;
     auto parse_variable_declaration(bool is_inside_obj) -> ASTNode;
     auto parse_function_declaration(bool is_inside_obj) -> ASTNode;
+    auto parse_object_declaration(bool is_inside_obj) -> ASTNode;
     auto parse_statement_block() -> ASTNode;
     auto parse_statement() -> ASTNode;
     auto parse_simple_statement() -> ASTNode;

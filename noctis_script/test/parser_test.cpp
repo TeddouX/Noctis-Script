@@ -11,87 +11,91 @@ using namespace NCSC;
 
 TEST(ParserTest, ParsesSimpleVariableDeclaration) 
 {
-    auto tokens = tokenize("let bla: int;");
+    auto tokens = tokenize("var bla: int;");
     Parser parser{tokens};
     ASTNode root_node = parser.parse();
 
     const std::string expected_tree = 
 R"(<ROOT>
-└── <VARIABLE_DECLARATION>
-    ├── <IDENTIFIER>(bla)
-    └── <DATA_TYPE>(int32))";
+└── <DECLARATION_BODY>
+    └── <VARIABLE_DECLARATION>
+        ├── <IDENTIFIER>(bla)
+        └── <DATA_TYPE>(int32))";
 
     EXPECT_EQ(root_node.ast_string(), expected_tree);
 }
 
 TEST(ParserTest, ParsesSimpleVariableDeclarationWithIntConstantAssignment) 
 {
-    auto tokens = tokenize("let bla: int8 = 1;");
+    auto tokens = tokenize("var bla: int8 = 1;");
     Parser parser{tokens};
     ASTNode root_node = parser.parse();
 
     const std::string expected_tree = 
 R"(<ROOT>
-└── <VARIABLE_DECLARATION>
-    ├── <IDENTIFIER>(bla)
-    ├── <DATA_TYPE>(int8)
-    └── <EXPRESSION>
-        └── <EXPRESSION_TERM>
-            └── <EXPRESSION_VALUE>
-                └── <CONSTANT>(1))";
+└── <DECLARATION_BODY>
+    └── <VARIABLE_DECLARATION>
+        ├── <IDENTIFIER>(bla)
+        ├── <DATA_TYPE>(int8)
+        └── <EXPRESSION>
+            └── <EXPRESSION_TERM>
+                └── <EXPRESSION_VALUE>
+                    └── <CONSTANT>(1))";
 
     EXPECT_EQ(root_node.ast_string(), expected_tree);
 }
 
 TEST(ParserTest, ParsesSimpleVariableDeclarationWithFloatConstantAssignment) 
 {
-    auto tokens = tokenize("let bla: float = 1.0;");
+    auto tokens = tokenize("var bla: float = 1.0;");
     Parser parser{tokens};
     ASTNode root_node = parser.parse();
 
     const std::string expected_tree = 
 R"(<ROOT>
-└── <VARIABLE_DECLARATION>
-    ├── <IDENTIFIER>(bla)
-    ├── <DATA_TYPE>(float32)
-    └── <EXPRESSION>
-        └── <EXPRESSION_TERM>
-            └── <EXPRESSION_VALUE>
-                └── <CONSTANT>(1.0))";
+└── <DECLARATION_BODY>
+    └── <VARIABLE_DECLARATION>
+        ├── <IDENTIFIER>(bla)
+        ├── <DATA_TYPE>(float32)
+        └── <EXPRESSION>
+            └── <EXPRESSION_TERM>
+                └── <EXPRESSION_VALUE>
+                    └── <CONSTANT>(1.0))";
 
     EXPECT_EQ(root_node.ast_string(), expected_tree);
 }
 
 TEST(ParserTest, ParsesSimpleVariableDeclarationWithIntExpressionAssignment) 
 {
-    auto tokens = tokenize("let bla: int = 1 + 1 * (3 / 2);");
+    auto tokens = tokenize("var bla: int = 1 + 1 * (3 / 2);");
     Parser parser{tokens};
     ASTNode root_node = parser.parse();
 
     const std::string expected_tree = 
 R"(<ROOT>
-└── <VARIABLE_DECLARATION>
-    ├── <IDENTIFIER>(bla)
-    ├── <DATA_TYPE>(int32)
-    └── <EXPRESSION>
-        └── <BINOP>(+)
-            ├── <EXPRESSION_TERM>
-            │   └── <EXPRESSION_VALUE>
-            │       └── <CONSTANT>(1)
-            └── <BINOP>(*)
+└── <DECLARATION_BODY>
+    └── <VARIABLE_DECLARATION>
+        ├── <IDENTIFIER>(bla)
+        ├── <DATA_TYPE>(int32)
+        └── <EXPRESSION>
+            └── <BINOP>(+)
                 ├── <EXPRESSION_TERM>
                 │   └── <EXPRESSION_VALUE>
                 │       └── <CONSTANT>(1)
-                └── <EXPRESSION_TERM>
-                    └── <EXPRESSION_VALUE>
-                        └── <EXPRESSION>
-                            └── <BINOP>(/)
-                                ├── <EXPRESSION_TERM>
-                                │   └── <EXPRESSION_VALUE>
-                                │       └── <CONSTANT>(3)
-                                └── <EXPRESSION_TERM>
-                                    └── <EXPRESSION_VALUE>
-                                        └── <CONSTANT>(2))";
+                └── <BINOP>(*)
+                    ├── <EXPRESSION_TERM>
+                    │   └── <EXPRESSION_VALUE>
+                    │       └── <CONSTANT>(1)
+                    └── <EXPRESSION_TERM>
+                        └── <EXPRESSION_VALUE>
+                            └── <EXPRESSION>
+                                └── <BINOP>(/)
+                                    ├── <EXPRESSION_TERM>
+                                    │   └── <EXPRESSION_VALUE>
+                                    │       └── <CONSTANT>(3)
+                                    └── <EXPRESSION_TERM>
+                                        └── <EXPRESSION_VALUE>
+                                            └── <CONSTANT>(2))";
 
     EXPECT_EQ(root_node.ast_string(), expected_tree);
 }
@@ -102,11 +106,12 @@ TEST(ParserTest, ParsesEmptyFunction)
     ASTNode root_node = parser.parse();
     const std::string expected_tree = 
 R"(<ROOT>
-└── <FUNCTION_DECLARATION>
-    ├── <IDENTIFIER>(main)
-    ├── <PARAMETER_LIST>
-    ├── <DATA_TYPE>(void)
-    └── <STATEMENT_BLOCK>)";
+└── <DECLARATION_BODY>
+    └── <FUNCTION_DECLARATION>
+        ├── <IDENTIFIER>(main)
+        ├── <PARAMETER_LIST>
+        ├── <DATA_TYPE>(void)
+        └── <STATEMENT_BLOCK>)";
 
     ASSERT_EQ(root_node.ast_string(), expected_tree);
 }
@@ -117,68 +122,71 @@ TEST(ParserTest, ParsesFunctionWithParams)
     ASTNode root_node = parser.parse();
     const std::string expected_tree = 
 R"(<ROOT>
-└── <FUNCTION_DECLARATION>
-    ├── <IDENTIFIER>(main)
-    ├── <PARAMETER_LIST>
-    │   ├── <IDENTIFIER>(a)
-    │   ├── <DATA_TYPE>(int32)
-    │   ├── <IDENTIFIER>(b)
-    │   └── <DATA_TYPE>(float32)
-    ├── <DATA_TYPE>(void)
-    └── <STATEMENT_BLOCK>)";
+└── <DECLARATION_BODY>
+    └── <FUNCTION_DECLARATION>
+        ├── <IDENTIFIER>(main)
+        ├── <PARAMETER_LIST>
+        │   ├── <IDENTIFIER>(a)
+        │   ├── <DATA_TYPE>(int32)
+        │   ├── <IDENTIFIER>(b)
+        │   └── <DATA_TYPE>(float32)
+        ├── <DATA_TYPE>(void)
+        └── <STATEMENT_BLOCK>)";
 
     ASSERT_EQ(root_node.ast_string(), expected_tree);
 }
 
 TEST(ParserTest, ParsesFunctionBodyWithVariableDeclaration)
 {
-    Parser parser{tokenize("func main() -> void { let a: int = 0; }")};
+    Parser parser{tokenize("func main() -> void { var a: int = 0; }")};
     ASTNode root_node = parser.parse();
     const std::string expected_tree = 
 R"(<ROOT>
-└── <FUNCTION_DECLARATION>
-    ├── <IDENTIFIER>(main)
-    ├── <PARAMETER_LIST>
-    ├── <DATA_TYPE>(void)
-    └── <STATEMENT_BLOCK>
-        └── <VARIABLE_DECLARATION>
-            ├── <IDENTIFIER>(a)
-            ├── <DATA_TYPE>(int32)
-            └── <EXPRESSION>
-                └── <EXPRESSION_TERM>
-                    └── <EXPRESSION_VALUE>
-                        └── <CONSTANT>(0))";
+└── <DECLARATION_BODY>
+    └── <FUNCTION_DECLARATION>
+        ├── <IDENTIFIER>(main)
+        ├── <PARAMETER_LIST>
+        ├── <DATA_TYPE>(void)
+        └── <STATEMENT_BLOCK>
+            └── <VARIABLE_DECLARATION>
+                ├── <IDENTIFIER>(a)
+                ├── <DATA_TYPE>(int32)
+                └── <EXPRESSION>
+                    └── <EXPRESSION_TERM>
+                        └── <EXPRESSION_VALUE>
+                            └── <CONSTANT>(0))";
 
     ASSERT_EQ(root_node.ast_string(), expected_tree);
 }
 
 TEST(ParserTest, ParsesFunctionBodyWithVariableDeclarationAndAssignment)
 {
-    Parser parser{tokenize("func main() -> void { let a: int = 0; a = 0; }")};
+    Parser parser{tokenize("func main() -> void { var a: int = 0; a = 0; }")};
     ASTNode root_node = parser.parse();
     const std::string expected_tree = 
 R"(<ROOT>
-└── <FUNCTION_DECLARATION>
-    ├── <IDENTIFIER>(main)
-    ├── <PARAMETER_LIST>
-    ├── <DATA_TYPE>(void)
-    └── <STATEMENT_BLOCK>
-        ├── <VARIABLE_DECLARATION>
-        │   ├── <IDENTIFIER>(a)
-        │   ├── <DATA_TYPE>(int32)
-        │   └── <EXPRESSION>
-        │       └── <EXPRESSION_TERM>
-        │           └── <EXPRESSION_VALUE>
-        │               └── <CONSTANT>(0)
-        └── <ASSIGNMENT>
-            ├── <EXPRESSION_TERM>
-            │   └── <EXPRESSION_VALUE>
-            │       └── <IDENTIFIER>(a)
-            ├── <BINOP>(=)
-            └── <EXPRESSION>
-                └── <EXPRESSION_TERM>
-                    └── <EXPRESSION_VALUE>
-                        └── <CONSTANT>(0))";
+└── <DECLARATION_BODY>
+    └── <FUNCTION_DECLARATION>
+        ├── <IDENTIFIER>(main)
+        ├── <PARAMETER_LIST>
+        ├── <DATA_TYPE>(void)
+        └── <STATEMENT_BLOCK>
+            ├── <VARIABLE_DECLARATION>
+            │   ├── <IDENTIFIER>(a)
+            │   ├── <DATA_TYPE>(int32)
+            │   └── <EXPRESSION>
+            │       └── <EXPRESSION_TERM>
+            │           └── <EXPRESSION_VALUE>
+            │               └── <CONSTANT>(0)
+            └── <ASSIGNMENT>
+                ├── <EXPRESSION_TERM>
+                │   └── <EXPRESSION_VALUE>
+                │       └── <IDENTIFIER>(a)
+                ├── <BINOP>(=)
+                └── <EXPRESSION>
+                    └── <EXPRESSION_TERM>
+                        └── <EXPRESSION_VALUE>
+                            └── <CONSTANT>(0))";
 
     ASSERT_EQ(root_node.ast_string(), expected_tree);
 }
@@ -189,19 +197,20 @@ TEST(ParserTest, ParsesFunctionBodyWithMemberAccess)
     ASTNode root_node = parser.parse();
     const std::string expected_tree = 
 R"(<ROOT>
-└── <FUNCTION_DECLARATION>
-    ├── <IDENTIFIER>(main)
-    ├── <PARAMETER_LIST>
-    ├── <DATA_TYPE>(void)
-    └── <STATEMENT_BLOCK>
-        └── <ASSIGNMENT>
-            └── <EXPRESSION_TERM>
-                ├── <EXPRESSION_VALUE>
-                │   └── <IDENTIFIER>(a)
-                └── <EXPRESSION_POSTOP>
-                    ├── <IDENTIFIER>(b)
-                    ├── <IDENTIFIER>(cccc)
-                    └── <IDENTIFIER>(d))";
+└── <DECLARATION_BODY>
+    └── <FUNCTION_DECLARATION>
+        ├── <IDENTIFIER>(main)
+        ├── <PARAMETER_LIST>
+        ├── <DATA_TYPE>(void)
+        └── <STATEMENT_BLOCK>
+            └── <ASSIGNMENT>
+                └── <EXPRESSION_TERM>
+                    ├── <EXPRESSION_VALUE>
+                    │   └── <IDENTIFIER>(a)
+                    └── <EXPRESSION_POSTOP>
+                        ├── <IDENTIFIER>(b)
+                        ├── <IDENTIFIER>(cccc)
+                        └── <IDENTIFIER>(d))";
 
     ASSERT_EQ(root_node.ast_string(), expected_tree);
 }
@@ -212,21 +221,22 @@ TEST(ParserTest, ParsesFunctionBodyWithMemberMethodCall)
     ASTNode root_node = parser.parse();
     const std::string expected_tree = 
 R"(<ROOT>
-└── <FUNCTION_DECLARATION>
-    ├── <IDENTIFIER>(main)
-    ├── <PARAMETER_LIST>
-    ├── <DATA_TYPE>(void)
-    └── <STATEMENT_BLOCK>
-        └── <ASSIGNMENT>
-            └── <EXPRESSION_TERM>
-                ├── <EXPRESSION_VALUE>
-                │   └── <IDENTIFIER>(a)
-                └── <EXPRESSION_POSTOP>
-                    ├── <IDENTIFIER>(b)
-                    ├── <IDENTIFIER>(cccc)
-                    └── <FUNCTION_CALL>
-                        ├── <IDENTIFIER>(method)
-                        └── <ARGUMENT_LIST>)";
+└── <DECLARATION_BODY>
+    └── <FUNCTION_DECLARATION>
+        ├── <IDENTIFIER>(main)
+        ├── <PARAMETER_LIST>
+        ├── <DATA_TYPE>(void)
+        └── <STATEMENT_BLOCK>
+            └── <ASSIGNMENT>
+                └── <EXPRESSION_TERM>
+                    ├── <EXPRESSION_VALUE>
+                    │   └── <IDENTIFIER>(a)
+                    └── <EXPRESSION_POSTOP>
+                        ├── <IDENTIFIER>(b)
+                        ├── <IDENTIFIER>(cccc)
+                        └── <FUNCTION_CALL>
+                            ├── <IDENTIFIER>(method)
+                            └── <ARGUMENT_LIST>)";
 
     ASSERT_EQ(root_node.ast_string(), expected_tree);
 }
@@ -237,24 +247,25 @@ TEST(ParserTest, ParsesFunctionBodyWithMemberAssignment)
     ASTNode root_node = parser.parse();
     const std::string expected_tree = 
 R"(<ROOT>
-└── <FUNCTION_DECLARATION>
-    ├── <IDENTIFIER>(main)
-    ├── <PARAMETER_LIST>
-    ├── <DATA_TYPE>(void)
-    └── <STATEMENT_BLOCK>
-        └── <ASSIGNMENT>
-            ├── <EXPRESSION_TERM>
-            │   ├── <EXPRESSION_VALUE>
-            │   │   └── <IDENTIFIER>(a)
-            │   └── <EXPRESSION_POSTOP>
-            │       ├── <IDENTIFIER>(b)
-            │       ├── <IDENTIFIER>(cccc)
-            │       └── <IDENTIFIER>(d)
-            ├── <BINOP>(=)
-            └── <EXPRESSION>
-                └── <EXPRESSION_TERM>
-                    └── <EXPRESSION_VALUE>
-                        └── <CONSTANT>(12))";
+└── <DECLARATION_BODY>
+    └── <FUNCTION_DECLARATION>
+        ├── <IDENTIFIER>(main)
+        ├── <PARAMETER_LIST>
+        ├── <DATA_TYPE>(void)
+        └── <STATEMENT_BLOCK>
+            └── <ASSIGNMENT>
+                ├── <EXPRESSION_TERM>
+                │   ├── <EXPRESSION_VALUE>
+                │   │   └── <IDENTIFIER>(a)
+                │   └── <EXPRESSION_POSTOP>
+                │       ├── <IDENTIFIER>(b)
+                │       ├── <IDENTIFIER>(cccc)
+                │       └── <IDENTIFIER>(d)
+                ├── <BINOP>(=)
+                └── <EXPRESSION>
+                    └── <EXPRESSION_TERM>
+                        └── <EXPRESSION_VALUE>
+                            └── <CONSTANT>(12))";
 
     ASSERT_EQ(root_node.ast_string(), expected_tree);
 }
@@ -265,30 +276,31 @@ TEST(ParserTest, ParsesFunctionBodyWithSimpleIf)
     ASTNode root_node = parser.parse();
     const std::string expected_tree = 
 R"(<ROOT>
-└── <FUNCTION_DECLARATION>
-    ├── <IDENTIFIER>(main)
-    ├── <PARAMETER_LIST>
-    ├── <DATA_TYPE>(void)
-    └── <STATEMENT_BLOCK>
-        └── <IF_STATEMENT>
-            ├── <EXPRESSION>
-            │   └── <BINOP>(>)
-            │       ├── <EXPRESSION_TERM>
-            │       │   └── <EXPRESSION_VALUE>
-            │       │       └── <IDENTIFIER>(b)
-            │       └── <EXPRESSION_TERM>
-            │           └── <EXPRESSION_VALUE>
-            │               └── <CONSTANT>(10)
-            └── <STATEMENT_BLOCK>
-                └── <ASSIGNMENT>
-                    ├── <EXPRESSION_TERM>
-                    │   └── <EXPRESSION_VALUE>
-                    │       └── <IDENTIFIER>(a)
-                    ├── <BINOP>(=)
-                    └── <EXPRESSION>
-                        └── <EXPRESSION_TERM>
-                            └── <EXPRESSION_VALUE>
-                                └── <CONSTANT>(false))";
+└── <DECLARATION_BODY>
+    └── <FUNCTION_DECLARATION>
+        ├── <IDENTIFIER>(main)
+        ├── <PARAMETER_LIST>
+        ├── <DATA_TYPE>(void)
+        └── <STATEMENT_BLOCK>
+            └── <IF_STATEMENT>
+                ├── <EXPRESSION>
+                │   └── <BINOP>(>)
+                │       ├── <EXPRESSION_TERM>
+                │       │   └── <EXPRESSION_VALUE>
+                │       │       └── <IDENTIFIER>(b)
+                │       └── <EXPRESSION_TERM>
+                │           └── <EXPRESSION_VALUE>
+                │               └── <CONSTANT>(10)
+                └── <STATEMENT_BLOCK>
+                    └── <ASSIGNMENT>
+                        ├── <EXPRESSION_TERM>
+                        │   └── <EXPRESSION_VALUE>
+                        │       └── <IDENTIFIER>(a)
+                        ├── <BINOP>(=)
+                        └── <EXPRESSION>
+                            └── <EXPRESSION_TERM>
+                                └── <EXPRESSION_VALUE>
+                                    └── <CONSTANT>(false))";
 
     ASSERT_EQ(root_node.ast_string(), expected_tree);
 }
@@ -299,41 +311,42 @@ TEST(ParserTest, ParsesFunctionBodyWithIfAndElse)
     ASTNode root_node = parser.parse();
     const std::string expected_tree = 
 R"(<ROOT>
-└── <FUNCTION_DECLARATION>
-    ├── <IDENTIFIER>(main)
-    ├── <PARAMETER_LIST>
-    ├── <DATA_TYPE>(void)
-    └── <STATEMENT_BLOCK>
-        └── <IF_STATEMENT>
-            ├── <EXPRESSION>
-            │   └── <BINOP>(>)
-            │       ├── <EXPRESSION_TERM>
-            │       │   └── <EXPRESSION_VALUE>
-            │       │       └── <IDENTIFIER>(b)
-            │       └── <EXPRESSION_TERM>
-            │           └── <EXPRESSION_VALUE>
-            │               └── <CONSTANT>(10)
-            ├── <STATEMENT_BLOCK>
-            │   └── <ASSIGNMENT>
-            │       ├── <EXPRESSION_TERM>
-            │       │   └── <EXPRESSION_VALUE>
-            │       │       └── <IDENTIFIER>(a)
-            │       ├── <BINOP>(=)
-            │       └── <EXPRESSION>
-            │           └── <EXPRESSION_TERM>
-            │               └── <EXPRESSION_VALUE>
-            │                   └── <CONSTANT>(false)
-            └── <ELSE_BRANCH>
-                └── <STATEMENT_BLOCK>
-                    └── <ASSIGNMENT>
-                        ├── <EXPRESSION_TERM>
-                        │   └── <EXPRESSION_VALUE>
-                        │       └── <IDENTIFIER>(a)
-                        ├── <BINOP>(=)
-                        └── <EXPRESSION>
-                            └── <EXPRESSION_TERM>
-                                └── <EXPRESSION_VALUE>
-                                    └── <CONSTANT>(true))";
+└── <DECLARATION_BODY>
+    └── <FUNCTION_DECLARATION>
+        ├── <IDENTIFIER>(main)
+        ├── <PARAMETER_LIST>
+        ├── <DATA_TYPE>(void)
+        └── <STATEMENT_BLOCK>
+            └── <IF_STATEMENT>
+                ├── <EXPRESSION>
+                │   └── <BINOP>(>)
+                │       ├── <EXPRESSION_TERM>
+                │       │   └── <EXPRESSION_VALUE>
+                │       │       └── <IDENTIFIER>(b)
+                │       └── <EXPRESSION_TERM>
+                │           └── <EXPRESSION_VALUE>
+                │               └── <CONSTANT>(10)
+                ├── <STATEMENT_BLOCK>
+                │   └── <ASSIGNMENT>
+                │       ├── <EXPRESSION_TERM>
+                │       │   └── <EXPRESSION_VALUE>
+                │       │       └── <IDENTIFIER>(a)
+                │       ├── <BINOP>(=)
+                │       └── <EXPRESSION>
+                │           └── <EXPRESSION_TERM>
+                │               └── <EXPRESSION_VALUE>
+                │                   └── <CONSTANT>(false)
+                └── <ELSE_BRANCH>
+                    └── <STATEMENT_BLOCK>
+                        └── <ASSIGNMENT>
+                            ├── <EXPRESSION_TERM>
+                            │   └── <EXPRESSION_VALUE>
+                            │       └── <IDENTIFIER>(a)
+                            ├── <BINOP>(=)
+                            └── <EXPRESSION>
+                                └── <EXPRESSION_TERM>
+                                    └── <EXPRESSION_VALUE>
+                                        └── <CONSTANT>(true))";
 
     ASSERT_EQ(root_node.ast_string(), expected_tree);
 }
@@ -344,60 +357,61 @@ TEST(ParserTest, ParsesFunctionBodyWithIfElifAndElse)
     ASTNode root_node = parser.parse();
     const std::string expected_tree = 
 R"(<ROOT>
-└── <FUNCTION_DECLARATION>
-    ├── <IDENTIFIER>(main)
-    ├── <PARAMETER_LIST>
-    ├── <DATA_TYPE>(void)
-    └── <STATEMENT_BLOCK>
-        └── <IF_STATEMENT>
-            ├── <EXPRESSION>
-            │   └── <BINOP>(>)
-            │       ├── <EXPRESSION_TERM>
-            │       │   └── <EXPRESSION_VALUE>
-            │       │       └── <IDENTIFIER>(b)
-            │       └── <EXPRESSION_TERM>
-            │           └── <EXPRESSION_VALUE>
-            │               └── <CONSTANT>(10)
-            ├── <STATEMENT_BLOCK>
-            │   └── <ASSIGNMENT>
-            │       ├── <EXPRESSION_TERM>
-            │       │   └── <EXPRESSION_VALUE>
-            │       │       └── <IDENTIFIER>(a)
-            │       ├── <BINOP>(=)
-            │       └── <EXPRESSION>
-            │           └── <EXPRESSION_TERM>
-            │               └── <EXPRESSION_VALUE>
-            │                   └── <CONSTANT>(false)
-            ├── <ELIF_BRANCH>
-            │   ├── <EXPRESSION>
-            │   │   └── <BINOP>(<)
-            │   │       ├── <EXPRESSION_TERM>
-            │   │       │   └── <EXPRESSION_VALUE>
-            │   │       │       └── <IDENTIFIER>(b)
-            │   │       └── <EXPRESSION_TERM>
-            │   │           └── <EXPRESSION_VALUE>
-            │   │               └── <CONSTANT>(5)
-            │   └── <STATEMENT_BLOCK>
-            │       └── <ASSIGNMENT>
-            │           ├── <EXPRESSION_TERM>
-            │           │   └── <EXPRESSION_VALUE>
-            │           │       └── <IDENTIFIER>(a)
-            │           ├── <BINOP>(=)
-            │           └── <EXPRESSION>
-            │               └── <EXPRESSION_TERM>
-            │                   └── <EXPRESSION_VALUE>
-            │                       └── <CONSTANT>(true)
-            └── <ELSE_BRANCH>
-                └── <STATEMENT_BLOCK>
-                    └── <ASSIGNMENT>
-                        ├── <EXPRESSION_TERM>
-                        │   └── <EXPRESSION_VALUE>
-                        │       └── <IDENTIFIER>(c)
-                        ├── <BINOP>(=)
-                        └── <EXPRESSION>
-                            └── <EXPRESSION_TERM>
-                                └── <EXPRESSION_VALUE>
-                                    └── <CONSTANT>(false))";
+└── <DECLARATION_BODY>
+    └── <FUNCTION_DECLARATION>
+        ├── <IDENTIFIER>(main)
+        ├── <PARAMETER_LIST>
+        ├── <DATA_TYPE>(void)
+        └── <STATEMENT_BLOCK>
+            └── <IF_STATEMENT>
+                ├── <EXPRESSION>
+                │   └── <BINOP>(>)
+                │       ├── <EXPRESSION_TERM>
+                │       │   └── <EXPRESSION_VALUE>
+                │       │       └── <IDENTIFIER>(b)
+                │       └── <EXPRESSION_TERM>
+                │           └── <EXPRESSION_VALUE>
+                │               └── <CONSTANT>(10)
+                ├── <STATEMENT_BLOCK>
+                │   └── <ASSIGNMENT>
+                │       ├── <EXPRESSION_TERM>
+                │       │   └── <EXPRESSION_VALUE>
+                │       │       └── <IDENTIFIER>(a)
+                │       ├── <BINOP>(=)
+                │       └── <EXPRESSION>
+                │           └── <EXPRESSION_TERM>
+                │               └── <EXPRESSION_VALUE>
+                │                   └── <CONSTANT>(false)
+                ├── <ELIF_BRANCH>
+                │   ├── <EXPRESSION>
+                │   │   └── <BINOP>(<)
+                │   │       ├── <EXPRESSION_TERM>
+                │   │       │   └── <EXPRESSION_VALUE>
+                │   │       │       └── <IDENTIFIER>(b)
+                │   │       └── <EXPRESSION_TERM>
+                │   │           └── <EXPRESSION_VALUE>
+                │   │               └── <CONSTANT>(5)
+                │   └── <STATEMENT_BLOCK>
+                │       └── <ASSIGNMENT>
+                │           ├── <EXPRESSION_TERM>
+                │           │   └── <EXPRESSION_VALUE>
+                │           │       └── <IDENTIFIER>(a)
+                │           ├── <BINOP>(=)
+                │           └── <EXPRESSION>
+                │               └── <EXPRESSION_TERM>
+                │                   └── <EXPRESSION_VALUE>
+                │                       └── <CONSTANT>(true)
+                └── <ELSE_BRANCH>
+                    └── <STATEMENT_BLOCK>
+                        └── <ASSIGNMENT>
+                            ├── <EXPRESSION_TERM>
+                            │   └── <EXPRESSION_VALUE>
+                            │       └── <IDENTIFIER>(c)
+                            ├── <BINOP>(=)
+                            └── <EXPRESSION>
+                                └── <EXPRESSION_TERM>
+                                    └── <EXPRESSION_VALUE>
+                                        └── <CONSTANT>(false))";
 
     ASSERT_EQ(root_node.ast_string(), expected_tree);
 }
@@ -408,12 +422,13 @@ TEST(ParserTest, ParsesFunctionBodyWithEmptyReturn)
     ASTNode root_node = parser.parse();
     const std::string expected_tree = 
 R"(<ROOT>
-└── <FUNCTION_DECLARATION>
-    ├── <IDENTIFIER>(main)
-    ├── <PARAMETER_LIST>
-    ├── <DATA_TYPE>(void)
-    └── <STATEMENT_BLOCK>
-        └── <RETURN_STATEMENT>)";
+└── <DECLARATION_BODY>
+    └── <FUNCTION_DECLARATION>
+        ├── <IDENTIFIER>(main)
+        ├── <PARAMETER_LIST>
+        ├── <DATA_TYPE>(void)
+        └── <STATEMENT_BLOCK>
+            └── <RETURN_STATEMENT>)";
 
     ASSERT_EQ(root_node.ast_string(), expected_tree);
 }
@@ -424,16 +439,117 @@ TEST(ParserTest, ParsesFunctionBodyWithReturnedValue)
     ASTNode root_node = parser.parse();
     const std::string expected_tree = 
 R"(<ROOT>
-└── <FUNCTION_DECLARATION>
-    ├── <IDENTIFIER>(main)
-    ├── <PARAMETER_LIST>
-    ├── <DATA_TYPE>(int32)
-    └── <STATEMENT_BLOCK>
-        └── <RETURN_STATEMENT>
-            └── <EXPRESSION>
-                └── <EXPRESSION_TERM>
-                    └── <EXPRESSION_VALUE>
-                        └── <CONSTANT>(23))";
+└── <DECLARATION_BODY>
+    └── <FUNCTION_DECLARATION>
+        ├── <IDENTIFIER>(main)
+        ├── <PARAMETER_LIST>
+        ├── <DATA_TYPE>(int32)
+        └── <STATEMENT_BLOCK>
+            └── <RETURN_STATEMENT>
+                └── <EXPRESSION>
+                    └── <EXPRESSION_TERM>
+                        └── <EXPRESSION_VALUE>
+                            └── <CONSTANT>(23))";
+
+    ASSERT_EQ(root_node.ast_string(), expected_tree);
+}
+
+TEST(ParserTest, ParsesEmptyObject)
+{
+    Parser parser{tokenize("obj Vec3 {}")};
+    ASTNode root_node = parser.parse();
+    const std::string expected_tree = 
+R"(<ROOT>
+└── <DECLARATION_BODY>
+    └── <OBJ_DECLARATION>
+        ├── <IDENTIFIER>(Vec3)
+        └── <DECLARATION_BODY>)";
+
+    ASSERT_EQ(root_node.ast_string(), expected_tree);
+}
+
+TEST(ParserTest, ParsesObjectWithMemberDeclaration)
+{
+    Parser parser{tokenize("obj Vec3 { public var a: int = 0; private var b: float = 10; var c: bool = false; }")};
+    ASTNode root_node = parser.parse();
+    const std::string expected_tree = 
+R"(<ROOT>
+└── <DECLARATION_BODY>
+    └── <OBJ_DECLARATION>
+        ├── <IDENTIFIER>(Vec3)
+        └── <DECLARATION_BODY>
+            ├── <VARIABLE_DECLARATION>
+            │   ├── <TOKEN>(public)
+            │   ├── <IDENTIFIER>(a)
+            │   ├── <DATA_TYPE>(int32)
+            │   └── <EXPRESSION>
+            │       └── <EXPRESSION_TERM>
+            │           └── <EXPRESSION_VALUE>
+            │               └── <CONSTANT>(0)
+            ├── <VARIABLE_DECLARATION>
+            │   ├── <TOKEN>(private)
+            │   ├── <IDENTIFIER>(b)
+            │   ├── <DATA_TYPE>(float32)
+            │   └── <EXPRESSION>
+            │       └── <EXPRESSION_TERM>
+            │           └── <EXPRESSION_VALUE>
+            │               └── <CONSTANT>(10)
+            └── <VARIABLE_DECLARATION>
+                ├── <TOKEN>(private)
+                ├── <IDENTIFIER>(c)
+                ├── <DATA_TYPE>(bool)
+                └── <EXPRESSION>
+                    └── <EXPRESSION_TERM>
+                        └── <EXPRESSION_VALUE>
+                            └── <CONSTANT>(false))";
+
+    ASSERT_EQ(root_node.ast_string(), expected_tree);
+}
+
+TEST(ParserTest, ParsesObjectWithMethodDeclaration)
+{
+    Parser parser{tokenize("obj Vec3 { public func a() {} private func b() {} func c() {} }")};
+    ASTNode root_node = parser.parse();
+    const std::string expected_tree = 
+R"(<ROOT>
+└── <DECLARATION_BODY>
+    └── <OBJ_DECLARATION>
+        ├── <IDENTIFIER>(Vec3)
+        └── <DECLARATION_BODY>
+            ├── <FUNCTION_DECLARATION>
+            │   ├── <TOKEN>(public)
+            │   ├── <IDENTIFIER>(a)
+            │   ├── <PARAMETER_LIST>
+            │   ├── <TOKEN>(void)
+            │   └── <STATEMENT_BLOCK>
+            ├── <FUNCTION_DECLARATION>
+            │   ├── <TOKEN>(private)
+            │   ├── <IDENTIFIER>(b)
+            │   ├── <PARAMETER_LIST>
+            │   ├── <TOKEN>(void)
+            │   └── <STATEMENT_BLOCK>
+            └── <FUNCTION_DECLARATION>
+                ├── <IDENTIFIER>(c)
+                ├── <PARAMETER_LIST>
+                ├── <TOKEN>(void)
+                └── <STATEMENT_BLOCK>)";
+
+    ASSERT_EQ(root_node.ast_string(), expected_tree);
+}
+
+TEST(ParserTest, ParsesObjectWithObjectDeclaration)
+{
+    Parser parser{tokenize("obj Vec3 { obj Vec2 {} }")};
+    ASTNode root_node = parser.parse();
+    const std::string expected_tree = 
+R"(<ROOT>
+└── <DECLARATION_BODY>
+    └── <OBJ_DECLARATION>
+        ├── <IDENTIFIER>(Vec3)
+        └── <DECLARATION_BODY>
+            └── <OBJ_DECLARATION>
+                ├── <IDENTIFIER>(Vec2)
+                └── <DECLARATION_BODY>)";
 
     ASSERT_EQ(root_node.ast_string(), expected_tree);
 }

@@ -127,6 +127,8 @@ auto ASTNode::to_string() const -> std::string
         case ASTNodeType::RETURN_STATEMENT:         return "<RETURN_STATEMENT>";
         case ASTNodeType::ELIF_BRANCH:              return "<ELIF_BRANCH>";
         case ASTNodeType::ELSE_BRANCH:              return "<ELSE_BRANCH>";
+        case ASTNodeType::OBJ_DECLARATION:          return "<OBJ_DECLARATION>";
+        case ASTNodeType::DECLARATION_BODY:         return "<DECLARATION_BODY>";
         default:                                    return "<UNKNOWN>";
     }
 }
