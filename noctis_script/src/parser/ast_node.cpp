@@ -50,13 +50,7 @@ auto ASTNode::add_child(const ASTNode &child) -> void
 auto ASTNode::set_token(const Token &token) -> void
 {
     token_ = token;
-
-    location_.line = token.line;
-    location_.line_end = token.line;
-
-    location_.column = token.column;
-    // Keep column end exclusive
-    location_.column_end = location_.column + token.length() - 1;
+    location_ = token.location;
 
     has_loc_been_set_ = true;
 }
@@ -65,12 +59,12 @@ auto ASTNode::update_location(const Token &token) -> void
 {
     if (not has_loc_been_set_)
     {
-        location_.line = token.line;
-        location_.column = token.column;
+        location_.line = token.location.line;
+        location_.column = token.location.column;
     }
 
-    location_.line_end = std::max(token.line, location_.line_end);
-    location_.column_end = std::max(token.column + token.length(), location_.column_end);
+    location_.line_end = std::max(token.location.line, location_.line_end);
+    location_.column_end = std::max(token.location.column + token.length(), location_.column_end);
  
     has_loc_been_set_ = true;
 }

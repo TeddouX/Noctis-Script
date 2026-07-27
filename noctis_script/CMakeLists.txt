@@ -13,6 +13,8 @@ set(NCSC_SOURCES
     "${NCSC_INCLUDE_DIR}/lexer/token.hpp"
     "${NCSC_INCLUDE_DIR}/parser/ast_node.hpp"
     "${NCSC_INCLUDE_DIR}/parser/parser.hpp"
+    "${NCSC_INCLUDE_DIR}/script/script_source.hpp"
+    "${NCSC_INCLUDE_DIR}/error.hpp"
     "${NCSC_INCLUDE_DIR}/location.hpp"
 
 
@@ -23,6 +25,8 @@ set(NCSC_SOURCES
     "src/lexer/token.cpp"
     "src/parser/ast_node.cpp"
     "src/parser/parser.cpp"
+    "src/script/script_source.cpp"
+    "src/error.cpp"
 )
 
 add_library(NoctisScript SHARED ${NCSC_SOURCES})
@@ -56,6 +60,7 @@ add_executable(NCSCTests
     "test/ast_node_test.cpp"
     "test/lexer_test.cpp"
     "test/parser_test.cpp"
+    "test/script_source_test.cpp"
 )
 
 target_link_libraries(NCSCTests

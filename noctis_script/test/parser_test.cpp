@@ -22,6 +22,7 @@ R"(<ROOT>
         ├── <IDENTIFIER>(bla)
         └── <DATA_TYPE>(int32))";
 
+    ASSERT_TRUE(not parser.has_errors());
     EXPECT_EQ(root_node.ast_string(), expected_tree);
 }
 
@@ -42,6 +43,7 @@ R"(<ROOT>
                 └── <EXPRESSION_VALUE>
                     └── <CONSTANT>(1))";
 
+    ASSERT_TRUE(not parser.has_errors());
     EXPECT_EQ(root_node.ast_string(), expected_tree);
 }
 
@@ -62,6 +64,7 @@ R"(<ROOT>
                 └── <EXPRESSION_VALUE>
                     └── <CONSTANT>(1.0))";
 
+    ASSERT_TRUE(not parser.has_errors());
     EXPECT_EQ(root_node.ast_string(), expected_tree);
 }
 
@@ -97,6 +100,7 @@ R"(<ROOT>
                                         └── <EXPRESSION_VALUE>
                                             └── <CONSTANT>(2))";
 
+    ASSERT_TRUE(not parser.has_errors());
     EXPECT_EQ(root_node.ast_string(), expected_tree);
 }
 
@@ -113,6 +117,7 @@ R"(<ROOT>
         ├── <DATA_TYPE>(void)
         └── <STATEMENT_BLOCK>)";
 
+    ASSERT_TRUE(not parser.has_errors());
     ASSERT_EQ(root_node.ast_string(), expected_tree);
 }
 
@@ -133,6 +138,7 @@ R"(<ROOT>
         ├── <DATA_TYPE>(void)
         └── <STATEMENT_BLOCK>)";
 
+    ASSERT_TRUE(not parser.has_errors());
     ASSERT_EQ(root_node.ast_string(), expected_tree);
 }
 
@@ -156,6 +162,7 @@ R"(<ROOT>
                         └── <EXPRESSION_VALUE>
                             └── <CONSTANT>(0))";
 
+    ASSERT_TRUE(not parser.has_errors());
     ASSERT_EQ(root_node.ast_string(), expected_tree);
 }
 
@@ -188,6 +195,7 @@ R"(<ROOT>
                         └── <EXPRESSION_VALUE>
                             └── <CONSTANT>(0))";
 
+    ASSERT_TRUE(not parser.has_errors());
     ASSERT_EQ(root_node.ast_string(), expected_tree);
 }
 
@@ -212,6 +220,7 @@ R"(<ROOT>
                         ├── <IDENTIFIER>(cccc)
                         └── <IDENTIFIER>(d))";
 
+    ASSERT_TRUE(not parser.has_errors());
     ASSERT_EQ(root_node.ast_string(), expected_tree);
 }
 
@@ -238,6 +247,7 @@ R"(<ROOT>
                             ├── <IDENTIFIER>(method)
                             └── <ARGUMENT_LIST>)";
 
+    ASSERT_TRUE(not parser.has_errors());
     ASSERT_EQ(root_node.ast_string(), expected_tree);
 }
 
@@ -267,6 +277,7 @@ R"(<ROOT>
                         └── <EXPRESSION_VALUE>
                             └── <CONSTANT>(12))";
 
+    ASSERT_TRUE(not parser.has_errors());
     ASSERT_EQ(root_node.ast_string(), expected_tree);
 }
 
@@ -302,6 +313,7 @@ R"(<ROOT>
                                 └── <EXPRESSION_VALUE>
                                     └── <CONSTANT>(false))";
 
+    ASSERT_TRUE(not parser.has_errors());
     ASSERT_EQ(root_node.ast_string(), expected_tree);
 }
 
@@ -348,6 +360,7 @@ R"(<ROOT>
                                     └── <EXPRESSION_VALUE>
                                         └── <CONSTANT>(true))";
 
+    ASSERT_TRUE(not parser.has_errors());
     ASSERT_EQ(root_node.ast_string(), expected_tree);
 }
 
@@ -413,6 +426,7 @@ R"(<ROOT>
                                     └── <EXPRESSION_VALUE>
                                         └── <CONSTANT>(false))";
 
+    ASSERT_TRUE(not parser.has_errors());
     ASSERT_EQ(root_node.ast_string(), expected_tree);
 }
 
@@ -430,6 +444,7 @@ R"(<ROOT>
         └── <STATEMENT_BLOCK>
             └── <RETURN_STATEMENT>)";
 
+    ASSERT_TRUE(not parser.has_errors());
     ASSERT_EQ(root_node.ast_string(), expected_tree);
 }
 
@@ -451,6 +466,7 @@ R"(<ROOT>
                         └── <EXPRESSION_VALUE>
                             └── <CONSTANT>(23))";
 
+    ASSERT_TRUE(not parser.has_errors());
     ASSERT_EQ(root_node.ast_string(), expected_tree);
 }
 
@@ -465,6 +481,7 @@ R"(<ROOT>
         ├── <IDENTIFIER>(Vec3)
         └── <DECLARATION_BODY>)";
 
+    ASSERT_TRUE(not parser.has_errors());
     ASSERT_EQ(root_node.ast_string(), expected_tree);
 }
 
@@ -503,6 +520,7 @@ R"(<ROOT>
                         └── <EXPRESSION_VALUE>
                             └── <CONSTANT>(false))";
 
+    ASSERT_TRUE(not parser.has_errors());
     ASSERT_EQ(root_node.ast_string(), expected_tree);
 }
 
@@ -534,6 +552,7 @@ R"(<ROOT>
                 ├── <TOKEN>(void)
                 └── <STATEMENT_BLOCK>)";
 
+    ASSERT_TRUE(not parser.has_errors());
     ASSERT_EQ(root_node.ast_string(), expected_tree);
 }
 
@@ -551,5 +570,108 @@ R"(<ROOT>
                 ├── <IDENTIFIER>(Vec2)
                 └── <DECLARATION_BODY>)";
 
+    ASSERT_TRUE(not parser.has_errors());
     ASSERT_EQ(root_node.ast_string(), expected_tree);
+}
+
+TEST(ParserTest, ParserThrowsS1)
+{
+    Parser parser{tokenize("func main( -> {}")};
+    ASTNode root_node = parser.parse();
+    
+    ASSERT_TRUE(parser.has_errors());
+    ASSERT_EQ(parser.get_errors().size(), 1);
+    ASSERT_EQ(parser.get_errors()[0].get_error_info()->err_code, "S1");
+}
+
+TEST(ParserTest, ParserThrowsS2)
+{
+    Parser parser{tokenize("func main(a: int b) -> {}")};
+    ASTNode root_node = parser.parse();
+
+    ASSERT_TRUE(parser.has_errors());
+    ASSERT_EQ(parser.get_errors().size(), 1);
+    ASSERT_EQ(parser.get_errors()[0].get_error_info()->err_code, "S2");
+}
+
+TEST(ParserTest, ParserThrowsS3)
+{
+    Parser parser{tokenize("func main(")};
+    ASTNode root_node = parser.parse();
+
+    ASSERT_TRUE(parser.has_errors());
+    ASSERT_EQ(parser.get_errors().size(), 1);
+    ASSERT_EQ(parser.get_errors()[0].get_error_info()->err_code, "S3");
+}
+
+TEST(ParserTest, ParserThrowsS4)
+{
+    Parser parser{tokenize("obj Vec3 { public; }")};
+    ASTNode root_node = parser.parse();
+
+    ASSERT_TRUE(parser.has_errors());
+    ASSERT_EQ(parser.get_errors().size(), 1);
+    ASSERT_EQ(parser.get_errors()[0].get_error_info()->err_code, "S4");
+}
+
+TEST(ParserTest, ParserThrowsS5)
+{
+    Parser parser{tokenize("var a: int = 0 a")};
+    ASTNode root_node = parser.parse();
+
+    ASSERT_TRUE(parser.has_errors());
+    ASSERT_EQ(parser.get_errors().size(), 1);
+    ASSERT_EQ(parser.get_errors()[0].get_error_info()->err_code, "S5");
+}
+
+TEST(ParserTest, ParserThrowsS6)
+{
+    // Unreachable
+    ASSERT_TRUE(true);
+}
+
+TEST(ParserTest, ParserThrowsS7)
+{
+    Parser parser{tokenize("var a: int = =")};
+    ASTNode root_node = parser.parse();
+
+    ASSERT_TRUE(parser.has_errors());
+    ASSERT_EQ(parser.get_errors().size(), 1);
+    ASSERT_EQ(parser.get_errors()[0].get_error_info()->err_code, "S7");
+}
+
+TEST(ParserTest, ParserThrowsS8)
+{
+    Parser parser{tokenize("func ()")};
+    ASTNode root_node = parser.parse();
+
+    ASSERT_TRUE(parser.has_errors());
+    ASSERT_EQ(parser.get_errors().size(), 1);
+    ASSERT_EQ(parser.get_errors()[0].get_error_info()->err_code, "S8");
+}
+
+TEST(ParserTest, ParserThrowsS9)
+{
+    // Unreachable
+    ASSERT_TRUE(true);
+}
+
+TEST(ParserTest, ParserThrowsS10)
+{
+    Parser parser{tokenize("func main() -> {}")};
+    ASTNode root_node = parser.parse();
+
+    ASSERT_TRUE(parser.has_errors());
+    ASSERT_EQ(parser.get_errors().size(), 1);
+    ASSERT_EQ(parser.get_errors()[0].get_error_info()->err_code, "S10");
+}
+
+TEST(ParserTest, ParserThrowsS11)
+{
+    Parser parser{tokenize("=")};
+    ASTNode root_node = parser.parse();
+
+    ASSERT_TRUE(parser.has_errors());
+    ASSERT_EQ(parser.get_errors().size(), 1);
+    ASSERT_EQ(parser.get_errors()[0].get_error_info()->err_code, "S11");
 }

@@ -2,6 +2,9 @@
 #include <string>
 #include <unordered_map>
 
+#include "../location.hpp"
+
+
 namespace NCSC
 {
     
@@ -101,22 +104,18 @@ struct Token
 {
     TokenType   type;
     std::string value;
-
-    std::size_t line;
-    std::size_t column;
+    Location    location;
 
     Token()
         : type{TokenType::INVALID}
         , value{}
-        , line{0zu}
-        , column{0zu}
+        , location{}
     {}
     
-    Token(TokenType type, std::size_t line, std::size_t column, const std::string &value = "")
+    Token(TokenType type, const std::string &value = "")
         : type{type}
         , value{value}
-        , line{line}
-        , column{column}
+        , location{}
     {}
 
     auto is_valid() const -> bool;

@@ -1,0 +1,28 @@
+#pragma once
+#include <memory>
+#include <string>
+#include <vector>
+#include <filesystem>
+
+
+namespace NCSC
+{
+    
+class ScriptSource
+{
+public:
+    static auto from_contents(const std::string &contents) -> std::shared_ptr<ScriptSource>;
+
+    // Optional: can be set to just the file name
+    std::filesystem::path file_path;
+
+    auto get_line(std::size_t line_num) -> const std::string &;
+    auto get_lines() const -> const std::vector<std::string> &;
+
+private:
+    ScriptSource(const std::string &contents);
+
+    std::vector<std::string> lines_;
+};
+
+} // namespace NCSC

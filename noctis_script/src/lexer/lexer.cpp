@@ -23,7 +23,14 @@ auto tokenize(const std::string &source) -> std::vector<Token>
 
     auto append_token = [&](TokenType type, const std::string &value = "") -> void 
     {
-        Token tok{type, line, column, value};
+        Token tok{type, value};
+        Location location{
+            line, line,
+            column, column + tok.length() - 1 // Keep column inclusive
+        };
+
+        tok.location = location;
+
         tokens.push_back(tok);
     };
 
@@ -286,6 +293,8 @@ auto tokenize(const std::string &source) -> std::vector<Token>
         advance();
     }
 
+    // Make the EOF token not override the column of the previous token 
+    column++;
     append_token(TokenType::END_OF_FILE);
 
     return tokens;

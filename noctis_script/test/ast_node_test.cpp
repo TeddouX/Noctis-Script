@@ -8,7 +8,9 @@ using namespace NCSC;
 TEST(ASTNodeTest, UpdatesPositionWithTokenCorrectly) 
 {
     ASTNode node{ASTNodeType::ROOT};
-    Token tok{TokenType::ID, 12, 15, "abc"};
+    Token tok{TokenType::ID, "abc"};
+    tok.location = Location{12, 12, 15, 17};
+
     node.set_token(tok);
 
     const Location &loc = node.location();
