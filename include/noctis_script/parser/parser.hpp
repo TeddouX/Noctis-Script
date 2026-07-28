@@ -47,6 +47,19 @@ private:
     // Can be used to parse the body of an object
     auto parse_declaration_body(bool is_inside_obj)         -> ASTNode;
     auto parse_variable_declaration(bool is_inside_obj)     -> ASTNode;
+
+    // FUNCTION DECLARATION CHILD ORDER:
+    //      For normal functions:
+    //          0: name (IDENTIFIER)
+    //          1: param_list (PARAMETER_LIST)
+    //          2: return type (DATA_TYPE)
+    //          3: statement block (STATEMENT_BLOCK)
+    //      For methods:
+    //          0: access_modifier (TOKEN)
+    //          1: name (IDENTIFIER)
+    //          2: param_list (PARAMETER_LIST)
+    //          3: return type (DATA_TYPE)
+    //          4: statement block (STATEMENT_BLOCK)
     auto parse_function_declaration(bool is_inside_obj)     -> ASTNode;
     auto parse_object_declaration(bool is_inside_obj)       -> ASTNode;
     auto parse_statement_block()                            -> ASTNode;
@@ -68,6 +81,7 @@ private:
     auto parse_constant()                                   -> ASTNode;
     auto parse_construct_call()                             -> ASTNode;
     auto parse_type()                                       -> ASTNode;
+    auto parse_type(const Token &t)                         -> ASTNode;
 
     inline static std::shared_ptr<ErrorInfo> ERR_EXPECTED_TOKEN          {ErrorInfo::create("Syntax Error", "S1",  "Expected '{}'")};
     inline static std::shared_ptr<ErrorInfo> ERR_EXPECTED_TOKEN_OR_TOKEN {ErrorInfo::create("Syntax Error", "S2",  "Expected '{}' or '{}'")};

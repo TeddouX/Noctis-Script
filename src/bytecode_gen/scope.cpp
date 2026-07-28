@@ -1,7 +1,7 @@
-#include "compiler/scope.hpp"
+#include "bytecode_gen/bytecode_gen_data.hpp"
 
 
-namespace NCSC
+namespace NCSC::Internal
 {
     
 auto Scope::get_local_var_index(const std::string &name) const -> index_word_t
@@ -33,4 +33,4 @@ auto Scope::get_local_var(index_word_t idx) const -> const Variable *
 }
 
 
-} // namespace NCSC
+} // namespace NCSC::Internal

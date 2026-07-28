@@ -183,6 +183,7 @@ auto Parser::parse_declaration_body(bool is_inside_obj) -> ASTNode
 auto Parser::parse_variable_declaration(bool is_inside_obj) -> ASTNode
 {
     ASTNode node{ASTNodeType::VARIABLE_DECLARATION};
+    node.set_metadata("is_member_var", is_inside_obj);
 
     const Token &t4 = SAFE_PEEK();
     if (is_inside_obj)
@@ -248,13 +249,22 @@ auto Parser::parse_variable_declaration(bool is_inside_obj) -> ASTNode
 auto Parser::parse_function_declaration(bool is_inside_obj) -> ASTNode
 {
     ASTNode node(ASTNodeType::FUNCTION_DECLARATION);
+    node.set_metadata("is_method", is_inside_obj);
 
     const Token &t = SAFE_PEEK();
     if (is_inside_obj and t.is_access_modifier()) 
     {
-        const Token &t1 = SAFE_CONSUME();
-        node.add_child(parse_token(t1));
-        CHECK_SYNTAX_ERROR();
+        if (t.is_access_modifier())
+        {
+            const Token &t1 = SAFE_CONSUME();
+            node.add_child(parse_token(t1));
+            CHECK_SYNTAX_ERROR();
+        }
+        else
+        {
+            node.add_child(parse_token(Token{TokenType::VOID_KWD}));
+            CHECK_SYNTAX_ERROR();
+        }
     }
 
     const Token &t1 = SAFE_CONSUME();
@@ -339,7 +349,7 @@ auto Parser::parse_function_declaration(bool is_inside_obj) -> ASTNode
     else
     {
         // Assume void
-        node.add_child(parse_token(Token{TokenType::VOID_KWD}));
+        node.add_child(parse_type(Token{TokenType::VOID_KWD}));
         CHECK_SYNTAX_ERROR();
     }
 
@@ -912,6 +922,13 @@ auto Parser::parse_type() -> ASTNode
     
     node.set_token(t);
     
+    return node;
+}
+
+auto Parser::parse_type(const Token &t) -> ASTNode
+{
+    ASTNode node(ASTNodeType::DATA_TYPE);
+    node.set_token(t);
     return node;
 }
 

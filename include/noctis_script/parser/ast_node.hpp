@@ -3,6 +3,7 @@
 
 #include "../lexer/token.hpp"
 #include "../location.hpp"
+#include "../utils/metadata_holder.hpp"
 
 
 namespace NCSC
@@ -37,7 +38,9 @@ enum class ASTNodeType
     DECLARATION_BODY,
 };
 
-class ASTNode
+auto to_string(ASTNodeType type) -> std::string_view;
+
+class ASTNode : public Utils::MetadataHolder
 {
 public:
     explicit ASTNode(ASTNodeType type);

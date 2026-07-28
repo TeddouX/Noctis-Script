@@ -1,4 +1,4 @@
-#include "compiler/bytecode.hpp"
+#include "bytecode_gen/bytecode.hpp"
 
 namespace NCSC
 {
@@ -18,7 +18,7 @@ auto Bytecode::bytes() const -> const std::vector<byte_t> &
     return bytes_;
 }
 
-auto Bytecode::location_at(std::size_t byte_idx) const -> const Location &
+auto Bytecode::location_at(std::size_t byte_idx) const -> Location
 {
     if (location_entries_.empty())
         return {};

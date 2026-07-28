@@ -35,7 +35,7 @@ public:
     auto script_source()                    const -> const std::shared_ptr<ScriptSource> &; 
     auto has_dbg_info()                     const -> bool; 
     auto bytes()                            const -> const std::vector<byte_t> &;
-    auto location_at(std::size_t byte_idx)  const -> const Location &; 
+    auto location_at(std::size_t byte_idx)  const -> Location; 
 
 private:
     friend class Compiler;

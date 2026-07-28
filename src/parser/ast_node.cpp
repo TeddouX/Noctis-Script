@@ -7,6 +7,40 @@
 namespace NCSC
 {
     
+auto to_string(ASTNodeType type) -> std::string_view
+{
+    switch (type)
+    {
+        case ASTNodeType::ROOT:                     return "ROOT";
+        case ASTNodeType::VARIABLE_DECLARATION:     return "VARIABLE_DECLARATION";
+        case ASTNodeType::IDENTIFIER:               return "IDENTIFIER";
+        case ASTNodeType::EXPRESSION:               return "EXPRESSION";
+        case ASTNodeType::EXPRESSION_TERM:          return "EXPRESSION_TERM";
+        case ASTNodeType::EXPRESSION_VALUE:         return "EXPRESSION_VALUE";
+        case ASTNodeType::EXPRESSION_PREOP:         return "EXPRESSION_PREOP";
+        case ASTNodeType::EXPRESSION_POSTOP:        return "EXPRESSION_POSTOP";
+        case ASTNodeType::TOKEN:                    return "TOKEN";
+        case ASTNodeType::BINOP:                    return "BINOP";
+        case ASTNodeType::ASSIGNMENT:               return "ASSIGNMENT";
+        case ASTNodeType::FUNCTION_CALL:            return "FUNCTION_CALL";
+        case ASTNodeType::ARGUMENT_LIST:            return "ARGUMENT_LIST";
+        case ASTNodeType::CONSTANT:                 return "CONSTANT";
+        case ASTNodeType::CONSTRUCT_CALL:           return "CONSTRUCT_CALL";
+        case ASTNodeType::DATA_TYPE:                return "DATA_TYPE";
+        case ASTNodeType::FUNCTION_DECLARATION:     return "FUNCTION_DECLARATION";
+        case ASTNodeType::PARAMETER_LIST:           return "PARAMETER_LIST";
+        case ASTNodeType::STATEMENT_BLOCK:          return "STATEMENT_BLOCK";
+        case ASTNodeType::IF_STATEMENT:             return "IF_STATEMENT";
+        case ASTNodeType::RETURN_STATEMENT:         return "RETURN_STATEMENT";
+        case ASTNodeType::ELIF_BRANCH:              return "ELIF_BRANCH";
+        case ASTNodeType::ELSE_BRANCH:              return "ELSE_BRANCH";
+        case ASTNodeType::OBJ_DECLARATION:          return "OBJ_DECLARATION";
+        case ASTNodeType::DECLARATION_BODY:         return "DECLARATION_BODY";
+        default:                                    return "UNKNOWN";
+    }
+}
+
+
 ASTNode::ASTNode(ASTNodeType type)
     : type_{type}
     , token_{}
@@ -96,35 +130,7 @@ auto ASTNode::location() const -> const Location &
 
 auto ASTNode::to_string() const -> std::string
 {
-    switch (type_)
-    {
-        case ASTNodeType::ROOT:                     return "<ROOT>";
-        case ASTNodeType::VARIABLE_DECLARATION:     return "<VARIABLE_DECLARATION>";
-        case ASTNodeType::IDENTIFIER:               return "<IDENTIFIER>";
-        case ASTNodeType::EXPRESSION:               return "<EXPRESSION>";
-        case ASTNodeType::EXPRESSION_TERM:          return "<EXPRESSION_TERM>";
-        case ASTNodeType::EXPRESSION_VALUE:         return "<EXPRESSION_VALUE>";
-        case ASTNodeType::EXPRESSION_PREOP:         return "<EXPRESSION_PREOP>";
-        case ASTNodeType::EXPRESSION_POSTOP:        return "<EXPRESSION_POSTOP>";
-        case ASTNodeType::TOKEN:                    return "<TOKEN>";
-        case ASTNodeType::BINOP:                    return "<BINOP>";
-        case ASTNodeType::ASSIGNMENT:               return "<ASSIGNMENT>";
-        case ASTNodeType::FUNCTION_CALL:            return "<FUNCTION_CALL>";
-        case ASTNodeType::ARGUMENT_LIST:            return "<ARGUMENT_LIST>";
-        case ASTNodeType::CONSTANT:                 return "<CONSTANT>";
-        case ASTNodeType::CONSTRUCT_CALL:           return "<CONSTRUCT_CALL>";
-        case ASTNodeType::DATA_TYPE:                return "<DATA_TYPE>";
-        case ASTNodeType::FUNCTION_DECLARATION:     return "<FUNCTION_DECLARATION>";
-        case ASTNodeType::PARAMETER_LIST:           return "<PARAMETER_LIST>";
-        case ASTNodeType::STATEMENT_BLOCK:          return "<STATEMENT_BLOCK>";
-        case ASTNodeType::IF_STATEMENT:             return "<IF_STATEMENT>";
-        case ASTNodeType::RETURN_STATEMENT:         return "<RETURN_STATEMENT>";
-        case ASTNodeType::ELIF_BRANCH:              return "<ELIF_BRANCH>";
-        case ASTNodeType::ELSE_BRANCH:              return "<ELSE_BRANCH>";
-        case ASTNodeType::OBJ_DECLARATION:          return "<OBJ_DECLARATION>";
-        case ASTNodeType::DECLARATION_BODY:         return "<DECLARATION_BODY>";
-        default:                                    return "<UNKNOWN>";
-    }
+    return std::format("<{}>", NCSC::to_string(type_));
 }
 
 auto ASTNode::ast_string(bool is_root, const std::string &prefix, bool is_last) const -> std::string

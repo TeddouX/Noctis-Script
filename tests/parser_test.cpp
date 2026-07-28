@@ -20,7 +20,7 @@ R"(<ROOT>
 └── <DECLARATION_BODY>
     └── <VARIABLE_DECLARATION>
         ├── <IDENTIFIER>(bla)
-        └── <DATA_TYPE>(int32))";
+        └── <DATA_TYPE>(int))";
 
     ASSERT_TRUE(not parser.has_syntax_errors());
     EXPECT_EQ(root_node.ast_string(), expected_tree);
@@ -58,7 +58,7 @@ R"(<ROOT>
 └── <DECLARATION_BODY>
     └── <VARIABLE_DECLARATION>
         ├── <IDENTIFIER>(bla)
-        ├── <DATA_TYPE>(float32)
+        ├── <DATA_TYPE>(float)
         └── <EXPRESSION>
             └── <EXPRESSION_TERM>
                 └── <EXPRESSION_VALUE>
@@ -79,7 +79,7 @@ R"(<ROOT>
 └── <DECLARATION_BODY>
     └── <VARIABLE_DECLARATION>
         ├── <IDENTIFIER>(bla)
-        ├── <DATA_TYPE>(int32)
+        ├── <DATA_TYPE>(int)
         └── <EXPRESSION>
             └── <BINOP>(+)
                 ├── <EXPRESSION_TERM>
@@ -132,9 +132,9 @@ R"(<ROOT>
         ├── <IDENTIFIER>(main)
         ├── <PARAMETER_LIST>
         │   ├── <IDENTIFIER>(a)
-        │   ├── <DATA_TYPE>(int32)
+        │   ├── <DATA_TYPE>(int)
         │   ├── <IDENTIFIER>(b)
-        │   └── <DATA_TYPE>(float32)
+        │   └── <DATA_TYPE>(float)
         ├── <DATA_TYPE>(void)
         └── <STATEMENT_BLOCK>)";
 
@@ -156,7 +156,7 @@ R"(<ROOT>
         └── <STATEMENT_BLOCK>
             └── <VARIABLE_DECLARATION>
                 ├── <IDENTIFIER>(a)
-                ├── <DATA_TYPE>(int32)
+                ├── <DATA_TYPE>(int)
                 └── <EXPRESSION>
                     └── <EXPRESSION_TERM>
                         └── <EXPRESSION_VALUE>
@@ -180,7 +180,7 @@ R"(<ROOT>
         └── <STATEMENT_BLOCK>
             ├── <VARIABLE_DECLARATION>
             │   ├── <IDENTIFIER>(a)
-            │   ├── <DATA_TYPE>(int32)
+            │   ├── <DATA_TYPE>(int)
             │   └── <EXPRESSION>
             │       └── <EXPRESSION_TERM>
             │           └── <EXPRESSION_VALUE>
@@ -458,7 +458,7 @@ R"(<ROOT>
     └── <FUNCTION_DECLARATION>
         ├── <IDENTIFIER>(main)
         ├── <PARAMETER_LIST>
-        ├── <DATA_TYPE>(int32)
+        ├── <DATA_TYPE>(int)
         └── <STATEMENT_BLOCK>
             └── <RETURN_STATEMENT>
                 └── <EXPRESSION>
@@ -498,7 +498,7 @@ R"(<ROOT>
             ├── <VARIABLE_DECLARATION>
             │   ├── <TOKEN>(public)
             │   ├── <IDENTIFIER>(a)
-            │   ├── <DATA_TYPE>(int32)
+            │   ├── <DATA_TYPE>(int)
             │   └── <EXPRESSION>
             │       └── <EXPRESSION_TERM>
             │           └── <EXPRESSION_VALUE>
@@ -506,7 +506,7 @@ R"(<ROOT>
             ├── <VARIABLE_DECLARATION>
             │   ├── <TOKEN>(private)
             │   ├── <IDENTIFIER>(b)
-            │   ├── <DATA_TYPE>(float32)
+            │   ├── <DATA_TYPE>(float)
             │   └── <EXPRESSION>
             │       └── <EXPRESSION_TERM>
             │           └── <EXPRESSION_VALUE>
@@ -538,18 +538,18 @@ R"(<ROOT>
             │   ├── <TOKEN>(public)
             │   ├── <IDENTIFIER>(a)
             │   ├── <PARAMETER_LIST>
-            │   ├── <TOKEN>(void)
+            │   ├── <DATA_TYPE>(void)
             │   └── <STATEMENT_BLOCK>
             ├── <FUNCTION_DECLARATION>
             │   ├── <TOKEN>(private)
             │   ├── <IDENTIFIER>(b)
             │   ├── <PARAMETER_LIST>
-            │   ├── <TOKEN>(void)
+            │   ├── <DATA_TYPE>(void)
             │   └── <STATEMENT_BLOCK>
             └── <FUNCTION_DECLARATION>
                 ├── <IDENTIFIER>(c)
                 ├── <PARAMETER_LIST>
-                ├── <TOKEN>(void)
+                ├── <DATA_TYPE>(void)
                 └── <STATEMENT_BLOCK>)";
 
     ASSERT_TRUE(not parser.has_syntax_errors());

@@ -1,4 +1,4 @@
-#include "compiler/value_type.hpp"
+#include "bytecode_gen/value_type.hpp"
 
 
 namespace NCSC
