@@ -140,11 +140,12 @@ auto tokenize(const std::string &source) -> std::vector<Token>
 
 
         // Numbers
-        if (std::isdigit(curr_char) or curr_char == '.')
+        if (std::isdigit(curr_char) or curr_char == '.' or curr_char == '-')
         {
             bool has_point = curr_char == '.';
             bool has_digits = std::isdigit(curr_char);
-
+            bool is_negative = curr_char == '-';
+            
             bool is_valid = true;
             
             std::size_t len = 1;
@@ -165,7 +166,8 @@ auto tokenize(const std::string &source) -> std::vector<Token>
                     break;
             }
 
-            std::string value = source.substr(curr_idx, len);
+            if (is_negative and not has_digits)
+                goto numbers_after;
 
             if (has_point and not has_digits) 
             {
@@ -174,6 +176,8 @@ auto tokenize(const std::string &source) -> std::vector<Token>
                 
                 continue;
             }
+
+            std::string value = source.substr(curr_idx, len);
 
             if (has_point) 
             {
@@ -192,6 +196,8 @@ auto tokenize(const std::string &source) -> std::vector<Token>
             
             continue;
         }
+
+numbers_after:
 
         auto single_char_token_it = SINGLE_CHAR_TOKENS.find(curr_char);
         if (single_char_token_it != SINGLE_CHAR_TOKENS.end())

@@ -35,6 +35,8 @@ TEST(LexerTest, TokenizesIntsCorrectly)
     {
         "123456789",
         "9999",
+        "-78945612",
+        "-0",
     };
 
     for (const auto &test_number : test_numbers) 
@@ -52,6 +54,8 @@ TEST(LexerTest, TokenizesFloatsCorrectly)
     {
         "123.1234864",
         "7845564132.14468678",
+        "-864.789465",
+        "-456123.1546564123",
     };
 
     for (const auto &test_number : test_numbers) 
