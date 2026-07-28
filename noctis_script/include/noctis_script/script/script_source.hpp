@@ -18,6 +18,7 @@ public:
 
     auto get_line(std::size_t line_num) -> const std::string &;
     auto get_lines() const -> const std::vector<std::string> &;
+    auto get_lines_string() const -> std::string;
 
 private:
     ScriptSource(const std::string &contents);

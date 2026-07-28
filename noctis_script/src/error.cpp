@@ -1,5 +1,8 @@
 #include "error.hpp"
 
+#include <print>
+
+
 namespace NCSC
 {
     
@@ -13,7 +16,7 @@ auto Error::get_error_message_with_source() const -> std::string
     std::size_t err_line = location_.line;
 
     std::string file_path = "unknown";
-    if (script_source_)
+    if (script_source_ and not script_source_->file_path.empty())
         file_path = script_source_->file_path.string();
 
     std::string lines{};
@@ -25,19 +28,27 @@ auto Error::get_error_message_with_source() const -> std::string
     );
     lines += header;
 
-    if (not script_source_)
+    if (not script_source_) 
+    {
+        std::println("Tried to print an error message with source, but no source was provided.");
         return lines;
+    }
 
     std::string err_line_str = std::to_string(err_line);
     std::size_t line_border_off = 3 + err_line_str.size() + 1;
 
-    std::string source_line = std::format("   {} | {}\n", err_line, err_message_);
+    std::string source_line = std::format(
+        "   {} | {}\n", 
+        err_line, 
+        script_source_->get_line(err_line)
+    );
+    
     lines += source_line;
 
     std::string caret_line{};
     caret_line.reserve(source_line.size());
 
-    for (int i = 0; i < line_border_off; i++);
+    for (int i = 0; i < line_border_off; i++)
         caret_line.push_back(' ');
 
     caret_line += "| ";
@@ -45,7 +56,7 @@ auto Error::get_error_message_with_source() const -> std::string
     std::size_t col = location_.column;
     std::size_t col_end = location_.column_end;
 
-    for (int i = 0; i < col; i++)
+    for (int i = 0; i < col - 1; i++)
         caret_line.push_back(' ');
 
     caret_line.push_back('^');

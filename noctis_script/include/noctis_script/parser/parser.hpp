@@ -12,7 +12,7 @@ namespace NCSC
 class Parser
 {
 public:
-    Parser(const std::vector<Token> &tokens);
+    Parser(const std::vector<Token> &tokens, std::shared_ptr<ScriptSource> script_source = nullptr);
 
     auto parse() -> ASTNode;
 
@@ -76,7 +76,7 @@ private:
     inline static std::shared_ptr<ErrorInfo> ERR_EXPECTED_SEMICOLON      {ErrorInfo::create("Syntax Error", "S5",  "Expected a semicolon to end the line")};
     // Unreachable
     inline static std::shared_ptr<ErrorInfo> ERR_EXPECTED_ASSIGN_OP      {ErrorInfo::create("Syntax Error", "S6",  "Expected and assignment operator (=, +=, -=, etc...)")};
-    inline static std::shared_ptr<ErrorInfo> ERR_EXPECTED_EXPR_VALUE     {ErrorInfo::create("Syntax Error", "S7",  "Expected an expression value")};
+    inline static std::shared_ptr<ErrorInfo> ERR_EXPECTED_EXPR_VALUE     {ErrorInfo::create("Syntax Error", "S7",  "Expected a value")};
     inline static std::shared_ptr<ErrorInfo> ERR_EXPECTED_IDENTIFIER     {ErrorInfo::create("Syntax Error", "S8",  "Expected an identifier")};
     // Unreachable
     inline static std::shared_ptr<ErrorInfo> ERR_EXPECTED_CONSTANT_VAL   {ErrorInfo::create("Syntax Error", "S9",  "Expected a constant value")};

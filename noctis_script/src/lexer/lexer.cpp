@@ -126,7 +126,7 @@ auto tokenize(const std::string &source) -> std::vector<Token>
                 if (replaced_tokens_it != REPLACED_TOKENS.end())
                     reserved_token_type = replaced_tokens_it->second;
 
-                append_token(reserved_token_type);
+                append_token(reserved_token_type, value);
                 advance(len);
 
                 continue;
@@ -298,6 +298,11 @@ auto tokenize(const std::string &source) -> std::vector<Token>
     append_token(TokenType::END_OF_FILE);
 
     return tokens;
+}
+
+auto tokenize(const std::shared_ptr<ScriptSource> &script_source) -> std::vector<Token>
+{
+    return tokenize(script_source->get_lines_string());
 }
 
 } // namespace NCSC

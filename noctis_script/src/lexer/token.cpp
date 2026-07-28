@@ -10,10 +10,13 @@ auto Token::is_valid() const -> bool
 
 auto Token::to_string() const -> const std::string &
 {
+    if (not value.empty())
+        return value;
+
     auto it = TOKENS_TO_STRING.find(type);
     if (it != TOKENS_TO_STRING.end())
         return it->second;
-
+    
     return value;
 }
 

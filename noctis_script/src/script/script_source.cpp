@@ -44,4 +44,13 @@ auto ScriptSource::get_lines() const -> const std::vector<std::string> &
     return lines_;
 }
 
+auto ScriptSource::get_lines_string() const -> std::string
+{
+    std::string output;
+    for (const auto &line : lines_)
+        output += line + "\n";
+    return output;
+}
+
+
 } // namespace NCSC

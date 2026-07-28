@@ -675,3 +675,18 @@ TEST(ParserTest, ParserThrowsS11)
     ASSERT_EQ(parser.get_syntax_errors().size(), 1);
     ASSERT_EQ(parser.get_syntax_errors()[0].get_error_info()->err_code, "S11");
 }
+
+TEST(ParserTest, Temp)
+{
+    std::shared_ptr<ScriptSource> script_source = ScriptSource::from_contents(
+R"(func main() {
+    int a a;
+}
+)"
+    );
+
+    Parser parser{tokenize(script_source), script_source};
+    parser.parse();
+
+    ASSERT_TRUE(false);
+}

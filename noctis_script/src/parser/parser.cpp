@@ -16,10 +16,11 @@
 namespace NCSC
 {
     
-Parser::Parser(const std::vector<Token> &tokens)
+Parser::Parser(const std::vector<Token> &tokens, std::shared_ptr<ScriptSource> script_source)
     : tokens_{tokens}
     , has_syntax_error_{false}
     , curr_token_idx_{0zu}
+    , script_source_{script_source}
 {}
 
 auto Parser::parse() -> ASTNode
@@ -298,7 +299,7 @@ auto Parser::parse_function_declaration(bool is_inside_obj) -> ASTNode
                 return node;
             }
 
-            param_list_node.add_child(parse_type());       
+            param_list_node.add_child(parse_type());
             CHECK_SYNTAX_ERROR();
 
             const Token &t5 = SAFE_CONSUME();
