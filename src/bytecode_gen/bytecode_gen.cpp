@@ -20,6 +20,7 @@ namespace NCSC
 BytecodeGenerator::BytecodeGenerator(bool is_debug)
     : curr_scope_{nullptr}
     , is_debug_{is_debug}
+    , curr_object_{nullptr}
 {}
 
 auto BytecodeGenerator::compile_script(const std::string &script) -> Bytecode
@@ -102,7 +103,7 @@ auto BytecodeGenerator::reset_scopes() -> void
     curr_scope_ = nullptr;
 }
 
-auto BytecodeGenerator::search_symbol(const std::string &symbol_name, Internal::Object *obj = nullptr) -> SymbolSearchRes
+auto BytecodeGenerator::search_symbol(const std::string &symbol_name, Internal::Object *obj) -> SymbolSearchRes
 {
     using namespace Internal;
 
@@ -223,6 +224,8 @@ auto BytecodeGenerator::search_symbol(const std::string &symbol_name, Internal::
             .ty = SymbolSearchRes::Type::GLOBAL_VAR,
         };
     }
+
+    return SymbolSearchRes{};
 }
 
 auto BytecodeGenerator::handle_declaration_body(const ASTNode &decl_body) -> void
@@ -291,13 +294,24 @@ auto BytecodeGenerator::handle_function_declaration(const ASTNode &func_decl, bo
 
     const auto &param_node = func_decl.children()[1];
     const auto &params = param_node.children();
-    for (std::size_t i = 1; i < params.size(); i += 2)
+    for (std::size_t i = 0; i < params.size(); i += 2)
     {
-        const auto &type_node = params[i];
+        const auto &name_node = params[i];
+        const auto &type_node = params[i + 1];
     
+        const std::string &param_name = name_node.token().value;
         ValueType param_type = value_type_from_node(type_node); 
-        function.param_types.push_back(param_type);
+
+        Internal::Variable param {
+            .name = param_name,
+            .type = param_type,
+        };
+        function.params.push_back(param);
     }
+
+    const auto &return_node = func_decl.children()[2];
+    ValueType return_type = value_type_from_node(return_node);
+    function.return_type = return_type; 
 }
 
 auto BytecodeGenerator::handle_method_declaration(const ASTNode &method_decl, bool quick) -> void
@@ -310,12 +324,14 @@ auto BytecodeGenerator::value_type_from_node(const ASTNode &type_node) -> ValueT
     if (type_node.type() != ASTNodeType::TOKEN and type_node.type() != ASTNodeType::DATA_TYPE)
     {
         error(ERR_INVALID_AST_NODE, Location{}, to_string(ASTNodeType::DATA_TYPE), to_string(type_node.type()));
-        return;
+        return ValueType::INVALID;
     }
 
     const Token &tok = type_node.token();
     switch (tok.type) 
     {
+        case TokenType::VOID_KWD:       return ValueType::VOID;
+
         case TokenType::INT8_KWD:       return ValueType::INT8;
         case TokenType::INT16_KWD:      return ValueType::INT16;
         case TokenType::INT32_KWD:      return ValueType::INT32;

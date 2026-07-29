@@ -3,6 +3,7 @@
 #include <string>
 
 #include "value_type.hpp"
+#include "bytecode.hpp"
 
 
 namespace NCSC::Internal
@@ -17,7 +18,7 @@ enum class AccessModifier
 struct Variable
 {
     std::string name;
-    ValueType type;
+    ValueType   type;
 };
 
 struct GlobalVariable : public Variable
@@ -27,11 +28,11 @@ struct GlobalVariable : public Variable
 
 struct Function
 {
-    std::string name;
-    std::vector<ValueType> param_types;
-    ValueType return_type;
+    std::string             name;
+    std::vector<Variable>   params;
+    ValueType               return_type;
 
-    Bytecode bytecode;
+    Bytecode                bytecode;
 };
 
 struct MemberVariable : public Variable
@@ -46,10 +47,10 @@ struct Method : public Function
 
 struct Object
 {
-    std::string name;
-    ValueType type;
+    std::string                 name;
+    ValueType                   type;
     std::vector<MemberVariable> member_variables;
-    std::vector<Method> methods;
+    std::vector<Method>         methods;
 };
 
 struct Scope
