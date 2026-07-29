@@ -18,7 +18,8 @@ enum class AccessModifier
 struct Variable
 {
     std::string name;
-    ValueType   type;
+    GenValueType   type;
+    Location    defined_at;
 };
 
 struct GlobalVariable : public Variable
@@ -30,7 +31,8 @@ struct Function
 {
     std::string             name;
     std::vector<Variable>   params;
-    ValueType               return_type;
+    GenValueType               return_type;
+    Location                defined_at;
 
     Bytecode                bytecode;
 };
@@ -48,9 +50,10 @@ struct Method : public Function
 struct Object
 {
     std::string                 name;
-    ValueType                   type;
+    GenValueType                   type;
     std::vector<MemberVariable> member_variables;
     std::vector<Method>         methods;
+    Location                    defined_at;
 };
 
 struct Scope

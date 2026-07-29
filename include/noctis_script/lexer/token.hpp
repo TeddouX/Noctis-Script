@@ -130,6 +130,7 @@ struct Token
     auto is_constant_value()            const -> bool;
     auto is_data_type()                 const -> bool;
     auto is_access_modifier()           const -> bool;
+    auto is_comparison_operator()       const -> bool;
     
     // Returns -1 if the token isn't an operator
     auto get_operator_precedence() const -> int;

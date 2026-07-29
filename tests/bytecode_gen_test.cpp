@@ -10,8 +10,9 @@ using namespace NCSC;
 TEST(BytecodeGenTest, temp) 
 {
     auto script_src = ScriptSource::from_contents(
-R"(func main(arg1: int, arg2: float) -> void
+R"(func main() -> void
 {
+    var bla: int = 1 + 1;
 }
 )"
     );

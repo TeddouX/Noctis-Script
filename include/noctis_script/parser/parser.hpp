@@ -46,24 +46,46 @@ private:
     // Parses functions declaration, object declarartion and global variable declarations
     // Can be used to parse the body of an object
     auto parse_declaration_body(bool is_inside_obj)         -> ASTNode;
+
+    // VARIABLE_DECLARATION CHILD ORDER:
+    //      For normal variables:
+    //          0: name                     (IDENTIFIER)
+    //          1: type                     (DATA_TYPE)
+    //          2: expression (optional)    (EXPRESSION)
+    //      For members:
+    //          0: access_modifier          (TOKEN)
+    //          1: name                     (IDENTIFIER)
+    //          2: type                     (DATA_TYPE)
+    //          3: expression (optional)    (EXPRESSION)
     auto parse_variable_declaration(bool is_inside_obj)     -> ASTNode;
 
     // FUNCTION DECLARATION CHILD ORDER:
     //      For normal functions:
-    //          0: name (IDENTIFIER)
-    //          1: param_list (PARAMETER_LIST)
-    //          2: return type (DATA_TYPE)
-    //          3: statement block (STATEMENT_BLOCK)
+    //          0: name             (IDENTIFIER)
+    //          1: param_list       (PARAMETER_LIST)
+    //          2: return type      (DATA_TYPE)
+    //          3: statement block  (STATEMENT_BLOCK)
     //      For methods:
-    //          0: access_modifier (TOKEN)
-    //          1: name (IDENTIFIER)
-    //          2: param_list (PARAMETER_LIST)
-    //          3: return type (DATA_TYPE)
-    //          4: statement block (STATEMENT_BLOCK)
+    //          0: access_modifier  (TOKEN)
+    //          1: name             (IDENTIFIER)
+    //          2: param_list       (PARAMETER_LIST)
+    //          3: return type      (DATA_TYPE)
+    //          4: statement block  (STATEMENT_BLOCK)
     auto parse_function_declaration(bool is_inside_obj)     -> ASTNode;
     auto parse_object_declaration(bool is_inside_obj)       -> ASTNode;
+    
+    // STATEMENT BLOCK:
+    //      Statement[]
     auto parse_statement_block()                            -> ASTNode;
+
+    // STATEMENT:
+    //      - if/else/elif: (IF_STATEMENT)
+    //      or return:      (RETURN_STATEMENT)
+    //      or var:         (VARIABLE_DECLARATION)
+    //      or assigment:   (ASSIGNMENT)
     auto parse_statement()                                  -> ASTNode;
+
+    // -> ASSIGNMENT
     auto parse_simple_statement()                           -> ASTNode;
     auto parse_if_statement(bool is_elif)                   -> ASTNode;
     auto parse_return_statement()                           -> ASTNode;

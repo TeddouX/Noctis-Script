@@ -4,7 +4,9 @@
 namespace NCSC
 {
 
-enum class Instructions : word_t
+using vm_instruction_size_t = word_t;
+
+enum class VMInstruction : vm_instruction_size_t
 {
     NOOP,           // NOOP ; Does nothing, used when compilation fails on an ast node
 
@@ -47,6 +49,8 @@ enum class Instructions : word_t
     CALLMETHOD,     // CALLMETHOD 0 ; calls method at index 0
 
     NEW,            // NEW 0 ; creates object of type 0
+
+    LABEL,          // Used by the compiler to resolve jumps
 };
 
 } // namespace NCSC

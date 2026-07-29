@@ -11,34 +11,46 @@
 namespace NCSC
 {
     
+enum class ErrorLevel 
+{
+    INFO,
+    WARNING,
+    ERROR,
+};
+
+auto to_string(ErrorLevel level) -> std::string_view;
+
 struct ErrorInfo
 {
 public:
     std::string_view    err_name;
     std::string_view    err_code;
     std::string         err_fmt;
+    ErrorLevel          err_level;
 
     static auto create(
         std::string_view err_name, 
         std::string_view err_code, 
-        const std::string &err_fmt
+        const std::string &err_fmt,
+        ErrorLevel level = ErrorLevel::ERROR
     ) -> std::shared_ptr<ErrorInfo>
     {
-        return std::shared_ptr<ErrorInfo>(new ErrorInfo(err_name, err_code, err_fmt));
+        return std::shared_ptr<ErrorInfo>(new ErrorInfo(err_name, err_code, err_fmt, level));
     }
 
     template <typename... _Args>
     auto get_formatted(_Args&&... args) -> std::string
     {
         std::string formatted_msg = std::vformat(err_fmt, std::make_format_args(args...));
-        return std::format("{} {}: {}", err_name, err_code, formatted_msg);
+        return std::format("{} {} {}: {}", err_name, to_string(err_level), err_code, formatted_msg);
     }
 
 private:
-    ErrorInfo(std::string_view err_name, std::string_view err_code, const std::string &err_fmt)
+    ErrorInfo(std::string_view err_name, std::string_view err_code, const std::string &err_fmt, ErrorLevel level)
         : err_name{err_name}
         , err_code{err_code}
         , err_fmt{err_fmt}
+        , err_level{level}
     {}
 };
 

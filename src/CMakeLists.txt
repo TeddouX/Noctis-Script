@@ -1,8 +1,8 @@
 set(NCSC_SOURCES
+    "bytecode_gen/bytecode_gen.cpp"
     "bytecode_gen/bytecode.cpp"
     "bytecode_gen/scope.cpp"
-    "bytecode_gen/scope.cpp"
-    "bytecode_gen/bytecode_gen.cpp"
+    "bytecode_gen/value_type.cpp"
     "lexer/lexer.cpp"
     "lexer/token.cpp"
     "parser/ast_node.cpp"

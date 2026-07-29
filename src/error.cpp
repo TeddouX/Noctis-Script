@@ -5,6 +5,17 @@
 
 namespace NCSC
 {
+
+auto to_string(ErrorLevel level) -> std::string_view
+{
+    switch (level)
+    {
+        case ErrorLevel::INFO:      return "INFO";
+        case ErrorLevel::WARNING:   return "WARNING";
+        case ErrorLevel::ERROR:     return "ERROR";
+        default:                    return "invalid ErrorLevel";
+    }
+}
     
 auto Error::get_error_message() const -> const std::string &
 {

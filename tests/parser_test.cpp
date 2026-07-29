@@ -20,7 +20,8 @@ R"(<ROOT>
 └── <DECLARATION_BODY>
     └── <VARIABLE_DECLARATION>
         ├── <IDENTIFIER>(bla)
-        └── <DATA_TYPE>(int))";
+        ├── <DATA_TYPE>(int)
+        └── <EXPRESSION>)";
 
     ASSERT_TRUE(not parser.has_syntax_errors());
     EXPECT_EQ(root_node.ast_string(), expected_tree);

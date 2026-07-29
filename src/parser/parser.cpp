@@ -238,6 +238,12 @@ auto Parser::parse_variable_declaration(bool is_inside_obj) -> ASTNode
         node.add_child(parse_expression());
         CHECK_SYNTAX_ERROR();
     }
+    else
+    {
+        // Empty expression
+        node.add_child(ASTNode{ASTNodeType::EXPRESSION});
+        CHECK_SYNTAX_ERROR();
+    }
 
     const Token &t2 = SAFE_CONSUME();
     if (t2.type != TokenType::SEMICOLON)

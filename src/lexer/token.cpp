@@ -140,6 +140,21 @@ auto Token::is_access_modifier() const -> bool
     }
 }
 
+auto Token::is_comparison_operator() const -> bool
+{
+    switch (type)
+    {
+        case TokenType::GREATER_THAN:
+        case TokenType::LESS_THAN:
+        case TokenType::NOT_EQUAL:
+        case TokenType::EQUAL_EQUAL:
+        case TokenType::GREATER_THAN_EQUAL:
+        case TokenType::LESS_THAN_EQUAL:
+            return true;
+        default:
+            return false;
+    }
+}
 
 auto Token::get_operator_precedence() const -> int
 {
