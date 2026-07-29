@@ -9,6 +9,7 @@ FetchContent_MakeAvailable(googletest)
 
 add_executable(noctis_script_tests
     "ast_node_test.cpp"
+    "bytecode_gen_test.cpp"
     "lexer_test.cpp"
     "parser_test.cpp"
     "script_source_test.cpp"

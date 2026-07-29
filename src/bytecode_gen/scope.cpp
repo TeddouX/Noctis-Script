@@ -4,7 +4,7 @@
 namespace NCSC::Internal
 {
     
-auto Scope::get_local_var_index(const std::string &name) const -> index_word_t
+auto Scope::get_local_var_index(const std::string &name) const -> isize_t
 {
     for (std::size_t i = 0; i < local_variables.size(); i++)
     {
@@ -16,7 +16,7 @@ auto Scope::get_local_var_index(const std::string &name) const -> index_word_t
     if (parent)
         return parent->get_local_var_index(name);
 
-    return INVALID_INDEX;
+    return -1;
 }
 
 auto Scope::get_local_var(index_word_t idx) const -> const Variable *

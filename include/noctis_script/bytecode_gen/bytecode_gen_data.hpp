@@ -20,11 +20,18 @@ struct Variable
     ValueType type;
 };
 
+struct GlobalVariable : public Variable
+{
+    Bytecode bytecode;
+};
+
 struct Function
 {
     std::string name;
     std::vector<ValueType> param_types;
-    ValueType return_ty;
+    ValueType return_type;
+
+    Bytecode bytecode;
 };
 
 struct MemberVariable : public Variable
@@ -40,6 +47,7 @@ struct Method : public Function
 struct Object
 {
     std::string name;
+    ValueType type;
     std::vector<MemberVariable> member_variables;
     std::vector<Method> methods;
 };
@@ -50,7 +58,7 @@ struct Scope
 
     std::vector<Variable> local_variables;
 
-    auto get_local_var_index(const std::string &name) const -> index_word_t;
+    auto get_local_var_index(const std::string &name) const -> isize_t;
     auto get_local_var(index_word_t idx) const -> const Variable *;
 };
 

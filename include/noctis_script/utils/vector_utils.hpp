@@ -16,9 +16,10 @@ concept Named = requires {
 };
 
 
+// -1 if nothing is found
 template <Named _NamedT>
 [[nodiscard]]
-inline auto find_named_idx(const std::vector<_NamedT> &vec, const std::string &name) -> isize_t
+inline auto find_named_idx(const std::string &name, const std::vector<_NamedT> &vec) -> isize_t
 {
     for (std::size_t i = 0; i < vec.size(); i++) 
     {
@@ -31,9 +32,10 @@ inline auto find_named_idx(const std::vector<_NamedT> &vec, const std::string &n
 }
 
 
+// nullptr if nothing is found
 template <Named _NamedT>
 [[nodiscard]]
-inline auto find_named(const std::vector<_NamedT> &vec, const std::string &name) -> const _NamedT *
+inline auto find_named(const std::string &name, const std::vector<_NamedT> &vec) -> const _NamedT *
 {
     isize_t idx = find_named_idx(vec, name);
     if (idx < 0)
