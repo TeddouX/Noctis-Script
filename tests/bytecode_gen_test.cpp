@@ -18,4 +18,6 @@ R"(func main() -> void
     );
     BytecodeGenerator bc_gen{};
     bc_gen.compile_script(script_src);
+
+    ASSERT_TRUE(false);
 }

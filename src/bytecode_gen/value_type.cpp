@@ -66,4 +66,34 @@ auto vtype_remove_const_ref(GenValueType in) -> GenValueType
     );
 }
 
+bool is_vtype_float(GenValueType ty) 
+{
+    return ty == GenValueType::FLOAT32 || ty == GenValueType::FLOAT64;
+}
+
+bool is_vtype_int(GenValueType ty) 
+{
+    return ty == GenValueType::INT8   ||
+           ty == GenValueType::INT16  ||
+           ty == GenValueType::INT32  ||
+           ty == GenValueType::INT64  ||
+           ty == GenValueType::UINT8  ||
+           ty == GenValueType::UINT16 ||
+           ty == GenValueType::UINT32 ||
+           ty == GenValueType::UINT64;
+}
+
+auto is_vtype_unsigned_int(GenValueType type) -> bool
+{
+    return type == GenValueType::UINT8  ||
+           type == GenValueType::UINT16 ||
+           type == GenValueType::UINT32 ||
+           type == GenValueType::UINT64;
+}
+
+bool is_vtype_numeric(GenValueType ty) 
+{
+    return is_vtype_int(ty) || is_vtype_float(ty);
+}
+
 } // namespace NCSC

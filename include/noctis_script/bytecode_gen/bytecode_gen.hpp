@@ -74,42 +74,58 @@ private:
     
     auto type_name(GenValueType type) -> std::string;
     
-    template <typename _T>
-    auto emit_constant(const _T &&constant, const ASTNode *node)
+    template <typename T_>
+    auto emit_constant(const T_ &constant, const ASTNode *node) -> void
     {
         BuiltinType type;
 
-        if constexpr      (std::is_same_v<_T, int8_t>)      type = BuiltinType::INT8;
-        else if constexpr (std::is_same_v<_T, int16_t>)     type = BuiltinType::INT16;
-        else if constexpr (std::is_same_v<_T, int32_t>)     type = BuiltinType::INT32;
-        else if constexpr (std::is_same_v<_T, int64_t>)     type = BuiltinType::INT64;
-        else if constexpr (std::is_same_v<_T, uint8_t>)     type = BuiltinType::UINT8;
-        else if constexpr (std::is_same_v<_T, uint16_t>)    type = BuiltinType::UINT16;
-        else if constexpr (std::is_same_v<_T, uint32_t>)    type = BuiltinType::UINT16;
-        else if constexpr (std::is_same_v<_T, uint64_t>)    type = BuiltinType::UINT16;
-        else if constexpr (std::is_same_v<_T, float32_t>)   type = BuiltinType::FLOAT32;
-        else if constexpr (std::is_same_v<_T, float64_t>)   type = BuiltinType::FLOAT64;
-        else if constexpr (std::is_same_v<_T, bool>)        type = BuiltinType::BOOL;
-        else if constexpr (std::is_same_v<_T, nullptr_t>)   type = BuiltinType::OBJ_NULL;
+        if constexpr      (std::is_same_v<T_, int8_t>)      type = BuiltinType::INT8;
+        else if constexpr (std::is_same_v<T_, int16_t>)     type = BuiltinType::INT16;
+        else if constexpr (std::is_same_v<T_, int32_t>)     type = BuiltinType::INT32;
+        else if constexpr (std::is_same_v<T_, int64_t>)     type = BuiltinType::INT64;
+        else if constexpr (std::is_same_v<T_, uint8_t>)     type = BuiltinType::UINT8;
+        else if constexpr (std::is_same_v<T_, uint16_t>)    type = BuiltinType::UINT16;
+        else if constexpr (std::is_same_v<T_, uint32_t>)    type = BuiltinType::UINT16;
+        else if constexpr (std::is_same_v<T_, uint64_t>)    type = BuiltinType::UINT16;
+        else if constexpr (std::is_same_v<T_, float32_t>)   type = BuiltinType::FLOAT32;
+        else if constexpr (std::is_same_v<T_, float64_t>)   type = BuiltinType::FLOAT64;
+        else if constexpr (std::is_same_v<T_, bool>)        type = BuiltinType::BOOL;
+        else if constexpr (std::is_same_v<T_, nullptr_t>)   type = BuiltinType::OBJ_NULL;
         else                                                type = BuiltinType::VOID;
 
         if (type == BuiltinType::VOID)
         {
-            error(ERR_INVALID_BUILTIN_TYPE, Location{}, typeid(_T).name());
+            error(ERR_INVALID_BUILTIN_TYPE, Location{}, typeid(T_).name());
             return;
         }
 
         emit(static_cast<builtin_type_size_t>(type), node);
     
-        constexpr std::size_t _T_size = sizeof(_T);
-        if constexpr (_T_size == 1)
+        constexpr std::size_t T_size = sizeof(T_);
+        if constexpr (T_size == 1)
             emit((byte_t)constant, node);
-        else if constexpr (_T_size == 2)
+        else if constexpr (T_size == 2)
             emit((word_t)constant, node);
-        else if constexpr (_T_size == 4)
+        else if constexpr (T_size == 4)
             emit((dword_t)constant, node);
-        else if constexpr (_T_size == 8)
+        else if constexpr (T_size == 8)
             emit((qword_t)constant, node);
+    }
+
+    template <typename T_>
+        requires(std::is_integral_v<T_>)
+    auto emit_int_constant_from_str(const std::string &value, const ASTNode *constant)
+    {
+        using IntermediateTy_ = std::conditional_t<std::is_signed_v<T_>, std::int64_t, std::uint64_t>;
+        IntermediateTy_ intermediate_int{};
+
+        if constexpr (std::is_signed_v<IntermediateTy_>)
+            intermediate_int = std::strtoll(value.c_str(), nullptr, 0);
+        else 
+            intermediate_int = std::strtoull(value.c_str(), nullptr, 0);
+
+        T_ val = static_cast<T_>(intermediate_int);
+        emit_constant(val, constant);
     }
 
     auto emit(const std::vector<byte_t> &bytes,     const ASTNode *node) -> void;
@@ -120,6 +136,7 @@ private:
     auto emit(VMInstruction instr,                  const ASTNode *node) -> void;
 
     auto can_promote_vtype(const GenValueType &from, const GenValueType &to) -> bool;
+    auto promote_vtype(GenValueType from, GenValueType to) -> GenValueType;
 
     auto handle_declaration_body(const ASTNode &decl_body) -> void;
     auto handle_function_declaration(const ASTNode &func_decl, bool quick) -> void;
@@ -129,10 +146,15 @@ private:
     auto handle_return_statement(const ASTNode &return_stmt) -> void;
     auto handle_variable_declaration(const ASTNode &var_decl) -> void;
     auto handle_assignment(const ASTNode &assigment) -> void;
-    auto handle_expression(const ASTNode &expr, const GenValueType &expected_ty) -> void;
-    auto recursively_handle_expression_child(const ASTNode &expr_child, const GenValueType &expected_ty) -> void; 
-    auto handle_expression_term(const ASTNode &expr_term, const GenValueType &expected_ty) -> void;
-    auto handle_binop(const ASTNode &binop, const GenValueType &expected_ty) -> void;
+    auto handle_expression(const ASTNode &expr, const GenValueType &expected_ty) -> GenValueType;
+    auto recursively_handle_expression_child(const ASTNode &expr_child, const GenValueType &expected_ty) -> GenValueType; 
+    auto handle_expression_term(const ASTNode &expr_term, const GenValueType &expected_ty, bool should_be_assignable) -> GenValueType;
+    auto handle_binop(const ASTNode &binop, const GenValueType &expected_ty) -> GenValueType;
+    auto handle_expression_value(const ASTNode &expr_value, const GenValueType &expected_ty, bool should_be_assignable) -> GenValueType;
+    auto handle_store(const ASTNode &expr_term) -> void;
+    auto handle_constant(const ASTNode &constant, GenValueType expected_ty) -> GenValueType;
+    auto handle_function_call(const ASTNode &func_call, GenValueType expected_ty) -> GenValueType;
+    auto handle_variable_access(const ASTNode &identifier, GenValueType expected_ty) -> GenValueType;
 
     auto is_symbol_defined_elsewhere(const ASTNode &identifer) -> bool;
 
@@ -175,6 +197,9 @@ private:
     inline static auto ERR_ALREADY_DEFINED      {ErrorInfo::create("Compiler Error",            "C2",   "'{}' was already defined somewhere else.")};
     inline static auto ERR_EXPECTED_TY          {ErrorInfo::create("Compiler Error",            "C3",   "Expected type '{}', instead got '{}'")};
     inline static auto ERR_DIV_RETURNS_F64      {ErrorInfo::create("Compiler Error",            "C4",   "Division always returns a float64 (double), which can't be converted to '{}'")};
+    inline static auto ERR_EXPECTED_NUMERIC_TY  {ErrorInfo::create("Compiler Error",            "C5",   "Expected a numeric type (int or float), instead got '{}'")};
+    inline static auto ERR_NOT_ASSIGNABLE       {ErrorInfo::create("Compiler Error",            "C6",   "Expected an lvalue (assignable) term")};
+    inline static auto ERR_CANT_PROMOTE_TY      {ErrorInfo::create("Compiler Error",            "C7",   "Can't convert '{}' to '{}'")};
 
     inline static auto INFO_DEFINED_HERE        {ErrorInfo::create("Compiler Info",             "CI1",  "'{}' defined here:")};
 };

@@ -4,7 +4,7 @@
 namespace NCSC
 {
 
-using vm_instruction_size_t = word_t;
+using vm_instruction_size_t = byte_t;
 
 enum class VMInstruction : vm_instruction_size_t
 {

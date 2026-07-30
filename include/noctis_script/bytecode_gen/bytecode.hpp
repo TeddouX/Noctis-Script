@@ -36,6 +36,7 @@ namespace NCSC
 //      members: ValueType[]
 //      methods: uint64[]
 // - function:
+//      Also contains methods
 //      name: string (null terminated) // To be able to execute it only using its name, cached in the vm
 //      num_locals: uint16
 //      req_stack_size: uint32

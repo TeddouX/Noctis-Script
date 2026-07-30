@@ -704,6 +704,9 @@ auto Parser::parse_expression_pre_operator() -> ASTNode
     ASTNode node(ASTNodeType::EXPRESSION_PREOP);
 
     const Token &t = SAFE_CONSUME();
+    if (not t.is_expression_pre_operator())
+        return node;
+    
     node.set_token(t);
 
     return node;
@@ -747,7 +750,7 @@ auto Parser::parse_expression_value() -> ASTNode
         const Token &t1 = SAFE_CONSUME();
         if (t1.type != TokenType::PARENTHESIS_CLOSE) 
         {
-            create_syntax_error(ERR_EXPECTED_TOKEN, t1, '(');
+            create_syntax_error(ERR_EXPECTED_TOKEN, t1, ')');
             return node;
         }
     }

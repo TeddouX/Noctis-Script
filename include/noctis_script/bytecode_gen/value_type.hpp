@@ -16,6 +16,7 @@ enum class GenValueType : value_type_size_t
 {
     INVALID,
     VOID,
+    NULL_OBJ,
     INT8,
     INT16,
     INT32,
@@ -27,7 +28,8 @@ enum class GenValueType : value_type_size_t
     FLOAT32,
     FLOAT64,
     BOOL,
-    NUMERIC, // Only used by the compiler
+    NUMERIC,
+    ANY, 
 
     CONST_MASK  = (value_type_size_t)1 << VALUE_TYPE_SIZE_BITS - 3,
     REF_MASK    = (value_type_size_t)1 << VALUE_TYPE_SIZE_BITS - 2,
@@ -39,6 +41,11 @@ auto vtype_has_mask(GenValueType in, GenValueType mask) -> bool;
 auto vtype_clear_mask(GenValueType in, GenValueType mask) -> GenValueType;
 auto vtype_set_mask(GenValueType in, GenValueType mask) -> GenValueType;
 auto vtype_remove_const_ref(GenValueType in) -> GenValueType;
+
+auto is_vtype_int(GenValueType type) -> bool;
+auto is_vtype_unsigned_int(GenValueType type) -> bool;
+auto is_vtype_float(GenValueType type) -> bool;
+auto is_vtype_numeric(GenValueType type) -> bool;
 
 auto make_object_vtype(dword_t objIdx) -> GenValueType;
 

@@ -91,9 +91,21 @@ private:
     auto parse_return_statement()                           -> ASTNode;
     auto parse_assignment()                                 -> ASTNode;
     auto parse_expression()                                 -> ASTNode;
+    
+    // EXPRESSION TERM:
+    //      Any number of EXPRESSION_PREOPs
+    //      An EXPRESSION_VALUE
+    //      Any number of EXPRESSION_POSTOPs
     auto parse_expression_term()                            -> ASTNode;
     auto parse_assignment_operator(bool allow_compound_ops) -> ASTNode;
     auto parse_expression_pre_operator()                    -> ASTNode;
+
+    // EXPRESSION VALUE:
+    //      - CONSTANT
+    //      or FUNCTION_CALL
+    //      or IDENTIFIER
+    //      or CONSTRUCT_CALL
+    //      or EXPRESSION
     auto parse_expression_value()                           -> ASTNode;
     auto parse_expression_post_operator()                   -> ASTNode;
     auto parse_token(const Token &t)                        -> ASTNode;

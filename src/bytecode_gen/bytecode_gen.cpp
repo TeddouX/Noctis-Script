@@ -1,12 +1,21 @@
 #include "bytecode_gen/bytecode_gen.hpp"
 
 #include <algorithm>
+#include <print>
 
 #include "lexer/lexer.hpp"
 #include "parser/parser.hpp"
 #include "utils/vector_utils.hpp"
 #include "bytecode_gen/value_type.hpp"
 
+#define CHECK_NODE_TYPE_RET(node, expected, ret)                                                    \
+    do {                                                                                            \
+        if (node.type() != expected)                                                                \
+        {                                                                                           \
+            error(ERR_INVALID_AST_NODE, Location{}, to_string(expected), to_string(node.type()));   \
+            return ret;                                                                             \
+        }                                                                                           \
+    } while(0)
 
 #define CHECK_NODE_TYPE(node, expected)                                                             \
     do {                                                                                            \
@@ -54,6 +63,10 @@ auto BytecodeGenerator::compile_script(const ASTNode &root_node, std::shared_ptr
     bytecode_ = Bytecode{script_source_, is_debug_};
 
     handle_declaration_body(root_node.children()[0]);
+
+    for (auto byte : bytecode_.bytes_)
+        std::print("{:03} ", byte);
+    std::print("\n");
 
     return bytecode_;
 }
@@ -220,6 +233,40 @@ auto BytecodeGenerator::can_promote_vtype(const GenValueType &from, const GenVal
     return from_rank <= to_rank;
 }
 
+auto BytecodeGenerator::promote_vtype(GenValueType from, GenValueType to) -> GenValueType
+{
+    // Both are the same type
+    if (from == to)
+        return to;
+
+    // Floats rank above everything
+    if (is_vtype_float(from) || is_vtype_float(to)) 
+    {
+        if (to == GenValueType::FLOAT64)
+            return GenValueType::FLOAT64;
+        // This should never happen
+        else if (from == GenValueType::FLOAT64 and to == GenValueType::FLOAT32)
+            return GenValueType::INVALID;
+        
+        return GenValueType::FLOAT32;
+    }
+
+    int from_rank = get_vtype_rank(from);
+    int to_rank   = get_vtype_rank(to);
+
+    GenValueType higher = (from_rank > to_rank) ? from : to;
+
+    // If same rank but one unsigned -> unsigned version
+    if (from_rank == to_rank) 
+    {
+        if (is_vtype_unsigned_int(from)) 
+            return from;
+        else if (is_vtype_unsigned_int(to)) 
+            return to;
+    }
+
+    return higher;  
+}
 
 auto BytecodeGenerator::search_symbol(const std::string &symbol_name, Internal::Object *obj) -> SymbolSearchRes
 {
@@ -610,43 +657,159 @@ auto BytecodeGenerator::handle_assignment(const ASTNode &assigment) -> void
     CHECK_NODE_TYPE(assigment, ASTNodeType::ASSIGNMENT);
 }
 
-auto BytecodeGenerator::handle_expression(const ASTNode &expr, const GenValueType &expected_ty) -> void
+auto BytecodeGenerator::handle_expression(const ASTNode &expr, const GenValueType &expected_ty) -> GenValueType
 {
-    CHECK_NODE_TYPE(expr, ASTNodeType::EXPRESSION);
+    CHECK_NODE_TYPE_RET(expr, ASTNodeType::EXPRESSION, GenValueType::INVALID);
 
     if (expr.children().empty())
-        return;
+        return GenValueType::INVALID;
     
     const auto &first_child = expr.children()[0];
     if (first_child.type() == ASTNodeType::EXPRESSION_TERM)
     {
-        handle_expression_term(first_child, expected_ty);
-        return;
+        handle_expression_term(first_child, expected_ty, false);
+        return GenValueType::INVALID;
     }
 
-    recursively_handle_expression_child(first_child, expected_ty);
+    return recursively_handle_expression_child(first_child, expected_ty);
 }
 
-auto BytecodeGenerator::recursively_handle_expression_child(const ASTNode &expr_child, const GenValueType &expected_ty) -> void
+auto BytecodeGenerator::recursively_handle_expression_child(const ASTNode &expr_child, const GenValueType &expected_ty) -> GenValueType
 {
     ASTNodeType expr_child_type = expr_child.type();
     if (expr_child_type == ASTNodeType::EXPRESSION_TERM)
-        handle_expression_term(expr_child, expected_ty);
+        return handle_expression_term(expr_child, expected_ty, false);
     else if (expr_child_type == ASTNodeType::BINOP)
-        handle_binop(expr_child, expected_ty);
+        return handle_binop(expr_child, expected_ty);
+    else
+        return GenValueType::INVALID;
 }
 
-auto BytecodeGenerator::handle_expression_term(const ASTNode &expr_term, const GenValueType &expected_ty) -> void
+auto BytecodeGenerator::handle_expression_term(const ASTNode &expr_term, const GenValueType &expected_ty, bool should_be_assignable) -> GenValueType
 {
-    CHECK_NODE_TYPE(expr_term, ASTNodeType::EXPRESSION_TERM);
+    CHECK_NODE_TYPE_RET(expr_term, ASTNodeType::EXPRESSION_TERM, GenValueType::INVALID);
 
-    emit(VMInstruction::PUSH, nullptr);
-    emit_constant((byte_t)67, nullptr);
+    // Only the value
+    if (expr_term.children().size() == 1)
+    {
+        const ASTNode &expr_value = expr_term.children()[0];
+        return handle_expression_value(expr_value, expected_ty, should_be_assignable);
+    }
+
+    isize_t expr_value_idx = -1;
+    for (isize_t i = 0; i < expr_term.children().size(); i++) {
+        if (expr_term.children()[i].type() == ASTNodeType::EXPRESSION_VALUE) {
+            expr_value_idx = i;
+            break;
+        }
+    }
+
+    if (expr_value_idx < 0)
+        return GenValueType::INVALID;
+
+    const ASTNode &expr_value = expr_term.children()[expr_value_idx];
+    GenValueType expr_value_type = handle_expression_value(expr_value, expected_ty, should_be_assignable);
+
+    bool val_on_stack_lvalue = true;
+    bool has_val_on_stack = false;
+
+    GenValueType last_type_on_stack = GenValueType::INVALID;
+
+    for (std::size_t i = expr_value_idx + 1; i < expr_term.children().size(); i++)
+    {
+        const auto &postop = expr_term.children()[i];
+        ASTNodeType postop_type = postop.type();
+
+        if (postop_type != ASTNodeType::EXPRESSION_POSTOP)
+            break;
+
+        switch (postop_type)
+        {
+            // Method call
+            case ASTNodeType::FUNCTION_CALL:
+                continue;
+            // Member access
+            case ASTNodeType::IDENTIFIER:
+                continue;
+        }
+
+        TokenType postop_tok_ty = postop.token().type;
+        if (postop_tok_ty == TokenType::PLUS_PLUS or postop_tok_ty == TokenType::MINUS_MINUS)
+        {
+            bool is_inc = postop_tok_ty == TokenType::PLUS_PLUS;
+
+            val_on_stack_lvalue = false;
+        }
+    }
+
+    // PRE-OPERATORS
+    bool has_not_preop = false;
+    for (std::size_t i = 0; i < expr_value_idx; i++)
+    {
+        const auto &preop = expr_term.children()[i];
+        if (preop.type() != ASTNodeType::EXPRESSION_PREOP)
+            break;
+
+        TokenType preop_type = preop.token().type;
+
+        if (preop_type == TokenType::PLUS_PLUS or preop_type == TokenType::MINUS_MINUS)
+        {
+            if (not is_vtype_numeric(expr_value_type))
+            {
+                error(ERR_EXPECTED_NUMERIC_TY, expr_value.location(), type_name(expr_value_type));
+                return GenValueType::INVALID;
+            }
+
+            bool is_inc = preop_type == TokenType::PLUS_PLUS;
+
+            if (is_inc) 
+                emit(VMInstruction::INC, &preop);
+            else
+                emit(VMInstruction::DEC, &preop);
+
+            emit(VMInstruction::DUP, &preop);
+
+            // Store the value back in the variable
+            handle_store(expr_term);
+
+            val_on_stack_lvalue = false;
+            has_val_on_stack = true;
+        }
+        else if (preop_type == TokenType::NOT)
+        {
+            if (expr_value_type != GenValueType::BOOL)
+            {
+                error(ERR_EXPECTED_TY, 
+                    expr_value.location(), 
+                    type_name(GenValueType::BOOL), 
+                    type_name(expr_value_type)
+                );
+                return GenValueType::INVALID;
+            }
+
+            if (has_not_preop)
+            {
+                emit(VMInstruction::NOT, &preop);
+                continue;
+            }
+
+            val_on_stack_lvalue = false;
+            has_not_preop = true;
+        }
+    }
+
+    if (not val_on_stack_lvalue and should_be_assignable)
+    {
+        error(ERR_NOT_ASSIGNABLE, expr_term.location());
+        return GenValueType::INVALID;
+    }
+
+    return expr_value_type;
 }
 
-auto BytecodeGenerator::handle_binop(const ASTNode &binop, const GenValueType &expected_ty) -> void
+auto BytecodeGenerator::handle_binop(const ASTNode &binop, const GenValueType &expected_ty) -> GenValueType
 {
-    CHECK_NODE_TYPE(binop, ASTNodeType::BINOP);
+    CHECK_NODE_TYPE_RET(binop, ASTNodeType::BINOP, GenValueType::INVALID);
 
     const Token &binop_tok = binop.token();
     TokenType binop_tok_ty = binop.token().type;
@@ -655,14 +818,14 @@ auto BytecodeGenerator::handle_binop(const ASTNode &binop, const GenValueType &e
 
     if (binop_tok_ty == TokenType::LOGICAL_AND or binop_tok_ty == TokenType::LOGICAL_OR)
     {
-        if (expected_ty == GenValueType::BOOL)
+        if (expected_ty != GenValueType::BOOL and expected_ty != GenValueType::ANY)
         {
             error(ERR_EXPECTED_TY,
                 binop.location(),
                 type_name(expected_ty), 
                 type_name(GenValueType::BOOL)
             );
-            return;
+            return GenValueType::INVALID;
         }
 
         /*
@@ -753,10 +916,12 @@ auto BytecodeGenerator::handle_binop(const ASTNode &binop, const GenValueType &e
 
         emit(VMInstruction::LABEL, &binop);
         emit(binop_end_label_num, &binop);
+    
+        return GenValueType::INVALID;
     }
     else
     {
-        if (binop_tok.is_comparison_operator() && expected_ty != GenValueType::BOOL)
+        if (binop_tok.is_comparison_operator() and expected_ty != GenValueType::BOOL and expected_ty != GenValueType::ANY)
         {
             error(ERR_EXPECTED_TY,
                 binop.location(),
@@ -764,39 +929,226 @@ auto BytecodeGenerator::handle_binop(const ASTNode &binop, const GenValueType &e
                 type_name(GenValueType::BOOL)
             );
                 
-            return;
+            return GenValueType::INVALID;
         }
 
-        recursively_handle_expression_child(right_operand, expected_ty);
-        recursively_handle_expression_child(left_operand, expected_ty);
+        GenValueType type_right = recursively_handle_expression_child(right_operand, expected_ty);
+        GenValueType type_left = recursively_handle_expression_child(left_operand, expected_ty);
 
-        switch (binop_tok_ty) 
+        if (not is_vtype_numeric(type_left))
         {
-            case TokenType::PLUS:             emit(VMInstruction::ADD, &binop);   return;
-            case TokenType::MINUS:            emit(VMInstruction::SUB, &binop);   return;
-            case TokenType::STAR:             emit(VMInstruction::MUL, &binop);   return;
+            error(ERR_EXPECTED_NUMERIC_TY, left_operand.location(), type_name(type_left));
+            return GenValueType::INVALID;
+        }
+
+        if (not is_vtype_numeric(type_right))
+        {
+            error(ERR_EXPECTED_NUMERIC_TY, right_operand.location(), type_name(type_right));
+            return GenValueType::INVALID;
+        }
+
+        if (not can_promote_vtype(type_left, type_right))
+        {
+            error(ERR_CANT_PROMOTE_TY, 
+                right_operand.location(), 
+                type_name(type_left), 
+                type_name(type_right)
+            );
+            return GenValueType::INVALID;
+        }
+
+        GenValueType op_type = promote_vtype(type_left, type_right);
+
+        switch (binop_tok_ty)
+        {
+            case TokenType::PLUS:             emit(VMInstruction::ADD, &binop);   return op_type;
+            case TokenType::MINUS:            emit(VMInstruction::SUB, &binop);   return op_type;
+            case TokenType::STAR:             emit(VMInstruction::MUL, &binop);   return op_type;
             case TokenType::SLASH: 
             {
-                if (!can_promote_vtype(GenValueType::FLOAT64, expected_ty)) 
+                if (not can_promote_vtype(GenValueType::FLOAT64, expected_ty)) 
                 {
                     error(ERR_DIV_RETURNS_F64, binop.location(), type_name(expected_ty));
-                    return;
+                    return GenValueType::INVALID;
                 }
 
                 emit(VMInstruction::DIV, &binop);
-                return;
+                return GenValueType::FLOAT64;
             }
 
-            case TokenType::LESS_THAN:              emit(VMInstruction::CMPST, &binop); return;
-            case TokenType::LESS_THAN_EQUAL:        emit(VMInstruction::CMPSE, &binop); return;
-            case TokenType::GREATER_THAN:           emit(VMInstruction::CMPGT, &binop); return;
-            case TokenType::GREATER_THAN_EQUAL:     emit(VMInstruction::CMPGE, &binop); return;
-            case TokenType::EQUAL_EQUAL:            emit(VMInstruction::CMPEQ, &binop); return;
-            case TokenType::NOT_EQUAL:              emit(VMInstruction::CMPNE, &binop); return;
+            case TokenType::LESS_THAN:              emit(VMInstruction::CMPST, &binop); return op_type;
+            case TokenType::LESS_THAN_EQUAL:        emit(VMInstruction::CMPSE, &binop); return op_type;
+            case TokenType::GREATER_THAN:           emit(VMInstruction::CMPGT, &binop); return op_type;
+            case TokenType::GREATER_THAN_EQUAL:     emit(VMInstruction::CMPGE, &binop); return op_type;
+            case TokenType::EQUAL_EQUAL:            emit(VMInstruction::CMPEQ, &binop); return op_type;
+            case TokenType::NOT_EQUAL:              emit(VMInstruction::CMPNE, &binop); return op_type;
 
-            default: emit(VMInstruction::NOOP, &binop);  return;
+            default: emit(VMInstruction::NOOP, &binop);  return GenValueType::INVALID;
         }
     }
+}
+
+auto BytecodeGenerator::handle_expression_value(const ASTNode &expr_value, const GenValueType &expected_ty, bool should_be_assignable) -> GenValueType
+{
+    CHECK_NODE_TYPE_RET(expr_value, ASTNodeType::EXPRESSION_VALUE, GenValueType::INVALID);
+
+    const auto &first_child = expr_value.children()[0];
+    ASTNodeType first_child_ty = first_child.type();
+
+    bool is_constant = first_child_ty == ASTNodeType::CONSTANT;
+    bool is_func_call = first_child_ty == ASTNodeType::FUNCTION_CALL;
+
+    if ((is_func_call or is_constant) and should_be_assignable) 
+    {
+        error(ERR_NOT_ASSIGNABLE, first_child.location());
+        return GenValueType::INVALID;
+    }
+
+    switch (first_child_ty)
+    {
+        case ASTNodeType::CONSTANT:
+            return handle_constant(first_child, expected_ty);
+        case ASTNodeType::FUNCTION_CALL:
+            return handle_function_call(first_child, expected_ty);
+        case ASTNodeType::IDENTIFIER:
+            return handle_variable_access(first_child, expected_ty);
+        case ASTNodeType::CONSTRUCT_CALL:
+            return GenValueType::INVALID;
+        case ASTNodeType::EXPRESSION:
+            return handle_expression(first_child, expected_ty);
+        default:
+            return GenValueType::INVALID;
+    }
+}
+
+auto BytecodeGenerator::handle_store(const ASTNode &expr_term) -> void
+{
+
+}
+
+auto BytecodeGenerator::handle_constant(const ASTNode &constant, GenValueType expected_ty) -> GenValueType
+{
+    CHECK_NODE_TYPE_RET(constant, ASTNodeType::CONSTANT, GenValueType::INVALID);
+
+    const Token &const_tok = constant.token();
+    TokenType const_tok_ty = const_tok.type;
+    const std::string &value = const_tok.value;
+
+    emit(VMInstruction::PUSH, &constant);
+    if (const_tok_ty == TokenType::FLOAT_CONSTANT)
+    {
+        switch (expected_ty)
+        {
+            case GenValueType::FLOAT32:
+            {
+                float32_t val = std::stof(value);
+                std::uint32_t val_bits = std::bit_cast<std::uint32_t>(val);
+
+                emit_constant(val_bits, &constant);
+
+                return expected_ty;
+            }
+
+            case GenValueType::ANY:
+            case GenValueType::FLOAT64:
+            {
+                float64_t val = std::stod(value);
+                std::uint64_t val_bits = std::bit_cast<std::uint64_t>(val);
+
+                emit_constant(val_bits, &constant);
+
+                return GenValueType::FLOAT64;
+            }
+
+            default:
+                error(ERR_EXPECTED_TY, 
+                    constant.location(), 
+                    type_name(expected_ty), 
+                    type_name(GenValueType::FLOAT64)
+                );
+                return GenValueType::INVALID;
+        }
+    }
+    else if (const_tok_ty == TokenType::INT_CONSTANT)
+    {
+        switch (expected_ty)
+        {
+            case GenValueType::INT8:    emit_int_constant_from_str<std::int8_t>(value,   &constant); return expected_ty;
+            case GenValueType::INT16:   emit_int_constant_from_str<std::int16_t>(value,  &constant); return expected_ty;
+            
+            case GenValueType::ANY:
+            case GenValueType::INT32:   emit_int_constant_from_str<std::int32_t>(value,  &constant); return GenValueType::INT32;
+
+            case GenValueType::INT64:   emit_int_constant_from_str<std::int64_t>(value,  &constant); return expected_ty;
+
+            case GenValueType::UINT8:   emit_int_constant_from_str<std::uint8_t>(value,  &constant); return expected_ty;
+            case GenValueType::UINT16:  emit_int_constant_from_str<std::uint16_t>(value, &constant); return expected_ty;
+            case GenValueType::UINT32:  emit_int_constant_from_str<std::uint32_t>(value, &constant); return expected_ty;
+            case GenValueType::UINT64:  emit_int_constant_from_str<std::uint64_t>(value, &constant); return expected_ty;
+
+            // If a float is expected for the expression, we can safely emit an int
+            // and the VM will be able to use it as a float
+            case GenValueType::FLOAT32: emit_int_constant_from_str<std::int32_t>(value,  &constant); return expected_ty;
+            case GenValueType::FLOAT64: emit_int_constant_from_str<std::int64_t>(value,  &constant); return expected_ty;
+
+            default:
+                error(ERR_EXPECTED_TY, 
+                    constant.location(), 
+                    type_name(expected_ty),
+                    type_name(GenValueType::INT32)
+                );
+                return GenValueType::INVALID;
+        }
+    }
+    else if (const_tok_ty == TokenType::TRUE_KWD or const_tok_ty == TokenType::FALSE_KWD)
+    {
+        if (expected_ty != GenValueType::BOOL and expected_ty != GenValueType::ANY)
+        {
+            error(ERR_EXPECTED_TY, 
+                constant.location(), 
+                type_name(expected_ty),
+                type_name(GenValueType::BOOL)
+            );
+            return GenValueType::INVALID;
+        }
+
+        if (const_tok_ty == TokenType::TRUE_KWD)
+            emit_constant(true, &constant);
+        else
+            emit_constant(false, &constant);
+
+        return GenValueType::BOOL;
+    }
+    else if (const_tok_ty == TokenType::NULL_KWD)
+    {
+        if (not vtype_has_mask(expected_ty, GenValueType::OBJ_MASK) and expected_ty != GenValueType::ANY)
+        {
+            error(ERR_EXPECTED_TY, 
+                constant.location(), 
+                type_name(expected_ty),
+                "null"
+            );
+            return GenValueType::INVALID;
+        }
+
+        emit_constant(nullptr, &constant);
+
+        return GenValueType::NULL_OBJ;
+    }
+
+    return GenValueType::INVALID;
+}
+
+auto BytecodeGenerator::handle_function_call(const ASTNode &func_call, GenValueType expected_ty) -> GenValueType
+{
+    CHECK_NODE_TYPE_RET(func_call, ASTNodeType::FUNCTION_CALL, GenValueType::INVALID);
+    return GenValueType::INVALID;
+}
+
+auto BytecodeGenerator::handle_variable_access(const ASTNode &identifier, GenValueType expected_ty) -> GenValueType
+{
+    CHECK_NODE_TYPE_RET(identifier, ASTNodeType::IDENTIFIER, GenValueType::INVALID);
+    return GenValueType::INVALID;
 }
 
 } // namespace NCSC
