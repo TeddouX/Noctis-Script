@@ -35,27 +35,27 @@ public:
     auto syntax_errors() const -> const std::vector<Error> &;
 
 private:
-    std::vector<Internal::Object>               objects_;
-    std::vector<Internal::Function>             functions_;
-    std::vector<Internal::GlobalVariable>       global_vars_;
-    std::shared_ptr<ScriptSource>               script_source_;
+    std::vector<Internal::Object>                   objects_;
+    std::vector<Internal::Function>                 functions_;
+    std::vector<Internal::GlobalVariable>           global_vars_;
+    std::shared_ptr<ScriptSource>                   script_source_;
 
-    Bytecode bytecode_;
+    Bytecode                                        temp_bytecode_;
 
-    std::deque<Internal::Scope>                 scope_deque_;
-    Internal::Scope                            *curr_scope_;
+    std::deque<Internal::Scope>                     scope_deque_;
+    Internal::Scope                                *curr_scope_;
 
-    std::vector<Error>                          generation_errors_;
-    std::vector<Error>                          syntax_errors_;
+    std::vector<Error>                              generation_errors_;
+    std::vector<Error>                              syntax_errors_;
 
-    bool                                        is_debug_;
+    bool                                            is_debug_;
 
     // Used for searching symbols
-    Internal::Object                           *curr_object_;
+    Internal::Object                               *curr_object_;
 
-    usize_t                                     label_num_;
+    usize_t                                         label_num_;
 
-    std::unordered_map<GenValueType, std::string>  type_names_;
+    std::unordered_map<GenValueType, std::string>   type_names_;
 
     
     template <typename... _Args>
@@ -167,6 +167,7 @@ private:
     auto handle_constant(const ASTNode &constant, GenValueType expected_ty) -> GenValueType;
     auto handle_function_call(const ASTNode &func_call, GenValueType expected_ty) -> GenValueType;
     auto handle_variable_access(const ASTNode &identifier, GenValueType expected_ty) -> GenValueType;
+    auto handle_arguments(const ASTNode &args, const Internal::Function &func) -> void;
 
     auto is_symbol_defined_elsewhere(const ASTNode &identifer) -> bool;
 
@@ -184,8 +185,8 @@ private:
             Internal::MemberVariable   *member_var;
         };
 
-        dword_t idx = INVALID_INDEX;
-        GenValueType found_type = GenValueType::INVALID;
+        dword_t found_idx = INVALID_INDEX;
+        GenValueType found_gen_vtype = GenValueType::INVALID;
         Location found_location{};
 
         enum class Type {
@@ -197,12 +198,12 @@ private:
             METHOD,
             OBJECT,
             MEMBER_VAR,
-        } ty = Type::INVALID;
+        } type = Type::INVALID;
     };
     auto search_symbol(const std::string &symbol_name, Internal::Object *obj = nullptr) -> SymbolSearchRes;
 
-    inline static auto ERR_INVALID_AST_NODE     {ErrorInfo::create("Internal Generation",   "GCE1",  "ASTNode type '{}' doesn't match the expected '{}'")};
-    inline static auto ERR_INVALID_BUILTIN_TYPE {ErrorInfo::create("Internal Generation",   "GCE1",  "Invalid type '{}' for BuiltinType, maybe it hasn't been implemented yet?")};
+    inline static auto ERR_INVALID_AST_NODE     {ErrorInfo::create("Internal Generation",   "IG1",  "ASTNode type '{}' doesn't match the expected '{}'")};
+    inline static auto ERR_INVALID_BUILTIN_TYPE {ErrorInfo::create("Internal Generation",   "IG2",  "Invalid type '{}' for BuiltinType, maybe it hasn't been implemented yet?")};
 
     inline static auto ERR_NOT_A_TYPE           {ErrorInfo::create("Generation",            "G1",   "'{}' is not a type.")};
     inline static auto ERR_ALREADY_DEFINED      {ErrorInfo::create("Generation",            "G2",   "'{}' was already defined somewhere else.")};
@@ -217,8 +218,13 @@ private:
     inline static auto ERR_MEMBER_NOT_FOUND     {ErrorInfo::create("Generation",            "G11",  "Member '{}' not found in object '{}' (maybe check spelling ?)")};
     inline static auto ERR_VAR_NOT_FOUND        {ErrorInfo::create("Generation",            "G12",  "Variable '{}' not found (maybe check spelling ?)")};
     inline static auto ERR_NOT_A_VAR            {ErrorInfo::create("Generation",            "G13",  "'{}' can't be used as a variable")};
+    inline static auto ERR_FUNC_NOT_FOUND       {ErrorInfo::create("Generation",            "G14",  "Can't find function named '{}' (maybe check spelling ?)")};
+    inline static auto ERR_NOT_A_FUNC           {ErrorInfo::create("Generation",            "G15",  "'{}' can't be used a function")};
+    inline static auto ERR_HAS_VOID_RET_TY      {ErrorInfo::create("Generation",            "G16",  "Function '{}' has a void return type, but is still getting used in an expression")};
+    inline static auto ERR_EXPECTED_NUM_ARGS    {ErrorInfo::create("Generation",            "G17",  "Expected {} arguments, instead got {}")};
 
-    inline static auto INFO_DEFINED_HERE        {ErrorInfo::create("Generation",            "GI1",  "'{}' defined here:")};
+    inline static auto INFO_DEFINED_HERE        {ErrorInfo::create("Generation",            "GI1",  "'{}' defined here:", ErrorLevel::INFO)};
+    inline static auto INFO_FUNC_DEFINED_HERE   {ErrorInfo::create("Generation",            "GI2",  "Function '{}' defined here:", ErrorLevel::INFO)};
 };
 
 } // namespace NCSC

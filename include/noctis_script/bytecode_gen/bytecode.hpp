@@ -81,7 +81,7 @@ public:
     auto bytes()                            const -> const std::vector<byte_t> &;
     auto header()                           const -> const BytecodeHeader &;
     auto location_at(std::size_t byte_idx)  const -> Location;
-
+    
     auto to_string() -> std::string;
 
 private:

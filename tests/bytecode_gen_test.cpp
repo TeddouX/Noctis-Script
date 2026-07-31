@@ -10,10 +10,13 @@ using namespace NCSC;
 TEST(BytecodeGenTest, temp) 
 {
     auto script_src = ScriptSource::from_contents(
-R"(func main() -> void
+R"(func hello(arg1: int, arg2: int) -> void
 {
-    var bla: int = 1;
-    bla++;
+}
+
+func main() -> void
+{
+    hello(12, 12, 13);
 }
 )"
     );

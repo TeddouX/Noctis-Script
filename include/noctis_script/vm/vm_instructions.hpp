@@ -47,7 +47,7 @@ enum class VMInstruction : vm_instruction_size_t
 
     CALLFUNC,       // CALLFUNC 0 ; calls script function at index 0
 
-    NEW,            // NEW 0 ; creates object of type 0
+    NEW,            // NEW 0 ; creates object with n number of fields
 
     LABEL,          // Used by the compiler to resolve jumps
 };

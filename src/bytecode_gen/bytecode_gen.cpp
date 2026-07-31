@@ -60,15 +60,11 @@ auto BytecodeGenerator::compile_script(std::shared_ptr<ScriptSource> src) -> Byt
 auto BytecodeGenerator::compile_script(const ASTNode &root_node, std::shared_ptr<ScriptSource> src) -> Bytecode
 {
     script_source_ = src;
-    bytecode_ = Bytecode{script_source_, is_debug_};
+    temp_bytecode_ = Bytecode{script_source_, is_debug_};
 
     handle_declaration_body(root_node.children()[0]);
 
-    for (auto byte : bytecode_.bytes_)
-        std::print("{:03} ", byte);
-    std::print("\n");
-
-    return bytecode_;
+    return temp_bytecode_;
 }
 
 auto BytecodeGenerator::reset() -> void
@@ -163,16 +159,16 @@ auto BytecodeGenerator::emit(const std::vector<byte_t> &bytes, const ASTNode *no
 
 auto BytecodeGenerator::emit(byte_t byte, const ASTNode *node) -> void
 {
-    auto &bytes = bytecode_.bytes_;
+    auto &bytes = temp_bytecode_.bytes_;
 
     if (is_debug_ && node)
     {
-        bytecode_.location_entries_.push_back(
-            { bytecode_.bytes_.size(), node->location() }
+        temp_bytecode_.location_entries_.push_back(
+            { temp_bytecode_.bytes_.size(), node->location() }
         );
     }
 
-    bytecode_.bytes_.push_back(byte);
+    temp_bytecode_.bytes_.push_back(byte);
 }
 
 auto BytecodeGenerator::emit(word_t word, const ASTNode *node) -> void
@@ -297,10 +293,10 @@ auto BytecodeGenerator::search_symbol(const std::string &symbol_name, Internal::
             {
                 .has_found = true,
                 .member_var = member_var,
-                .idx = static_cast<dword_t>(member_idx),
-                .found_type = member_var->type,
+                .found_idx = static_cast<dword_t>(member_idx),
+                .found_gen_vtype = member_var->type,
                 .found_location = member_var->defined_at,
-                .ty = SymbolSearchRes::Type::MEMBER_VAR,
+                .type = SymbolSearchRes::Type::MEMBER_VAR,
             };
         }
 
@@ -316,10 +312,10 @@ auto BytecodeGenerator::search_symbol(const std::string &symbol_name, Internal::
                 {
                     .has_found = true,
                     .func = func,
-                    .idx = static_cast<dword_t>(off),
-                    .found_type = func->return_type,
+                    .found_idx = static_cast<dword_t>(off),
+                    .found_gen_vtype = func->return_type,
                     .found_location = func->defined_at,
-                    .ty = SymbolSearchRes::Type::METHOD,
+                    .type = SymbolSearchRes::Type::METHOD,
                 };
             }
         }
@@ -337,10 +333,10 @@ auto BytecodeGenerator::search_symbol(const std::string &symbol_name, Internal::
             return SymbolSearchRes {
                 .has_found = true,
                 .var = var,
-                .idx = static_cast<dword_t>(var_idx),
-                .found_type = var->type,
+                .found_idx = static_cast<dword_t>(var_idx),
+                .found_gen_vtype = var->type,
                 .found_location = var->defined_at,
-                .ty = SymbolSearchRes::Type::LOCAL_VAR,
+                .type = SymbolSearchRes::Type::LOCAL_VAR,
             };
         }
     }
@@ -354,10 +350,10 @@ auto BytecodeGenerator::search_symbol(const std::string &symbol_name, Internal::
         {
             .has_found = true,
             .obj = object,
-            .idx = static_cast<dword_t>(object_idx),
-            .found_type = object->type,
+            .found_idx = static_cast<dword_t>(object_idx),
+            .found_gen_vtype = object->type,
             .found_location = object->defined_at,
-            .ty = SymbolSearchRes::Type::OBJECT,
+            .type = SymbolSearchRes::Type::OBJECT,
         };
     }
 
@@ -371,10 +367,10 @@ auto BytecodeGenerator::search_symbol(const std::string &symbol_name, Internal::
             {
                 .has_found = true,
                 .member_var = member_var,
-                .idx = static_cast<dword_t>(member_idx),
-                .found_type = member_var->type,
+                .found_idx = static_cast<dword_t>(member_idx),
+                .found_gen_vtype = member_var->type,
                 .found_location = member_var->defined_at,
-                .ty = SymbolSearchRes::Type::MEMBER_VAR,
+                .type = SymbolSearchRes::Type::MEMBER_VAR,
             };
         }
 
@@ -389,10 +385,10 @@ auto BytecodeGenerator::search_symbol(const std::string &symbol_name, Internal::
                 {
                     .has_found = true,
                     .func = func,
-                    .idx = static_cast<dword_t>(off),
-                    .found_type = func->return_type,
+                    .found_idx = static_cast<dword_t>(off),
+                    .found_gen_vtype = func->return_type,
                     .found_location = func->defined_at,
-                    .ty = SymbolSearchRes::Type::METHOD,
+                    .type = SymbolSearchRes::Type::METHOD,
                 };
             }
         }
@@ -407,10 +403,10 @@ auto BytecodeGenerator::search_symbol(const std::string &symbol_name, Internal::
         {
             .has_found = true,
             .func = func,
-            .idx = static_cast<dword_t>(func_idx),
-            .found_type = func->return_type,
+            .found_idx = static_cast<dword_t>(func_idx),
+            .found_gen_vtype = func->return_type,
             .found_location = func->defined_at,
-            .ty = SymbolSearchRes::Type::FUNCTION,
+            .type = SymbolSearchRes::Type::FUNCTION,
         };
     }
 
@@ -422,10 +418,10 @@ auto BytecodeGenerator::search_symbol(const std::string &symbol_name, Internal::
         {
             .has_found = true,
             .global_var = global_var,
-            .idx = static_cast<dword_t>(global_var_idx),
-            .found_type = global_var->type,
+            .found_idx = static_cast<dword_t>(global_var_idx),
+            .found_gen_vtype = global_var->type,
             .found_location = global_var->defined_at,
-            .ty = SymbolSearchRes::Type::GLOBAL_VAR,
+            .type = SymbolSearchRes::Type::GLOBAL_VAR,
         };
     }
 
@@ -479,8 +475,8 @@ auto BytecodeGenerator::value_type_from_node(const ASTNode &type_node) -> GenVal
     }
 
     SymbolSearchRes sres = search_symbol(tok.value);
-    if (sres.ty == SymbolSearchRes::Type::OBJECT)
-        return sres.found_type;
+    if (sres.type == SymbolSearchRes::Type::OBJECT)
+        return sres.found_gen_vtype;
 
     error(ERR_NOT_A_TYPE, type_node.location(), tok.to_string());
 
@@ -515,6 +511,7 @@ auto BytecodeGenerator::handle_declaration_body(const ASTNode &decl_body) -> voi
         {
             handle_function_declaration(child, true);
         }
+        // Global variable declaration
         else if (child.type() == ASTNodeType::VARIABLE_DECLARATION)
         {
 
@@ -580,7 +577,9 @@ auto BytecodeGenerator::handle_function_declaration(const ASTNode &func_decl, bo
 
         const auto &return_node = func_decl.children()[2];
         GenValueType return_type = value_type_from_node(return_node);
-        function.return_type = return_type; 
+        function.return_type = return_type;
+
+        functions_.push_back(function);
 
         return;
     }
@@ -589,6 +588,19 @@ auto BytecodeGenerator::handle_function_declaration(const ASTNode &func_decl, bo
     enter_new_scope();
     handle_statement_block(func_stmt_block);
     exit_scope();
+
+    SymbolSearchRes sres = search_symbol(function_name);
+    // Sanity check
+    if (not sres.has_found or sres.type != SymbolSearchRes::Type::FUNCTION)
+        return;
+
+    std::println("Function {}", function_name);
+    for (auto byte : temp_bytecode_.bytes_)
+        std::print("{:03} ", byte);
+    std::print("\n");
+
+    sres.func->bytecode = temp_bytecode_;
+    temp_bytecode_ = Bytecode{};
 }
 
 auto BytecodeGenerator::handle_method_declaration(const ASTNode &method_decl, bool quick) -> void
@@ -1113,25 +1125,25 @@ auto BytecodeGenerator::handle_store(const ASTNode &expr) -> void
     auto handle_var_store = [&](const std::string &var_name, bool is_last_child, const ASTNode &node) -> GenValueType
     {
         SymbolSearchRes sres = search_symbol(var_name);
-        if (sres.ty != SymbolSearchRes::Type::GLOBAL_VAR 
-            and sres.ty != SymbolSearchRes::Type::LOCAL_VAR 
-            and sres.ty != SymbolSearchRes::Type::MEMBER_VAR
+        if (sres.type != SymbolSearchRes::Type::GLOBAL_VAR 
+            and sres.type != SymbolSearchRes::Type::LOCAL_VAR 
+            and sres.type != SymbolSearchRes::Type::MEMBER_VAR
         ) {
             error(ERR_VAR_NOT_FOUND, node.location(), var_name);
             return GenValueType::ERROR_TYPE;
         }
         
-        if (sres.ty == SymbolSearchRes::Type::GLOBAL_VAR) 
+        if (sres.type == SymbolSearchRes::Type::GLOBAL_VAR) 
         {
             // Only store into the variable if it's the last child
             emit(is_last_child ? VMInstruction::STOREGLOBAL : VMInstruction::LOADGLOBAL, &node);
         }
-        else if (sres.ty == SymbolSearchRes::Type::LOCAL_VAR) 
+        else if (sres.type == SymbolSearchRes::Type::LOCAL_VAR) 
         {
             emit(is_last_child ? VMInstruction::STORELOCAL : VMInstruction::LOADLOCAL, &node);
         }
         // Accessing a member without the 'this' keyword
-        else if (sres.ty == SymbolSearchRes::Type::MEMBER_VAR) 
+        else if (sres.type == SymbolSearchRes::Type::MEMBER_VAR) 
         {
             emit(VMInstruction::LOADLOCAL, &node);
             emit((dword_t)0, &node); // idx 0 is 'this'
@@ -1139,9 +1151,9 @@ auto BytecodeGenerator::handle_store(const ASTNode &expr) -> void
             emit(is_last_child ? VMInstruction::STOREMEMBER : VMInstruction::LOADMEMBER, &node);
         }
 
-        emit(sres.idx, &node);
+        emit(sres.found_idx, &node);
 
-        return sres.found_type;
+        return sres.found_gen_vtype;
     };
 
     if (expr.type() == ASTNodeType::IDENTIFIER)
@@ -1208,14 +1220,14 @@ auto BytecodeGenerator::handle_store(const ASTNode &expr) -> void
 
                     const std::string &method_name = postop.children()[0].token().value;
                     SymbolSearchRes sres = search_symbol(method_name, obj);
-                    if (sres.ty != SymbolSearchRes::Type::METHOD)
+                    if (sres.type != SymbolSearchRes::Type::METHOD)
                     {
                         error(ERR_METHOD_NOT_FOUND, postop.location(), method_name, obj->name);
                         return;
                     }
 
                     emit(VMInstruction::CALLFUNC, &postop);
-                    emit(sres.idx, &postop);
+                    emit(sres.found_idx, &postop);
                 }
                 // Member access
                 else if (postop.type() == ASTNodeType::IDENTIFIER)
@@ -1230,7 +1242,7 @@ auto BytecodeGenerator::handle_store(const ASTNode &expr) -> void
 
                     const std::string &member_name = postop.children()[0].token().value;
                     SymbolSearchRes sres = search_symbol(member_name, obj);
-                    if (sres.ty != SymbolSearchRes::Type::MEMBER_VAR)
+                    if (sres.type != SymbolSearchRes::Type::MEMBER_VAR)
                     {
                         error(ERR_MEMBER_NOT_FOUND, postop.location(), member_name, obj->name);
                         return;
@@ -1240,9 +1252,9 @@ auto BytecodeGenerator::handle_store(const ASTNode &expr) -> void
                         emit(VMInstruction::STOREMEMBER, &postop);
                     else
                         emit(VMInstruction::LOADMEMBER, &postop);
-                    emit(sres.idx, &postop);
+                    emit(sres.found_idx, &postop);
 
-                    last_type = sres.found_type;
+                    last_type = sres.found_gen_vtype;
                 }
             }
         }
@@ -1365,7 +1377,45 @@ auto BytecodeGenerator::handle_constant(const ASTNode &constant, GenValueType ex
 auto BytecodeGenerator::handle_function_call(const ASTNode &func_call, GenValueType expected_ty) -> GenValueType
 {
     CHECK_NODE_TYPE_RET(func_call, ASTNodeType::FUNCTION_CALL, GenValueType::ERROR_TYPE);
-    return GenValueType::ERROR_TYPE;
+
+    const auto &name_node = func_call.children()[0];
+    const std::string &function_name = name_node.token().value;
+
+    SymbolSearchRes sres = search_symbol(function_name);
+    if (not sres.has_found)
+    {
+        error(ERR_FUNC_NOT_FOUND, name_node.location(), function_name);
+        return GenValueType::ERROR_TYPE;
+    }
+    else if (sres.type != SymbolSearchRes::Type::FUNCTION)
+    {
+        error(ERR_NOT_A_FUNC, name_node.location(), function_name);
+        return GenValueType::ERROR_TYPE;
+    }
+
+    GenValueType func_ret_ty = sres.found_gen_vtype;
+    if (func_ret_ty == GenValueType::VOID and expected_ty != GenValueType::ANY)
+    {
+        error(ERR_HAS_VOID_RET_TY, name_node.location(), function_name);
+        error(INFO_FUNC_DEFINED_HERE, sres.found_location, function_name);
+
+        return GenValueType::ERROR_TYPE;
+    }
+    else if (not can_promote_gen_vtype(func_ret_ty, expected_ty))
+    {
+        error(ERR_CANT_PROMOTE_TY, name_node.location(), type_name(func_ret_ty), type_name(expected_ty));
+        error(INFO_FUNC_DEFINED_HERE, sres.found_location, function_name);
+
+        return GenValueType::ERROR_TYPE;
+    }
+
+    const auto &args_node = func_call.children()[1];
+    handle_arguments(args_node, *sres.func);
+
+    emit(VMInstruction::CALLFUNC, &func_call);
+    emit(sres.found_idx, &func_call);
+
+    return func_ret_ty;
 }
 
 auto BytecodeGenerator::handle_variable_access(const ASTNode &identifier, GenValueType expected_ty) -> GenValueType
@@ -1381,9 +1431,9 @@ auto BytecodeGenerator::handle_variable_access(const ASTNode &identifier, GenVal
         return GenValueType::ERROR_TYPE;
     }
 
-    if (sres.ty != SymbolSearchRes::Type::LOCAL_VAR 
-     && sres.ty != SymbolSearchRes::Type::GLOBAL_VAR 
-     && sres.ty != SymbolSearchRes::Type::MEMBER_VAR) 
+    if (sres.type != SymbolSearchRes::Type::LOCAL_VAR 
+     && sres.type != SymbolSearchRes::Type::GLOBAL_VAR 
+     && sres.type != SymbolSearchRes::Type::MEMBER_VAR) 
     {
         error(ERR_NOT_A_VAR, identifier.location(), var_name);
         return GenValueType::ERROR_TYPE;
@@ -1400,18 +1450,18 @@ auto BytecodeGenerator::handle_variable_access(const ASTNode &identifier, GenVal
         return GenValueType::ERROR_TYPE;
     }
 
-    if (sres.ty == SymbolSearchRes::Type::LOCAL_VAR) 
+    if (sres.type == SymbolSearchRes::Type::LOCAL_VAR) 
     {
         // Variables that are not primitives don't need to be loaded as a reference
         // because objects technically are references    
         emit(VMInstruction::LOADLOCAL, &identifier);
     }
-    else if (sres.ty == SymbolSearchRes::Type::GLOBAL_VAR) 
+    else if (sres.type == SymbolSearchRes::Type::GLOBAL_VAR) 
     {
         emit(VMInstruction::LOADGLOBAL, &identifier);
     } 
     // Member access without the 'this' keyword
-    else if (sres.ty == SymbolSearchRes::Type::MEMBER_VAR) 
+    else if (sres.type == SymbolSearchRes::Type::MEMBER_VAR) 
     {
         emit(VMInstruction::LOADLOCAL, &identifier);
         emit((dword_t)0, &identifier); // 'this'
@@ -1419,10 +1469,32 @@ auto BytecodeGenerator::handle_variable_access(const ASTNode &identifier, GenVal
         emit(VMInstruction::LOADMEMBER, &identifier);
     }
 
-    dword_t idx = sres.idx;
+    dword_t idx = sres.found_idx;
     emit(idx, &identifier);
 
     return var_type;
+}
+
+auto BytecodeGenerator::handle_arguments(const ASTNode &args, const Internal::Function &func) -> void
+{
+    CHECK_NODE_TYPE(args, ASTNodeType::ARGUMENT_LIST);
+
+    std::size_t num_args = args.children().size();
+    std::size_t num_params = func.params.size();
+
+    if (num_params != num_args)
+    {
+        error(ERR_EXPECTED_NUM_ARGS, args.location(), num_params, num_args);
+        error(INFO_FUNC_DEFINED_HERE, func.defined_at, func.name);
+
+        return;
+    }
+
+    for (std::size_t i = 0; i < num_args; i++)
+    {
+        const auto &child = args.children()[i];
+        handle_expression(child, func.params[i].type, false);
+    }
 }
 
 } // namespace NCSC
