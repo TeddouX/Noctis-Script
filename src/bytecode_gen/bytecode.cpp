@@ -48,9 +48,7 @@ const std::unordered_map<VMInstruction, std::pair<const char *, size_t>> INSTR_I
     { VMInstruction::RET,             {"RET",            0} },
     { VMInstruction::RETVOID,         {"RETVOID",        0} },
 
-    { VMInstruction::CALLSCRFUN,      {"CALLSCRFUN",     sizeof(dword_t)} },
-
-    { VMInstruction::CALLMETHOD,      {"CALLMETHOD",     sizeof(qword_t)} /* DWord -> Object idx + DWord -> Method idx */ },
+    { VMInstruction::CALLFUNC,        {"CALLFUNC",       sizeof(dword_t)} },
 
     { VMInstruction::NEW,             {"NEW",            sizeof(dword_t)} },
 

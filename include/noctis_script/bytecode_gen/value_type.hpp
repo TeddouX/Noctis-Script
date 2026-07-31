@@ -15,6 +15,7 @@ constexpr std::size_t VALUE_TYPE_SIZE_BITS = sizeof(value_type_size_t) * 8;
 enum class GenValueType : value_type_size_t 
 {
     INVALID,
+    ERROR_TYPE,
     VOID,
     NULL_OBJ,
     INT8,
@@ -36,35 +37,39 @@ enum class GenValueType : value_type_size_t
     OBJ_MASK    = (value_type_size_t)1 << VALUE_TYPE_SIZE_BITS - 1,
 };
 
-auto get_vtype_rank(GenValueType vtype) -> bool;
-auto vtype_has_mask(GenValueType in, GenValueType mask) -> bool;
-auto vtype_clear_mask(GenValueType in, GenValueType mask) -> GenValueType;
-auto vtype_set_mask(GenValueType in, GenValueType mask) -> GenValueType;
-auto vtype_remove_const_ref(GenValueType in) -> GenValueType;
+auto gen_vtype_get_rank(GenValueType vtype) -> bool;
+auto gen_vtype_has_mask(GenValueType in, GenValueType mask) -> bool;
+auto gen_vtype_clear_mask(GenValueType in, GenValueType mask) -> GenValueType;
+auto gen_vtype_set_mask(GenValueType in, GenValueType mask) -> GenValueType;
+auto gen_vtype_remove_const_ref(GenValueType in) -> GenValueType;
 
-auto is_vtype_int(GenValueType type) -> bool;
-auto is_vtype_unsigned_int(GenValueType type) -> bool;
-auto is_vtype_float(GenValueType type) -> bool;
-auto is_vtype_numeric(GenValueType type) -> bool;
+auto gen_vtype_is_int(GenValueType type) -> bool;
+auto gen_vtype_is_unsigned_int(GenValueType type) -> bool;
+auto gen_vtype_is_float(GenValueType type) -> bool;
+auto gen_vtype_is_numeric(GenValueType type) -> bool;
 
-auto make_object_vtype(dword_t objIdx) -> GenValueType;
+auto gen_vtype_is_const(GenValueType type) -> bool;
+auto gen_vtype_is_object(GenValueType type) -> bool;
+
+auto make_object_gen_vtype(dword_t objIdx) -> GenValueType;
 
 const std::unordered_map<GenValueType, std::string> BUILTIN_VALUE_TYPES_NAMES = 
 {
-    { GenValueType::INVALID,   "invalid"   },
-    { GenValueType::VOID,      "void"      },
-    { GenValueType::INT8,      "int8"      },
-    { GenValueType::INT16,     "int16"     },
-    { GenValueType::INT32,     "int32"     },
-    { GenValueType::INT64,     "int64"     },
-    { GenValueType::UINT8,     "uint8"     },
-    { GenValueType::UINT16,    "uint16"    },
-    { GenValueType::UINT32,    "uint32"    },
-    { GenValueType::UINT64,    "uint64"    },
-    { GenValueType::FLOAT32,   "float32"   },
-    { GenValueType::FLOAT64,   "float64"   },
-    { GenValueType::BOOL,      "bool"      },
-    { GenValueType::NUMERIC,   "numeric"   },
+    { GenValueType::INVALID,    "invalid"   },
+    { GenValueType::ERROR_TYPE, "error_type"},
+    { GenValueType::VOID,       "void"      },
+    { GenValueType::INT8,       "int8"      },
+    { GenValueType::INT16,      "int16"     },
+    { GenValueType::INT32,      "int32"     },
+    { GenValueType::INT64,      "int64"     },
+    { GenValueType::UINT8,      "uint8"     },
+    { GenValueType::UINT16,     "uint16"    },
+    { GenValueType::UINT32,     "uint32"    },
+    { GenValueType::UINT64,     "uint64"    },
+    { GenValueType::FLOAT32,    "float32"   },
+    { GenValueType::FLOAT64,    "float64"   },
+    { GenValueType::BOOL,       "bool"      },
+    { GenValueType::NUMERIC,    "numeric"   },
 };
 
 } // namespace NCSC

@@ -20,7 +20,7 @@ enum class VMInstruction : vm_instruction_size_t
     LOADGLOBAL,     // LOADLOCAL 1 ; Loads a global variable a onto the stack
     STOREGLOBAL,    // STOREGLOBAL 1 ; Pops value and sets global 1 to it
 
-    LOADMEMBER,     // LOADMEMBER 1 ; Loads a member variable from the last object pushed on the stack, if none exists, try loading it from the object register
+    LOADMEMBER,     // LOADMEMBER 1 ; Loads a member variable from the last object pushed on the stack
     STOREMEMBER,    // STOREMEMBER 1 ; Pops value and sets member 1 to it
 
     ADD,            // ADD ; pop first two values on the stack, adds them and pushes the result on the stack
@@ -45,8 +45,7 @@ enum class VMInstruction : vm_instruction_size_t
     RET,            // RET ; returns to the previous callframe on the callstack, pops temporary value and pushes it to caller
     RETVOID,        // RETVOID ; returns to the previous callframe on the callstack and removes locals and temporaries
 
-    CALLSCRFUN,     // CALLSCRFUN 0 ; calls script function at index 0
-    CALLMETHOD,     // CALLMETHOD 0 ; calls method at index 0
+    CALLFUNC,       // CALLFUNC 0 ; calls script function at index 0
 
     NEW,            // NEW 0 ; creates object of type 0
 

@@ -79,8 +79,6 @@ auto Error::get_error_message_with_source() const -> std::string
             caret_line.push_back('-');
     }
 
-    caret_line.push_back('\n');
-
     lines += caret_line;
 
     return lines;

@@ -19,7 +19,7 @@ namespace NCSC
 //      - 00000001 <class std::math::vec3>\0
 //      - 00000000 00000010
 
-auto get_vtype_rank(GenValueType vtype) -> bool
+auto gen_vtype_get_rank(GenValueType vtype) -> bool
 {
     switch (vtype) 
     {
@@ -38,40 +38,40 @@ auto get_vtype_rank(GenValueType vtype) -> bool
     }
 }
 
-auto vtype_has_mask(GenValueType in, GenValueType mask) -> bool 
+auto gen_vtype_has_mask(GenValueType in, GenValueType mask) -> bool 
 {
     return (value_type_size_t)in & (value_type_size_t)mask;
 }
 
-auto vtype_clear_mask(GenValueType in, GenValueType mask) -> GenValueType
+auto gen_vtype_clear_mask(GenValueType in, GenValueType mask) -> GenValueType
 {
     return static_cast<GenValueType>((value_type_size_t)in & ~(value_type_size_t)mask);
 }
 
-auto vtype_set_mask(GenValueType in, GenValueType mask) -> GenValueType
+auto gen_vtype_set_mask(GenValueType in, GenValueType mask) -> GenValueType
 {
     return static_cast<GenValueType>((value_type_size_t)in | (value_type_size_t)mask);
 }
 
-auto make_object_vtype(dword_t objIdx) -> GenValueType
+auto make_object_gen_vtype(dword_t objIdx) -> GenValueType
 {
-    return vtype_set_mask(static_cast<GenValueType>(objIdx), GenValueType::OBJ_MASK);
+    return gen_vtype_set_mask(static_cast<GenValueType>(objIdx), GenValueType::OBJ_MASK);
 }
 
-auto vtype_remove_const_ref(GenValueType in) -> GenValueType
+auto gen_vtype_remove_const_ref(GenValueType in) -> GenValueType
 {
-    return vtype_clear_mask(
-        vtype_clear_mask(in, GenValueType::REF_MASK), 
+    return gen_vtype_clear_mask(
+        gen_vtype_clear_mask(in, GenValueType::REF_MASK), 
         GenValueType::CONST_MASK
     );
 }
 
-bool is_vtype_float(GenValueType ty) 
+bool gen_vtype_is_float(GenValueType ty) 
 {
     return ty == GenValueType::FLOAT32 || ty == GenValueType::FLOAT64;
 }
 
-bool is_vtype_int(GenValueType ty) 
+bool gen_vtype_is_int(GenValueType ty) 
 {
     return ty == GenValueType::INT8   ||
            ty == GenValueType::INT16  ||
@@ -83,7 +83,7 @@ bool is_vtype_int(GenValueType ty)
            ty == GenValueType::UINT64;
 }
 
-auto is_vtype_unsigned_int(GenValueType type) -> bool
+auto gen_vtype_is_unsigned_int(GenValueType type) -> bool
 {
     return type == GenValueType::UINT8  ||
            type == GenValueType::UINT16 ||
@@ -91,9 +91,19 @@ auto is_vtype_unsigned_int(GenValueType type) -> bool
            type == GenValueType::UINT64;
 }
 
-bool is_vtype_numeric(GenValueType ty) 
+bool gen_vtype_is_numeric(GenValueType ty) 
 {
-    return is_vtype_int(ty) || is_vtype_float(ty);
+    return gen_vtype_is_int(ty) || gen_vtype_is_float(ty);
+}
+
+auto gen_vtype_is_const(GenValueType type) -> bool
+{
+    return gen_vtype_has_mask(type, GenValueType::CONST_MASK);
+}
+
+auto gen_vtype_is_object(GenValueType type) -> bool
+{
+    return gen_vtype_has_mask(type, GenValueType::OBJ_MASK);
 }
 
 } // namespace NCSC

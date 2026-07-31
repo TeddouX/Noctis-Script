@@ -117,19 +117,19 @@ private:
     auto parse_type()                                       -> ASTNode;
     auto parse_type(const Token &t)                         -> ASTNode;
 
-    inline static std::shared_ptr<ErrorInfo> ERR_EXPECTED_TOKEN          {ErrorInfo::create("Syntax Error", "S1",  "Expected '{}'")};
-    inline static std::shared_ptr<ErrorInfo> ERR_EXPECTED_TOKEN_OR_TOKEN {ErrorInfo::create("Syntax Error", "S2",  "Expected '{}' or '{}'")};
-    inline static std::shared_ptr<ErrorInfo> ERR_UNEXPECTED_EOF          {ErrorInfo::create("Syntax Error", "S3",  "Unexpected end of file")};
-    inline static std::shared_ptr<ErrorInfo> ERR_EXPECTED_DECLARATION    {ErrorInfo::create("Syntax Error", "S4",  "Expected a declaration")};
-    inline static std::shared_ptr<ErrorInfo> ERR_EXPECTED_SEMICOLON      {ErrorInfo::create("Syntax Error", "S5",  "Expected a semicolon to end the line")};
+    inline static std::shared_ptr<ErrorInfo> ERR_EXPECTED_TOKEN          {ErrorInfo::create("Syntax", "S1",  "Expected '{}'")};
+    inline static std::shared_ptr<ErrorInfo> ERR_EXPECTED_TOKEN_OR_TOKEN {ErrorInfo::create("Syntax", "S2",  "Expected '{}' or '{}'")};
+    inline static std::shared_ptr<ErrorInfo> ERR_UNEXPECTED_EOF          {ErrorInfo::create("Syntax", "S3",  "Unexpected end of file")};
+    inline static std::shared_ptr<ErrorInfo> ERR_EXPECTED_DECLARATION    {ErrorInfo::create("Syntax", "S4",  "Expected a declaration")};
+    inline static std::shared_ptr<ErrorInfo> ERR_EXPECTED_SEMICOLON      {ErrorInfo::create("Syntax", "S5",  "Expected a semicolon to end the line")};
     // Unreachable
-    inline static std::shared_ptr<ErrorInfo> ERR_EXPECTED_ASSIGN_OP      {ErrorInfo::create("Syntax Error", "S6",  "Expected and assignment operator (=, +=, -=, etc...)")};
-    inline static std::shared_ptr<ErrorInfo> ERR_EXPECTED_EXPR_VALUE     {ErrorInfo::create("Syntax Error", "S7",  "Expected a value")};
-    inline static std::shared_ptr<ErrorInfo> ERR_EXPECTED_IDENTIFIER     {ErrorInfo::create("Syntax Error", "S8",  "Expected an identifier")};
+    inline static std::shared_ptr<ErrorInfo> ERR_EXPECTED_ASSIGN_OP      {ErrorInfo::create("Syntax", "S6",  "Expected and assignment operator (=, +=, -=, etc...)")};
+    inline static std::shared_ptr<ErrorInfo> ERR_EXPECTED_EXPR_VALUE     {ErrorInfo::create("Syntax", "S7",  "Expected a value")};
+    inline static std::shared_ptr<ErrorInfo> ERR_EXPECTED_IDENTIFIER     {ErrorInfo::create("Syntax", "S8",  "Expected an identifier")};
     // Unreachable
-    inline static std::shared_ptr<ErrorInfo> ERR_EXPECTED_CONSTANT_VAL   {ErrorInfo::create("Syntax Error", "S9",  "Expected a constant value")};
-    inline static std::shared_ptr<ErrorInfo> ERR_EXPECTED_DATA_TYPE      {ErrorInfo::create("Syntax Error", "S10", "Expected a data type")};
-    inline static std::shared_ptr<ErrorInfo> ERR_UNEXPECTED_TOKEN        {ErrorInfo::create("Syntax Error", "S11", "Unexpected token")};
+    inline static std::shared_ptr<ErrorInfo> ERR_EXPECTED_CONSTANT_VAL   {ErrorInfo::create("Syntax", "S9",  "Expected a constant value")};
+    inline static std::shared_ptr<ErrorInfo> ERR_EXPECTED_DATA_TYPE      {ErrorInfo::create("Syntax", "S10", "Expected a data type")};
+    inline static std::shared_ptr<ErrorInfo> ERR_UNEXPECTED_TOKEN        {ErrorInfo::create("Syntax", "S11", "Unexpected token")};
 };
 
 } // namespace NCSC

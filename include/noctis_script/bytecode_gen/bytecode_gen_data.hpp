@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <string>
+#include <unordered_map>
 
 #include "value_type.hpp"
 #include "bytecode.hpp"
@@ -17,9 +18,9 @@ enum class AccessModifier
 
 struct Variable
 {
-    std::string name;
-    GenValueType   type;
-    Location    defined_at;
+    std::string     name;
+    GenValueType    type;
+    Location        defined_at;
 };
 
 struct GlobalVariable : public Variable
@@ -31,8 +32,11 @@ struct Function
 {
     std::string             name;
     std::vector<Variable>   params;
-    GenValueType               return_type;
+    GenValueType            return_type;
     Location                defined_at;
+
+    bool is_method = false;
+    AccessModifier access_mod;
 
     Bytecode                bytecode;
 };
@@ -42,18 +46,13 @@ struct MemberVariable : public Variable
     AccessModifier access_mod;
 };
 
-struct Method : public Function
-{
-    AccessModifier access_mod;  
-};
-
 struct Object
 {
-    std::string                 name;
-    GenValueType                   type;
-    std::vector<MemberVariable> member_variables;
-    std::vector<Method>         methods;
-    Location                    defined_at;
+    std::string                                     name;
+    GenValueType                                    type;
+    std::vector<MemberVariable>                     member_variables;
+    std::unordered_map<std::string, std::size_t>    method_offsets;
+    Location                                        defined_at;
 };
 
 struct Scope

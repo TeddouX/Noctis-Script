@@ -26,11 +26,11 @@ public:
 
     auto reset() -> void;
 
-    auto has_compile_errors() const -> bool;
+    auto has_generation_errors() const -> bool;
     // Only useful if you haven't parsed the script yourself
     auto has_syntax_errors() const -> bool;
     
-    auto compile_errors() const -> const std::vector<Error> &;
+    auto generation_errors() const -> const std::vector<Error> &;
     // Only useful if you haven't parsed the script yourself
     auto syntax_errors() const -> const std::vector<Error> &;
 
@@ -45,7 +45,7 @@ private:
     std::deque<Internal::Scope>                 scope_deque_;
     Internal::Scope                            *curr_scope_;
 
-    std::vector<Error>                          compile_errors_;
+    std::vector<Error>                          generation_errors_;
     std::vector<Error>                          syntax_errors_;
 
     bool                                        is_debug_;
@@ -64,7 +64,7 @@ private:
         std::string err_message = err_info->get_formatted(std::forward<_Args>(args)...);
         Error err{err_info, err_message, script_source_, location};
 
-        compile_errors_.push_back(err);
+        generation_errors_.push_back(err);
     }
 
     
@@ -135,8 +135,11 @@ private:
     auto emit(qword_t qword,                        const ASTNode *node) -> void;
     auto emit(VMInstruction instr,                  const ASTNode *node) -> void;
 
-    auto can_promote_vtype(const GenValueType &from, const GenValueType &to) -> bool;
-    auto promote_vtype(GenValueType from, GenValueType to) -> GenValueType;
+    auto can_promote_gen_vtype(const GenValueType &from, const GenValueType &to) -> bool;
+    auto promote_gen_vtype(GenValueType from, GenValueType to) -> GenValueType;
+    // The pointer that is returned isn't meant to be stored
+    // Returns nullptr if the ty isn't a valid object 
+    auto gen_vtype_as_object(GenValueType ty) -> Internal::Object *;
 
     auto handle_declaration_body(const ASTNode &decl_body) -> void;
     auto handle_function_declaration(const ASTNode &func_decl, bool quick) -> void;
@@ -146,12 +149,21 @@ private:
     auto handle_return_statement(const ASTNode &return_stmt) -> void;
     auto handle_variable_declaration(const ASTNode &var_decl) -> void;
     auto handle_assignment(const ASTNode &assigment) -> void;
-    auto handle_expression(const ASTNode &expr, const GenValueType &expected_ty) -> GenValueType;
+    auto handle_expression(const ASTNode &expr, const GenValueType &expected_ty, bool should_be_assignable) -> GenValueType;
     auto recursively_handle_expression_child(const ASTNode &expr_child, const GenValueType &expected_ty) -> GenValueType; 
-    auto handle_expression_term(const ASTNode &expr_term, const GenValueType &expected_ty, bool should_be_assignable) -> GenValueType;
+    auto handle_expression_term(
+        const ASTNode &expr_term, 
+        const GenValueType &expected_ty, 
+        bool should_be_assignable, 
+        bool should_leave_val_on_stack
+    ) -> GenValueType;
     auto handle_binop(const ASTNode &binop, const GenValueType &expected_ty) -> GenValueType;
-    auto handle_expression_value(const ASTNode &expr_value, const GenValueType &expected_ty, bool should_be_assignable) -> GenValueType;
-    auto handle_store(const ASTNode &expr_term) -> void;
+    auto handle_expression_value(
+        const ASTNode &expr_value, 
+        const GenValueType &expected_ty, 
+        bool should_be_assignable
+    ) -> GenValueType;
+    auto handle_store(const ASTNode &expr) -> void;
     auto handle_constant(const ASTNode &constant, GenValueType expected_ty) -> GenValueType;
     auto handle_function_call(const ASTNode &func_call, GenValueType expected_ty) -> GenValueType;
     auto handle_variable_access(const ASTNode &identifier, GenValueType expected_ty) -> GenValueType;
@@ -170,7 +182,6 @@ private:
             Internal::Variable         *var;
             Internal::GlobalVariable   *global_var;
             Internal::MemberVariable   *member_var;
-            Internal::Method           *method;
         };
 
         dword_t idx = INVALID_INDEX;
@@ -190,18 +201,24 @@ private:
     };
     auto search_symbol(const std::string &symbol_name, Internal::Object *obj = nullptr) -> SymbolSearchRes;
 
-    inline static auto ERR_INVALID_AST_NODE     {ErrorInfo::create("Internal Compiler Error",   "IC1",  "ASTNode type '{}' doesn't match the expected '{}'")};
-    inline static auto ERR_INVALID_BUILTIN_TYPE {ErrorInfo::create("Internal Compiler Error",   "IC1",  "Invalid type '{}' for BuiltinType, maybe it hasn't been implemented yet?")};
+    inline static auto ERR_INVALID_AST_NODE     {ErrorInfo::create("Internal Generation",   "GCE1",  "ASTNode type '{}' doesn't match the expected '{}'")};
+    inline static auto ERR_INVALID_BUILTIN_TYPE {ErrorInfo::create("Internal Generation",   "GCE1",  "Invalid type '{}' for BuiltinType, maybe it hasn't been implemented yet?")};
 
-    inline static auto ERR_NOT_A_TYPE           {ErrorInfo::create("Compiler Error",            "C1",   "'{}' is not a type.")};
-    inline static auto ERR_ALREADY_DEFINED      {ErrorInfo::create("Compiler Error",            "C2",   "'{}' was already defined somewhere else.")};
-    inline static auto ERR_EXPECTED_TY          {ErrorInfo::create("Compiler Error",            "C3",   "Expected type '{}', instead got '{}'")};
-    inline static auto ERR_DIV_RETURNS_F64      {ErrorInfo::create("Compiler Error",            "C4",   "Division always returns a float64 (double), which can't be converted to '{}'")};
-    inline static auto ERR_EXPECTED_NUMERIC_TY  {ErrorInfo::create("Compiler Error",            "C5",   "Expected a numeric type (int or float), instead got '{}'")};
-    inline static auto ERR_NOT_ASSIGNABLE       {ErrorInfo::create("Compiler Error",            "C6",   "Expected an lvalue (assignable) term")};
-    inline static auto ERR_CANT_PROMOTE_TY      {ErrorInfo::create("Compiler Error",            "C7",   "Can't convert '{}' to '{}'")};
+    inline static auto ERR_NOT_A_TYPE           {ErrorInfo::create("Generation",            "G1",   "'{}' is not a type.")};
+    inline static auto ERR_ALREADY_DEFINED      {ErrorInfo::create("Generation",            "G2",   "'{}' was already defined somewhere else.")};
+    inline static auto ERR_EXPECTED_TY          {ErrorInfo::create("Generation",            "G3",   "Expected type '{}', instead got '{}'")};
+    inline static auto ERR_DIV_RETURNS_F64      {ErrorInfo::create("Generation",            "G4",   "Division always returns a float64 (double), which can't be converted to '{}'")};
+    inline static auto ERR_EXPECTED_NUMERIC_TY  {ErrorInfo::create("Generation",            "G5",   "Expected a numeric type (int or float), instead got '{}'")};
+    inline static auto ERR_NOT_ASSIGNABLE       {ErrorInfo::create("Generation",            "G6",   "Expected an lvalue (assignable) term")};
+    inline static auto ERR_CANT_PROMOTE_TY      {ErrorInfo::create("Generation",            "G7",   "Can't convert '{}' to '{}'")};
+    // inline static auto ERR_SYMBOL_NOT_FOUND     {ErrorInfo::create("Generation",            "G8",   "Symbol '{}' was not found (maybe check spelling ?)")};
+    inline static auto ERR_EXPECTED_OBJECT      {ErrorInfo::create("Generation",            "G9",   "Expected an object, instead got '{}'")};
+    inline static auto ERR_METHOD_NOT_FOUND     {ErrorInfo::create("Generation",            "G10",  "Method '{}' not found in object '{}' (maybe check spelling ?)")};
+    inline static auto ERR_MEMBER_NOT_FOUND     {ErrorInfo::create("Generation",            "G11",  "Member '{}' not found in object '{}' (maybe check spelling ?)")};
+    inline static auto ERR_VAR_NOT_FOUND        {ErrorInfo::create("Generation",            "G12",  "Variable '{}' not found (maybe check spelling ?)")};
+    inline static auto ERR_NOT_A_VAR            {ErrorInfo::create("Generation",            "G13",  "'{}' can't be used as a variable")};
 
-    inline static auto INFO_DEFINED_HERE        {ErrorInfo::create("Compiler Info",             "CI1",  "'{}' defined here:")};
+    inline static auto INFO_DEFINED_HERE        {ErrorInfo::create("Generation",            "GI1",  "'{}' defined here:")};
 };
 
 } // namespace NCSC
