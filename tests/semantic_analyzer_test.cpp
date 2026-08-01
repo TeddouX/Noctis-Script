@@ -10,7 +10,17 @@ namespace NCSC
     
 using namespace SemanticAnalysis;
 
-TEST(SemanticAnalyzerTest, FirstPassFunctionCorrectData) 
+TEST(SemanticAnalyzerTest, FirstPassCorrectlyImportModules)
+{
+    auto module_context = ModuleContext::create();
+    module_context->add_module("@module testing", "testing.ncsc");
+
+    auto script_src = ScriptSource::from_contents(
+R"(func main(arg1: int, arg2: float) -> bool {}
+)");
+}
+
+TEST(SemanticAnalyzerTest, SecondPassFunctionCorrectData) 
 {
     auto script_src = ScriptSource::from_contents(
 R"(func main(arg1: int, arg2: float) -> bool {}
@@ -41,7 +51,7 @@ R"(func main(arg1: int, arg2: float) -> bool {}
     ASSERT_EQ(func_decl->func_return_type, ValueType::BOOL);
 }
 
-TEST(SemanticAnalyzerTest, FirstPassGlobalVarCorrectData)
+TEST(SemanticAnalyzerTest, SecondPassGlobalVarCorrectData)
 {
     auto script_src = ScriptSource::from_contents(
 R"(var bla: uint16 = 10;
@@ -62,7 +72,7 @@ R"(var bla: uint16 = 10;
     ASSERT_EQ(var_decl->var_type, ValueType::UINT16);
 }
 
-TEST(SemanticAnalyzerTest, FirstPassObjectCorrectData)
+TEST(SemanticAnalyzerTest, SecondPassObjectCorrectData)
 {
     auto script_src = ScriptSource::from_contents(
 R"(obj Vec3 {}
@@ -83,7 +93,7 @@ R"(obj Vec3 {}
     ASSERT_EQ(obj_decl->obj_type, vtype_set_mask((ValueType)0, ValueType::OBJ_MASK));
 }
 
-TEST(SemanticAnalyzerTest, FirstPassCorrectIndices)
+TEST(SemanticAnalyzerTest, SecondPassCorrectIndices)
 {
     auto script_src = ScriptSource::from_contents(
 R"(

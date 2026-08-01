@@ -86,6 +86,7 @@ enum class TokenType
     OBJ_KWD,            // obj
     MODULE_KWD,         // module
     IMPORT_KWD,         // import
+    EXPORT_KWD,         // export
 
     INT8_KWD,           // int8
     INT16_KWD,          // int16
@@ -228,8 +229,9 @@ const std::unordered_map<TokenType, std::string> TOKENS_TO_STRING = {
     { TokenType::OR_KWD,                "or"        },
     { TokenType::NOT_KWD,               "not"       },
     { TokenType::OBJ_KWD,               "obj"       },
-    { TokenType::MODULE_KWD,                "module"    },
-    { TokenType::IMPORT_KWD,                "import"    },
+    { TokenType::MODULE_KWD,            "module"    },
+    { TokenType::IMPORT_KWD,            "import"    },
+    { TokenType::EXPORT_KWD,            "export"    },
 
     { TokenType::INT8_KWD,              "int8"      },
     { TokenType::INT16_KWD,             "int16"     },
@@ -263,8 +265,9 @@ const std::unordered_map<std::string, TokenType> RESERVED_TOKENS = {
     { "or",         TokenType::OR_KWD       },  
     { "not",        TokenType::NOT_KWD      }, 
     { "obj",        TokenType::OBJ_KWD      },
-    { "module",     TokenType::MODULE_KWD,      },
-    { "import",     TokenType::IMPORT_KWD,      },
+    { "module",     TokenType::MODULE_KWD,  },
+    { "import",     TokenType::IMPORT_KWD,  },
+    { "export",     TokenType::EXPORT_KWD,  },
 
     { "int8",       TokenType::INT8_KWD     },
     { "int16",      TokenType::INT16_KWD    },

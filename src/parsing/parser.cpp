@@ -60,6 +60,7 @@ auto Parser::parse() -> TypeErased<ASTNode>
     }
 
     node->add_child(parse_declaration_body(false));
+    node->add_child(parse_export_declaration());
 
     std::println(std::cerr, "{}", node->ast_string());
     for (const auto &err: syntax_errors_)
@@ -107,6 +108,12 @@ auto Parser::peek(std::size_t amount) -> const Token &
     }
 
     return tokens_[curr_token_idx_ + amount];
+}
+
+auto Parser::is_at_tokens_end() -> bool
+{
+    return curr_token_idx_ + 1 >= tokens_.size() or 
+        tokens_[curr_token_idx_ + 1].type == TokenType::END_OF_FILE;
 }
 
 auto Parser::is_function_call() -> bool 
@@ -991,6 +998,44 @@ auto Parser::parse_scoped_identifier() -> TypeErased<ScopedIdentifierASTNode>
 
     node->path.base_name = node->path.scope_path.back();
     node->path.scope_path.pop_back();
+
+    return node;
+}
+
+auto Parser::parse_export_declaration() -> TypeErased<ASTNode>
+{
+    auto node = TypeErased<ASTNode>::make(ASTNodeType::EXPORT_DECL);
+
+    if (is_at_tokens_end())
+        return node;
+
+    const auto &t = SAFE_PEEK();
+    if (t.type != TokenType::EXPORT_KWD)
+        return node;
+
+    consume();
+
+    const auto &t1 = SAFE_CONSUME();
+    if (t1.type != TokenType::BRACE_OPEN)
+    {
+        create_syntax_error(ERR_EXPECTED_TOKEN, t1, '{');
+        return node;
+    }
+
+    for (;;)
+    {
+        const auto &t2 = SAFE_PEEK();
+        if (t2.type == TokenType::BRACE_CLOSE)
+        {
+            node->update_location(t2);
+            break;
+        }
+
+        if (t2.type == TokenType::COLON)
+            consume();
+
+        node->add_child(parse_type());
+    }
 
     return node;
 }

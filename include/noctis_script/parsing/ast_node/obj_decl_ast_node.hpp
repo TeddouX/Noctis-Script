@@ -15,11 +15,11 @@ public:
         : ASTNode{type}
     {}
 
-    SemanticAnalysis::ValueType                     obj_type;
-    std::string                                     obj_name;
-    std::vector<TypeErased<ObjDeclASTNode>>    obj_objects;
-    std::vector<TypeErased<FuncDeclASTNode>>   obj_methods;
-    std::vector<TypeErased<VarDeclASTNode>>    obj_members;
+    SemanticAnalysis::ValueType                 obj_type;
+    std::string                                 obj_name;
+    std::vector<TypeErased<ObjDeclASTNode>>     obj_objects;
+    std::vector<TypeErased<FuncDeclASTNode>>    obj_methods;
+    std::vector<TypeErased<VarDeclASTNode>>     obj_members;
 };
 
 } // namespace NCSC::Parsing

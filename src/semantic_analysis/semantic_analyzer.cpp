@@ -1,6 +1,7 @@
 #include "semantic_analysis/semantic_analyzer.hpp"
 
 #include "parsing/ast_node/all_ast_nodes.hpp"
+#include "semantic_analyzer.hpp"
 
 
 namespace NCSC
@@ -8,26 +9,95 @@ namespace NCSC
     
 using namespace SemanticAnalysis;
 
-SemanticAnalyzer::SemanticAnalyzer(TypeErased<ASTNode> root, PtrRef<ScriptSource> script_source)
+SemanticAnalyzer::SemanticAnalyzer(
+    TypeErased<ASTNode> root, 
+    PtrRef<ScriptSource> script_source, 
+    PtrRef<ModuleContext> module_ctxt)   
     : root_node_{root}
     , script_source_{script_source}
 {
-    type_table_.insert(BULTIN_VTYPE_NAMES.begin(), BULTIN_VTYPE_NAMES.end());;
+    module_data_->type_table.insert(BULTIN_VTYPE_NAMES.begin(), BULTIN_VTYPE_NAMES.end());;
 }
 
-auto SemanticAnalyzer::do_analysis() -> TypeErased<ASTNode>
+auto SemanticAnalyzer::do_analysis() -> PtrRef<ModuleData>
 {
+    module_data_ = make_ptr_ref<ModuleData>();
+    module_data_->root_node = root_node_;
+
     init_root_scope();
 
-    first_pass();
-    second_pass();
-    third_pass();
-    fourth_pass();
-
-    return root_node_;
+    if (!first_pass())
+        return nullptr;
+    
+    if (!second_pass())
+        return nullptr;
+    
+    if (!third_pass())
+        return nullptr;
+    
+    if (!fourth_pass())
+        return nullptr;
+    
+    return module_data_;
 }
 
-auto SemanticAnalyzer::first_pass() -> void
+auto SemanticAnalyzer::has_analysis_errors() const -> bool
+{
+    return not analysis_errors_.empty();
+}
+
+auto SemanticAnalyzer::get_analysis_errors() const -> const std::vector<Error> &
+{
+    return analysis_errors_;
+}
+
+auto SemanticAnalyzer::first_pass() -> bool
+{
+    for (const auto &child : root_node_->children())
+    {
+        if (child->type() != ASTNodeType::IMPORT_STMT)
+            continue;
+
+        if (not module_ctxt_)
+        {
+            error(ERR_NO_MODULE_CTXT, child->location());
+            return false;
+        }
+
+        auto scoped_id = child->children()[0].dynamic_ptr_cast<Parsing::ScopedIdentifierASTNode>();
+        const Parsing::ScopedPath &scoped_path = scoped_id->path;
+        
+        if (not module_ctxt_->has_module(scoped_path))
+        {
+            error(ERR_NO_MODULE_NAMED, child->location(), scoped_path.to_string());
+            return false;
+        }
+
+        // The module was already imported
+        if (auto module_data = module_ctxt_->get_module_data(scoped_path))
+        {
+            module_data_->imported_modules.push_back(module_data);
+            continue;
+        }
+
+        auto errors = module_ctxt_->set_module_imported(scoped_path);
+        if (not errors.empty())
+        {
+            analysis_errors_.insert(analysis_errors_.end(),
+                std::make_move_iterator(errors.begin()),
+                std::make_move_iterator(errors.end())
+            );
+            return false;
+        }
+
+        auto module_data = module_ctxt_->get_module_data(scoped_path);
+        module_data_->imported_modules.push_back(module_data);
+    }
+
+    return true;
+}
+
+auto SemanticAnalyzer::second_pass() -> bool
 {
     const auto &declaration_body = root_node_->children()[0];
 
@@ -44,7 +114,7 @@ auto SemanticAnalyzer::first_pass() -> void
                 const std::string &obj_name = name_node->token().value;
 
                 if (is_symbol_defined_elsewhere(name_node))
-                    return;
+                    return false;
                 
                 DeclData decl_data{};
                 decl_data.decl_node = obj_decl;
@@ -56,7 +126,7 @@ auto SemanticAnalyzer::first_pass() -> void
                 
                 obj_decl->obj_type = make_object_vtype(idx);
 
-                type_table_.emplace(obj_decl->obj_name, obj_decl->obj_type);
+                module_data_->type_table.emplace(obj_decl->obj_name, obj_decl->obj_type);
                 
                 continue;
             }
@@ -90,7 +160,7 @@ auto SemanticAnalyzer::first_pass() -> void
                 const std::string &function_name = name_node->token().value;
 
                 if (is_symbol_defined_elsewhere(name_node))
-                    return;
+                    return false;
 
                 DeclData decl_data{};
                 decl_data.decl_node = func_decl;
@@ -131,7 +201,7 @@ auto SemanticAnalyzer::first_pass() -> void
                 const std::string &var_name = name_node->token().value;
 
                 if (is_symbol_defined_elsewhere(name_node))
-                    return;
+                    return false;
 
                 DeclData decl_data{};
                 decl_data.decl_node = var_decl;
@@ -150,21 +220,17 @@ auto SemanticAnalyzer::first_pass() -> void
             }
         }
     }
+    return false;
 }
 
-auto SemanticAnalyzer::second_pass() -> void
+auto SemanticAnalyzer::third_pass() -> bool
 {
-
+    return false;
 }
 
-auto SemanticAnalyzer::third_pass() -> void
+auto SemanticAnalyzer::fourth_pass() -> bool
 {
-
-}
-
-auto SemanticAnalyzer::fourth_pass() -> void
-{
-
+    return false;
 }
 
 auto SemanticAnalyzer::init_root_scope() -> void
@@ -203,7 +269,13 @@ auto SemanticAnalyzer::is_symbol_defined_elsewhere(const TypeErased<ASTNode> &id
 
 auto SemanticAnalyzer::value_type_from_node(const TypeErased<ASTNode> &type_node) -> ValueType
 {
-    if (type_node->type() != ASTNodeType::TOKEN and type_node->type() != ASTNodeType::DATA_TYPE)
+    // The type's name is contained in a token
+    bool is_token = 
+        type_node->type() == ASTNodeType::TOKEN or 
+        type_node->type() == ASTNodeType::DATA_TYPE and
+        type_node->type() != ASTNodeType::SCOPED_IDENTIFIER;
+
+    if (not is_token and type_node->type() != ASTNodeType::SCOPED_IDENTIFIER)
         return ValueType::ERROR_TYPE;
 
     const Token &tok = type_node->token();
@@ -229,14 +301,22 @@ auto SemanticAnalyzer::value_type_from_node(const TypeErased<ASTNode> &type_node
         default:                        break;
     }
 
-    auto decl_data = curr_scope_->get_declaration(tok.value);
-    if (decl_data and decl_data->type == DeclData::Type::OBJECT)
+    Parsing::ScopedPath scoped_path{};
+    if (is_token)
     {
-        auto obj_node = decl_data->decl_node.dynamic_ptr_cast<Parsing::ObjDeclASTNode>();
-        return obj_node->obj_type;
+        scoped_path.base_name = tok.value;
+    }
+    else
+    {
+        auto scoped_id = type_node.dynamic_ptr_cast<Parsing::ScopedIdentifierASTNode>();
+        scoped_path = scoped_id->path;
     }
 
-    error(ERR_NOT_A_TYPE, type_node->location(), tok.to_string());
+    auto it = module_data_->type_table.find(scoped_path);
+    if (it != module_data_->type_table.end())
+        return it->second;
+
+    error(ERR_NOT_A_TYPE, type_node->location(), scoped_path.to_string());
 
     return ValueType::ERROR_TYPE;
 }

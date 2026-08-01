@@ -220,5 +220,19 @@ private:
     }
 };
 
+template <typename T_, typename... Args_>
+    requires(std::is_constructible_v<T_, Args_...>)
+auto make_ptr_ref(Args_ &&...args) -> PtrRef<T_>
+{
+    return PtrRef{new T_{std::forward<Args_>(args)...}};
+}
+
+template <typename T_, typename... Args_>
+    requires(std::is_constructible_v<T_, Args_...>)
+auto make_type_erased(Args_ &&...args) -> TypeErased<T_>
+{
+    return make_ptr_ref(std::forward<Args_>(args)...);
+}
+
 } // namespace NCSC
 

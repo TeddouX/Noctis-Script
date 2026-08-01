@@ -41,6 +41,7 @@ enum class ASTNodeType
     SCOPED_IDENTIFIER,
     MODULE_DEF,
     IMPORT_STMT,
+    EXPORT_DECL,
 };
 
 auto to_string(ASTNodeType type) -> std::string_view;

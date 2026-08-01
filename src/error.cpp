@@ -45,6 +45,9 @@ auto Error::get_error_message_with_source() const -> std::string
         return lines;
     }
 
+    if (location_ == Location{})
+        return lines;
+
     std::string err_line_str = std::to_string(err_line);
     std::size_t line_border_off = 3 + err_line_str.size() + 1;
 

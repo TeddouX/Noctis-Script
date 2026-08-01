@@ -31,6 +31,7 @@ private:
 
     auto consume() -> const Token &;
     auto peek(std::size_t amount = 0) -> const Token &;
+    auto is_at_tokens_end() -> bool;
 
     template <typename... _Args>
     auto create_syntax_error(const PtrRef<ErrorInfo> &err_info, const Token &tok, _Args&&... args) -> void
@@ -119,6 +120,7 @@ private:
     auto parse_type()                                       -> TypeErased<ASTNode>;
     auto parse_type(const Token &t)                         -> TypeErased<ASTNode>;
     auto parse_scoped_identifier()                          -> TypeErased<Parsing::ScopedIdentifierASTNode>;
+    auto parse_export_declaration()                           -> TypeErased<ASTNode>;
 
     inline static PtrRef<ErrorInfo> ERR_EXPECTED_TOKEN          {ErrorInfo::create("Syntax", "S1",  "Expected '{}'")};
     inline static PtrRef<ErrorInfo> ERR_EXPECTED_TOKEN_OR_TOKEN {ErrorInfo::create("Syntax", "S2",  "Expected '{}' or '{}'")};

@@ -25,6 +25,14 @@ struct Location
         : line{line}, line_end{line_end}
         , column{column}, column_end{column_end}
     {}
+
+    constexpr auto operator==(const Location &other) const -> bool
+    {
+        return line == other.line       and
+            line_end == other.line_end  and
+            column == other.column      and
+            column_end == other.column_end;
+    }
 };
 
 } // namespace NCSC

@@ -11,15 +11,20 @@ struct ScopedPath
     std::string                 base_name;
     std::vector<std::string>    scope_path;
 
-    auto to_string() const -> std::string
+    ScopedPath() = default;
+
+    ScopedPath(const std::string &name)
+        : base_name{name}
+    {}
+
+    auto operator==(const ScopedPath &other) const -> bool
     {
-        std::string str{};
-        
-        for (const auto &scope : scope_path)
-            str += scope + "::";
-        
-        return str + base_name;
+        return base_name == other.base_name and
+            scope_path == other.scope_path;
     }
+
+    auto merge(const ScopedPath &other) -> void;
+    auto to_string() const -> std::string;
 };
 
 } // namespace NCSC::Parsing
