@@ -20,20 +20,20 @@ auto Scope::get_parent() const -> const std::shared_ptr<Scope> &
     return parent_;
 }
 
-auto Scope::add_declaration(const std::string &name, std::shared_ptr<DeclData> data) -> void
+auto Scope::add_declaration(const std::string &name, DeclData data) -> void
 {
-    switch (data->type)
+    switch (data.type)
     {
         case DeclData::Type::FUNCTION:
-            data->idx = func_idx_++;
+            data.idx = func_idx_++;
             break;
         
         case DeclData::Type::OBJECT:
-            data->idx = obj_idx_++;
+            data.idx = obj_idx_++;
             break;
         
         case DeclData::Type::VARIABLE:
-            data->idx = var_idx_++;
+            data.idx = var_idx_++;
             break;
     }
 
@@ -51,7 +51,7 @@ auto Scope::get_declaration(const std::string &name) const -> const DeclData *
             return nullptr;
     }
     
-    return it->second;
+    return &it->second;
 }
 
 } // namespace NCSC::SemanticAnalysis

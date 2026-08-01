@@ -14,7 +14,7 @@ R"(func main(arg1: int, arg2: float) -> bool
 {}
 )");
     Parser parser{tokenize(script_src)};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
     SemanticAnalyzer analyzer{root_node, script_src};
     analyzer.do_analysis();
 }

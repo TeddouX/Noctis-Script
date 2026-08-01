@@ -7,13 +7,13 @@ using namespace NCSC;
 
 TEST(ASTNodeTest, UpdatesPositionWithTokenCorrectly) 
 {
-    ASTNode node{ASTNodeType::ROOT};
+    auto node = std::make_shared<ASTNode>(ASTNodeType::ROOT);
     Token tok{TokenType::ID, "abc"};
     tok.location = Location{12, 12, 15, 17};
 
-    node.set_token(tok);
+    node->set_token(tok);
 
-    const Location &loc = node.location();
+    const Location &loc = node->location();
     ASSERT_EQ(loc.line, 12);
     ASSERT_EQ(loc.line_end, 12);
     ASSERT_EQ(loc.column, 15);
@@ -22,17 +22,17 @@ TEST(ASTNodeTest, UpdatesPositionWithTokenCorrectly)
 
 TEST(ASTNodeTest, UpdatesPositionColumnBackwardsWithOtherNode) 
 {
-    ASTNode root{ASTNodeType::ROOT};
-    ASTNode first{ASTNodeType::ROOT};
-    ASTNode second{ASTNodeType::ROOT};
+    auto root = std::make_shared<ASTNode>(ASTNodeType::ROOT);
+    auto first = std::make_shared<ASTNode>(ASTNodeType::ROOT);
+    auto second = std::make_shared<ASTNode>(ASTNodeType::ROOT);
 
-    first.set_location(Location{2, 2, 15, 18});
-    second.set_location(Location{2, 2, 12, 16});
+    first->set_location(Location{2, 2, 15, 18});
+    second->set_location(Location{2, 2, 12, 16});
 
-    root.add_child(first);
-    root.add_child(second);
+    root->add_child(first);
+    root->add_child(second);
 
-    const Location &loc = root.location();
+    const Location &loc = root->location();
     ASSERT_EQ(loc.line, 2);
     ASSERT_EQ(loc.line_end, 2);
     ASSERT_EQ(loc.column, 12);
@@ -41,17 +41,17 @@ TEST(ASTNodeTest, UpdatesPositionColumnBackwardsWithOtherNode)
 
 TEST(ASTNodeTest, UpdatesPositionLineBackwardsWithOtherNode) 
 {
-    ASTNode root{ASTNodeType::ROOT};
-    ASTNode first{ASTNodeType::ROOT};
-    ASTNode second{ASTNodeType::ROOT};
+    auto root = std::make_shared<ASTNode>(ASTNodeType::ROOT);
+    auto first = std::make_shared<ASTNode>(ASTNodeType::ROOT);
+    auto second = std::make_shared<ASTNode>(ASTNodeType::ROOT);
     
-    first.set_location(Location{2, 2, 15, 22});
-    second.set_location(Location{1, 1, 10, 16});
+    first->set_location(Location{2, 2, 15, 22});
+    second->set_location(Location{1, 1, 10, 16});
 
-    root.add_child(first);
-    root.add_child(second);
+    root->add_child(first);
+    root->add_child(second);
 
-    const Location &loc = root.location();
+    const Location &loc = root->location();
     ASSERT_EQ(loc.line, 1);
     ASSERT_EQ(loc.line_end, 2);
     ASSERT_EQ(loc.column, 10);
@@ -60,17 +60,17 @@ TEST(ASTNodeTest, UpdatesPositionLineBackwardsWithOtherNode)
 
 TEST(ASTNodeTest, UpdatesPositionColumnForwardsWithOtherNode) 
 {
-    ASTNode root{ASTNodeType::ROOT};
-    ASTNode first{ASTNodeType::ROOT};
-    ASTNode second{ASTNodeType::ROOT};
+    auto root = std::make_shared<ASTNode>(ASTNodeType::ROOT);
+    auto first = std::make_shared<ASTNode>(ASTNodeType::ROOT);
+    auto second = std::make_shared<ASTNode>(ASTNodeType::ROOT);
 
-    first.set_location(Location{2, 2, 12, 16});
-    second.set_location(Location{2, 2, 15, 18});
+    first->set_location(Location{2, 2, 12, 16});
+    second->set_location(Location{2, 2, 15, 18});
 
-    root.add_child(first);
-    root.add_child(second);
+    root->add_child(first);
+    root->add_child(second);
 
-    const Location &loc = root.location();
+    const Location &loc = root->location();
     ASSERT_EQ(loc.line, 2);
     ASSERT_EQ(loc.line_end, 2);
     ASSERT_EQ(loc.column, 12);
@@ -79,17 +79,17 @@ TEST(ASTNodeTest, UpdatesPositionColumnForwardsWithOtherNode)
 
 TEST(ASTNodeTest, UpdatesPositionLineForwardsWithOtherNode) 
 {
-    ASTNode root{ASTNodeType::ROOT};
-    ASTNode first{ASTNodeType::ROOT};
-    ASTNode second{ASTNodeType::ROOT};
+    auto root = std::make_shared<ASTNode>(ASTNodeType::ROOT);
+    auto first = std::make_shared<ASTNode>(ASTNodeType::ROOT);
+    auto second = std::make_shared<ASTNode>(ASTNodeType::ROOT);
     
-    first.set_location(Location{1, 1, 10, 16});
-    second.set_location(Location{2, 2, 15, 22});
+    first->set_location(Location{1, 1, 10, 16});
+    second->set_location(Location{2, 2, 15, 22});
 
-    root.add_child(first);
-    root.add_child(second);
+    root->add_child(first);
+    root->add_child(second);
 
-    const Location &loc = root.location();
+    const Location &loc = root->location();
     ASSERT_EQ(loc.line, 1);
     ASSERT_EQ(loc.line_end, 2);
     ASSERT_EQ(loc.column, 10);

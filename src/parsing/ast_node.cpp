@@ -49,22 +49,22 @@ ASTNode::ASTNode(ASTNodeType type)
     , has_loc_been_set_{false}
 {}
 
-auto ASTNode::add_child(const ASTNode &child) -> void
+auto ASTNode::add_child(std::shared_ptr<ASTNode> child) -> void
 {
     if (not children_.empty()) 
     {
-        std::size_t child_col = child.location().column;
-        std::size_t child_col_end = child.location().column_end;
+        std::size_t child_col = child->location().column;
+        std::size_t child_col_end = child->location().column_end;
 
         // Expand to the left of this node if the child is placed before it
-        std::size_t new_line = std::min(location_.line, child.location().line);
+        std::size_t new_line = std::min(location_.line, child->location().line);
         bool line_changed = new_line != location_.line;
 
         location_.line = new_line;
         location_.column = line_changed ? child_col : std::min(child_col, location_.column);
 
         // Expand to the right of this node if the child is placed after it
-        std::size_t new_line_end = std::max(location_.line_end, child.location().line_end);
+        std::size_t new_line_end = std::max(location_.line_end, child->location().line_end);
         bool line_end_changed = new_line_end != location_.line_end;
 
         location_.line_end = new_line_end;
@@ -73,7 +73,7 @@ auto ASTNode::add_child(const ASTNode &child) -> void
     else 
     {
         // First child added, update position
-        location_ = child.location();
+        location_ = child->location();
     }
 
     children_.push_back(child);
@@ -118,7 +118,7 @@ auto ASTNode::token() const -> const Token &
     return token_;
 }
 
-auto ASTNode::children() const -> const std::vector<ASTNode> &
+auto ASTNode::children() const -> const std::vector<std::shared_ptr<ASTNode>> &
 {
     return children_;
 }
@@ -151,7 +151,7 @@ auto ASTNode::ast_string(bool is_root, const std::string &prefix, bool is_last) 
     for (size_t i = 0; i < children_.size(); i++) 
     {
         bool is_last_child = (i == children_.size() - 1);
-        oss << children_[i].ast_string(false, child_prefix, is_last_child);
+        oss << children_[i]->ast_string(false, child_prefix, is_last_child);
     }
     
     if (is_root) {

@@ -13,7 +13,7 @@ TEST(ParserTest, ParsesSimpleVariableDeclaration)
 {
     auto tokens = tokenize("var bla: int;");
     Parser parser{tokens};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
 
     const std::string expected_tree = 
 R"(<ROOT>
@@ -24,14 +24,14 @@ R"(<ROOT>
         └── <EXPRESSION>)";
 
     ASSERT_TRUE(not parser.has_syntax_errors());
-    EXPECT_EQ(root_node.ast_string(), expected_tree);
+    EXPECT_EQ(root_node->ast_string(), expected_tree);
 }
 
 TEST(ParserTest, ParsesSimpleVariableDeclarationWithIntConstantAssignment) 
 {
     auto tokens = tokenize("var bla: int8 = 1;");
     Parser parser{tokens};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
 
     const std::string expected_tree = 
 R"(<ROOT>
@@ -45,14 +45,14 @@ R"(<ROOT>
                     └── <CONSTANT>(1))";
 
     ASSERT_TRUE(not parser.has_syntax_errors());
-    EXPECT_EQ(root_node.ast_string(), expected_tree);
+    EXPECT_EQ(root_node->ast_string(), expected_tree);
 }
 
 TEST(ParserTest, ParsesSimpleVariableDeclarationWithFloatConstantAssignment) 
 {
     auto tokens = tokenize("var bla: float = 1.0;");
     Parser parser{tokens};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
 
     const std::string expected_tree = 
 R"(<ROOT>
@@ -66,14 +66,14 @@ R"(<ROOT>
                     └── <CONSTANT>(1.0))";
 
     ASSERT_TRUE(not parser.has_syntax_errors());
-    EXPECT_EQ(root_node.ast_string(), expected_tree);
+    EXPECT_EQ(root_node->ast_string(), expected_tree);
 }
 
 TEST(ParserTest, ParsesSimpleVariableDeclarationWithIntExpressionAssignment) 
 {
     auto tokens = tokenize("var bla: int = 1 + 1 * (3 / 2);");
     Parser parser{tokens};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
 
     const std::string expected_tree = 
 R"(<ROOT>
@@ -102,13 +102,13 @@ R"(<ROOT>
                                             └── <CONSTANT>(2))";
 
     ASSERT_TRUE(not parser.has_syntax_errors());
-    EXPECT_EQ(root_node.ast_string(), expected_tree);
+    EXPECT_EQ(root_node->ast_string(), expected_tree);
 }
 
 TEST(ParserTest, ParsesEmptyFunction)
 {
     Parser parser{tokenize("func main() -> void {}")};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
     const std::string expected_tree = 
 R"(<ROOT>
 └── <DECLARATION_BODY>
@@ -119,13 +119,13 @@ R"(<ROOT>
         └── <STATEMENT_BLOCK>)";
 
     ASSERT_TRUE(not parser.has_syntax_errors());
-    ASSERT_EQ(root_node.ast_string(), expected_tree);
+    ASSERT_EQ(root_node->ast_string(), expected_tree);
 }
 
 TEST(ParserTest, ParsesFunctionWithParams)
 {
     Parser parser{tokenize("func main(a: int, b: float) -> void {}")};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
     const std::string expected_tree = 
 R"(<ROOT>
 └── <DECLARATION_BODY>
@@ -140,13 +140,13 @@ R"(<ROOT>
         └── <STATEMENT_BLOCK>)";
 
     ASSERT_TRUE(not parser.has_syntax_errors());
-    ASSERT_EQ(root_node.ast_string(), expected_tree);
+    ASSERT_EQ(root_node->ast_string(), expected_tree);
 }
 
 TEST(ParserTest, ParsesFunctionBodyWithVariableDeclaration)
 {
     Parser parser{tokenize("func main() -> void { var a: int = 0; }")};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
     const std::string expected_tree = 
 R"(<ROOT>
 └── <DECLARATION_BODY>
@@ -164,13 +164,13 @@ R"(<ROOT>
                             └── <CONSTANT>(0))";
 
     ASSERT_TRUE(not parser.has_syntax_errors());
-    ASSERT_EQ(root_node.ast_string(), expected_tree);
+    ASSERT_EQ(root_node->ast_string(), expected_tree);
 }
 
 TEST(ParserTest, ParsesFunctionBodyWithVariableDeclarationAndAssignment)
 {
     Parser parser{tokenize("func main() -> void { var a: int = 0; a = 0; }")};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
     const std::string expected_tree = 
 R"(<ROOT>
 └── <DECLARATION_BODY>
@@ -197,13 +197,13 @@ R"(<ROOT>
                             └── <CONSTANT>(0))";
 
     ASSERT_TRUE(not parser.has_syntax_errors());
-    ASSERT_EQ(root_node.ast_string(), expected_tree);
+    ASSERT_EQ(root_node->ast_string(), expected_tree);
 }
 
 TEST(ParserTest, ParsesFunctionBodyWithMemberAccess)
 {
     Parser parser{tokenize("func main() -> void { a.b.cccc.d; }")};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
     const std::string expected_tree = 
 R"(<ROOT>
 └── <DECLARATION_BODY>
@@ -222,13 +222,13 @@ R"(<ROOT>
                         └── <IDENTIFIER>(d))";
 
     ASSERT_TRUE(not parser.has_syntax_errors());
-    ASSERT_EQ(root_node.ast_string(), expected_tree);
+    ASSERT_EQ(root_node->ast_string(), expected_tree);
 }
 
 TEST(ParserTest, ParsesFunctionBodyWithMemberMethodCall)
 {
     Parser parser{tokenize("func main() -> void { a.b.cccc.method(); }")};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
     const std::string expected_tree = 
 R"(<ROOT>
 └── <DECLARATION_BODY>
@@ -249,13 +249,13 @@ R"(<ROOT>
                             └── <ARGUMENT_LIST>)";
 
     ASSERT_TRUE(not parser.has_syntax_errors());
-    ASSERT_EQ(root_node.ast_string(), expected_tree);
+    ASSERT_EQ(root_node->ast_string(), expected_tree);
 }
 
 TEST(ParserTest, ParsesFunctionBodyWithMemberAssignment)
 {
     Parser parser{tokenize("func main() -> void { a.b.cccc.d = 12; }")};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
     const std::string expected_tree = 
 R"(<ROOT>
 └── <DECLARATION_BODY>
@@ -279,13 +279,13 @@ R"(<ROOT>
                             └── <CONSTANT>(12))";
 
     ASSERT_TRUE(not parser.has_syntax_errors());
-    ASSERT_EQ(root_node.ast_string(), expected_tree);
+    ASSERT_EQ(root_node->ast_string(), expected_tree);
 }
 
 TEST(ParserTest, ParsesFunctionBodyWithSimpleIf)
 {
     Parser parser{tokenize("func main() -> void { if b > 10 { a = false; } }")};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
     const std::string expected_tree = 
 R"(<ROOT>
 └── <DECLARATION_BODY>
@@ -315,13 +315,13 @@ R"(<ROOT>
                                     └── <CONSTANT>(false))";
 
     ASSERT_TRUE(not parser.has_syntax_errors());
-    ASSERT_EQ(root_node.ast_string(), expected_tree);
+    ASSERT_EQ(root_node->ast_string(), expected_tree);
 }
 
 TEST(ParserTest, ParsesFunctionBodyWithIfAndElse)
 {
     Parser parser{tokenize("func main() -> void { if b > 10 { a = false; } else { a = true; } }")};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
     const std::string expected_tree = 
 R"(<ROOT>
 └── <DECLARATION_BODY>
@@ -362,13 +362,13 @@ R"(<ROOT>
                                         └── <CONSTANT>(true))";
 
     ASSERT_TRUE(not parser.has_syntax_errors());
-    ASSERT_EQ(root_node.ast_string(), expected_tree);
+    ASSERT_EQ(root_node->ast_string(), expected_tree);
 }
 
 TEST(ParserTest, ParsesFunctionBodyWithIfElifAndElse)
 {
     Parser parser{tokenize("func main() -> void { if b > 10 { a = false; } elif b < 5 { a = true; } else { c = false; } }")};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
     const std::string expected_tree = 
 R"(<ROOT>
 └── <DECLARATION_BODY>
@@ -428,13 +428,13 @@ R"(<ROOT>
                                         └── <CONSTANT>(false))";
 
     ASSERT_TRUE(not parser.has_syntax_errors());
-    ASSERT_EQ(root_node.ast_string(), expected_tree);
+    ASSERT_EQ(root_node->ast_string(), expected_tree);
 }
 
 TEST(ParserTest, ParsesFunctionBodyWithEmptyReturn)
 {
     Parser parser{tokenize("func main() -> void { return; }")};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
     const std::string expected_tree = 
 R"(<ROOT>
 └── <DECLARATION_BODY>
@@ -446,13 +446,13 @@ R"(<ROOT>
             └── <RETURN_STATEMENT>)";
 
     ASSERT_TRUE(not parser.has_syntax_errors());
-    ASSERT_EQ(root_node.ast_string(), expected_tree);
+    ASSERT_EQ(root_node->ast_string(), expected_tree);
 }
 
 TEST(ParserTest, ParsesFunctionBodyWithReturnedValue)
 {
     Parser parser{tokenize("func main() -> int { return 23; }")};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
     const std::string expected_tree = 
 R"(<ROOT>
 └── <DECLARATION_BODY>
@@ -468,13 +468,13 @@ R"(<ROOT>
                             └── <CONSTANT>(23))";
 
     ASSERT_TRUE(not parser.has_syntax_errors());
-    ASSERT_EQ(root_node.ast_string(), expected_tree);
+    ASSERT_EQ(root_node->ast_string(), expected_tree);
 }
 
 TEST(ParserTest, ParsesEmptyObject)
 {
     Parser parser{tokenize("obj Vec3 {}")};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
     const std::string expected_tree = 
 R"(<ROOT>
 └── <DECLARATION_BODY>
@@ -483,13 +483,13 @@ R"(<ROOT>
         └── <DECLARATION_BODY>)";
 
     ASSERT_TRUE(not parser.has_syntax_errors());
-    ASSERT_EQ(root_node.ast_string(), expected_tree);
+    ASSERT_EQ(root_node->ast_string(), expected_tree);
 }
 
 TEST(ParserTest, ParsesObjectWithMemberDeclaration)
 {
     Parser parser{tokenize("obj Vec3 { public var a: int = 0; private var b: float = 10; var c: bool = false; }")};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
     const std::string expected_tree = 
 R"(<ROOT>
 └── <DECLARATION_BODY>
@@ -522,13 +522,13 @@ R"(<ROOT>
                             └── <CONSTANT>(false))";
 
     ASSERT_TRUE(not parser.has_syntax_errors());
-    ASSERT_EQ(root_node.ast_string(), expected_tree);
+    ASSERT_EQ(root_node->ast_string(), expected_tree);
 }
 
 TEST(ParserTest, ParsesObjectWithMethodDeclaration)
 {
     Parser parser{tokenize("obj Vec3 { public func a() {} private func b() {} func c() {} }")};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
     const std::string expected_tree = 
 R"(<ROOT>
 └── <DECLARATION_BODY>
@@ -554,13 +554,13 @@ R"(<ROOT>
                 └── <STATEMENT_BLOCK>)";
 
     ASSERT_TRUE(not parser.has_syntax_errors());
-    ASSERT_EQ(root_node.ast_string(), expected_tree);
+    ASSERT_EQ(root_node->ast_string(), expected_tree);
 }
 
 TEST(ParserTest, ParsesObjectWithObjectDeclaration)
 {
     Parser parser{tokenize("obj Vec3 { obj Vec2 {} }")};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
     const std::string expected_tree = 
 R"(<ROOT>
 └── <DECLARATION_BODY>
@@ -572,13 +572,13 @@ R"(<ROOT>
                 └── <DECLARATION_BODY>)";
 
     ASSERT_TRUE(not parser.has_syntax_errors());
-    ASSERT_EQ(root_node.ast_string(), expected_tree);
+    ASSERT_EQ(root_node->ast_string(), expected_tree);
 }
 
 TEST(ParserTest, ParserThrowsS1)
 {
     Parser parser{tokenize("func main( -> {}")};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
     
     ASSERT_TRUE(parser.has_syntax_errors());
     ASSERT_EQ(parser.get_syntax_errors().size(), 1);
@@ -588,7 +588,7 @@ TEST(ParserTest, ParserThrowsS1)
 TEST(ParserTest, ParserThrowsS2)
 {
     Parser parser{tokenize("func main(a: int b) -> {}")};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
 
     ASSERT_TRUE(parser.has_syntax_errors());
     ASSERT_EQ(parser.get_syntax_errors().size(), 1);
@@ -598,7 +598,7 @@ TEST(ParserTest, ParserThrowsS2)
 TEST(ParserTest, ParserThrowsS3)
 {
     Parser parser{tokenize("func main(")};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
 
     ASSERT_TRUE(parser.has_syntax_errors());
     ASSERT_EQ(parser.get_syntax_errors().size(), 1);
@@ -608,7 +608,7 @@ TEST(ParserTest, ParserThrowsS3)
 TEST(ParserTest, ParserThrowsS4)
 {
     Parser parser{tokenize("obj Vec3 { public; }")};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
 
     ASSERT_TRUE(parser.has_syntax_errors());
     ASSERT_EQ(parser.get_syntax_errors().size(), 1);
@@ -618,7 +618,7 @@ TEST(ParserTest, ParserThrowsS4)
 TEST(ParserTest, ParserThrowsS5)
 {
     Parser parser{tokenize("var a: int = 0 a")};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
 
     ASSERT_TRUE(parser.has_syntax_errors());
     ASSERT_EQ(parser.get_syntax_errors().size(), 1);
@@ -634,7 +634,7 @@ TEST(ParserTest, ParserThrowsS6)
 TEST(ParserTest, ParserThrowsS7)
 {
     Parser parser{tokenize("var a: int = =")};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
 
     ASSERT_TRUE(parser.has_syntax_errors());
     ASSERT_EQ(parser.get_syntax_errors().size(), 1);
@@ -644,7 +644,7 @@ TEST(ParserTest, ParserThrowsS7)
 TEST(ParserTest, ParserThrowsS8)
 {
     Parser parser{tokenize("func ()")};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
 
     ASSERT_TRUE(parser.has_syntax_errors());
     ASSERT_EQ(parser.get_syntax_errors().size(), 1);
@@ -660,7 +660,7 @@ TEST(ParserTest, ParserThrowsS9)
 TEST(ParserTest, ParserThrowsS10)
 {
     Parser parser{tokenize("func main() -> {}")};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
 
     ASSERT_TRUE(parser.has_syntax_errors());
     ASSERT_EQ(parser.get_syntax_errors().size(), 1);
@@ -670,7 +670,7 @@ TEST(ParserTest, ParserThrowsS10)
 TEST(ParserTest, ParserThrowsS11)
 {
     Parser parser{tokenize("=")};
-    ASTNode root_node = parser.parse();
+    auto root_node = parser.parse();
 
     ASSERT_TRUE(parser.has_syntax_errors());
     ASSERT_EQ(parser.get_syntax_errors().size(), 1);

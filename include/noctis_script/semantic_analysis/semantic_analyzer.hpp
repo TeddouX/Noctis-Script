@@ -13,12 +13,12 @@ namespace NCSC
 class SemanticAnalyzer
 {
 public:
-    SemanticAnalyzer(const ASTNode &root, std::shared_ptr<ScriptSource> script_source = nullptr);
+    SemanticAnalyzer(std::shared_ptr<ASTNode> root, std::shared_ptr<ScriptSource> script_source = nullptr);
 
-    auto do_analysis() -> const ASTNode &;
+    auto do_analysis() -> std::shared_ptr<ASTNode>;
 
 private:
-    ASTNode                                     root_node_;
+    std::shared_ptr<ASTNode>                    root_node_;
     std::shared_ptr<SemanticAnalysis::Scope>    root_scope_;
     std::shared_ptr<SemanticAnalysis::Scope>    curr_scope_;
 
@@ -47,8 +47,8 @@ private:
     auto enter_new_scope() -> void;
     auto exit_scope() -> void;
     
-    auto is_symbol_defined_elsewhere(const ASTNode &identifer) -> bool;
-    auto value_type_from_node(const ASTNode &type_node) -> SemanticAnalysis::ValueType;
+    auto is_symbol_defined_elsewhere(const std::shared_ptr<ASTNode> &identifer) -> bool;
+    auto value_type_from_node(const std::shared_ptr<ASTNode> &type_node) -> SemanticAnalysis::ValueType;
 
     FRIEND_TEST(SemanticAnalyzerTest, UpdatesPositionWithTokenCorrectly);
 

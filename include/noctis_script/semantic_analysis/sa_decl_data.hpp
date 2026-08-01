@@ -15,7 +15,7 @@ struct DeclData
         OBJECT,
     } type;
 
-    const ASTNode *decl_node;
+    std::shared_ptr<ASTNode> decl_node;
     bool is_error = false;
     isize_t idx = -1;
 };

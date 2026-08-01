@@ -3,6 +3,9 @@
 #include <print>
 #include <iostream>
 
+#include "parsing/func_decl_ast_node.hpp"
+
+
 #define CHECK_SYNTAX_ERROR_RET_VALUE(ret) if (has_syntax_error_) return ret
 #define CHECK_SYNTAX_ERROR() CHECK_SYNTAX_ERROR_RET_VALUE(node)
 
@@ -254,7 +257,7 @@ auto Parser::parse_variable_declaration(bool is_inside_obj) -> std::shared_ptr<A
 
 auto Parser::parse_function_declaration(bool is_inside_obj) -> std::shared_ptr<ASTNode>
 {
-    auto node = std::make_shared<ASTNode>(ASTNodeType::FUNCTION_DECLARATION);
+    auto node = std::make_shared<Parsing::FuncDeclASTNode>(ASTNodeType::FUNCTION_DECLARATION);
     node->set_metadata("is_method", is_inside_obj);
 
     const Token &t = SAFE_PEEK();
