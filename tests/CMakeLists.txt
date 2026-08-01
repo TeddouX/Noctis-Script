@@ -8,11 +8,11 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 add_executable(noctis_script_tests
-    "ast_node_test.cpp"
-    "lexer_test.cpp"
-    "parser_test.cpp"
-    "script_source_test.cpp"
-    "semantic_analyzer_test.cpp"
+    "unit_tests/ast_node_test.cpp"
+    "unit_tests/lexer_test.cpp"
+    "unit_tests/parser_test.cpp"
+    "unit_tests/script_source_test.cpp"
+    "unit_tests/semantic_analyzer_test.cpp"
 )
 
 target_link_libraries(noctis_script_tests

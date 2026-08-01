@@ -15,7 +15,8 @@ using namespace SemanticAnalysis;
 TEST(SemanticAnalyzerTest, FirstPassCorrectlyImportModules)
 {
     ModuleContext module_context{};
-    module_context.add_module("@module testing;", "testing.ncsc");
+    auto errs = module_context.add_module("@module testing;", "testing.ncsc");
+    ASSERT_TRUE(errs.empty());
 
     auto script_src = ScriptSource::from_contents(
 R"(@import testing;
@@ -23,18 +24,17 @@ R"(@import testing;
 
     Parser parser{tokenize(script_src), script_src};
     auto root_node = parser.parse();
-    for (const auto &error : parser.get_syntax_errors())
-        std::println("{}", error.get_error_message_with_source());
     ASSERT_FALSE(parser.has_syntax_errors());
 
     SemanticAnalyzer analyzer{root_node, script_src, &module_context};
     analyzer.init_root_scope();
     analyzer.first_pass();
-
-    for (const auto &error : analyzer.get_analysis_errors())
-        std::println("{}", error.get_error_message_with_source());
-
-    ASSERT_TRUE(false);
+    ASSERT_FALSE(analyzer.has_analysis_errors());
+    
+    auto module_data = analyzer.module_data_;
+    
+    ASSERT_EQ(module_data->imported_modules.size(), 1);
+    ASSERT_EQ(module_data->imported_modules[0]->path.base_name, "testing");
 }
 
 TEST(SemanticAnalyzerTest, SecondPassFunctionCorrectData) 
