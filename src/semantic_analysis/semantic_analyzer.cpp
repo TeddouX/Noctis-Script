@@ -1,7 +1,6 @@
 #include "semantic_analysis/semantic_analyzer.hpp"
 
 #include "parsing/ast_node/all_ast_nodes.hpp"
-#include "semantic_analyzer.hpp"
 
 
 namespace NCSC
@@ -10,20 +9,20 @@ namespace NCSC
 using namespace SemanticAnalysis;
 
 SemanticAnalyzer::SemanticAnalyzer(
-    TypeErased<ASTNode> root, 
-    PtrRef<ScriptSource> script_source, 
-    PtrRef<ModuleContext> module_ctxt)   
+    TypeErased<ASTNode> root,
+    PtrRef<ScriptSource> script_source,
+    ModuleContext *module_ctx)
     : root_node_{root}
     , script_source_{script_source}
+    , module_ctx_{module_ctx}
 {
+    module_data_ = make_ptr_ref<ModuleData>();
+    module_data_->root_node = root_node_;
     module_data_->type_table.insert(BULTIN_VTYPE_NAMES.begin(), BULTIN_VTYPE_NAMES.end());;
 }
 
 auto SemanticAnalyzer::do_analysis() -> PtrRef<ModuleData>
 {
-    module_data_ = make_ptr_ref<ModuleData>();
-    module_data_->root_node = root_node_;
-
     init_root_scope();
 
     if (!first_pass())
@@ -55,43 +54,66 @@ auto SemanticAnalyzer::first_pass() -> bool
 {
     for (const auto &child : root_node_->children())
     {
-        if (child->type() != ASTNodeType::IMPORT_STMT)
-            continue;
-
-        if (not module_ctxt_)
+        switch (child->type())
         {
-            error(ERR_NO_MODULE_CTXT, child->location());
-            return false;
-        }
+            case ASTNodeType::MODULE_DEF:
+            {
+                if (not module_ctx_)
+                {
+                    error(ERR_NO_MODULE_CTXT, child->location());
+                    return false;
+                }
 
-        auto scoped_id = child->children()[0].dynamic_ptr_cast<Parsing::ScopedIdentifierASTNode>();
-        const Parsing::ScopedPath &scoped_path = scoped_id->path;
-        
-        if (not module_ctxt_->has_module(scoped_path))
-        {
-            error(ERR_NO_MODULE_NAMED, child->location(), scoped_path.to_string());
-            return false;
-        }
+                auto scoped_id = child->children()[0].dynamic_ptr_cast<Parsing::ScopedIdentifierASTNode>();
 
-        // The module was already imported
-        if (auto module_data = module_ctxt_->get_module_data(scoped_path))
-        {
-            module_data_->imported_modules.push_back(module_data);
-            continue;
-        }
+                module_data_->path = scoped_id->path;
 
-        auto errors = module_ctxt_->set_module_imported(scoped_path);
-        if (not errors.empty())
-        {
-            analysis_errors_.insert(analysis_errors_.end(),
-                std::make_move_iterator(errors.begin()),
-                std::make_move_iterator(errors.end())
-            );
-            return false;
-        }
+                break;
+            }
 
-        auto module_data = module_ctxt_->get_module_data(scoped_path);
-        module_data_->imported_modules.push_back(module_data);
+            case ASTNodeType::IMPORT_STMT:
+            {
+                if (not module_ctx_)
+                {
+                    error(ERR_NO_MODULE_CTXT, child->location());
+                    return false;
+                }
+
+                auto scoped_id = child->children()[0].dynamic_ptr_cast<Parsing::ScopedIdentifierASTNode>();
+                const Parsing::ScopedPath &scoped_path = scoped_id->path;
+                
+                if (not module_ctx_->has_module(scoped_path))
+                {
+                    error(ERR_NO_MODULE_NAMED, child->location(), scoped_path.to_string());
+                    return false;
+                }
+
+                // The module was already imported
+                if (auto module_data = module_ctx_->get_module_data(scoped_path))
+                {
+                    module_data_->imported_modules.push_back(module_data);
+                    continue;
+                }
+
+                auto errors = module_ctx_->set_module_imported(scoped_path);
+                if (not errors.empty())
+                {
+                    analysis_errors_.insert(analysis_errors_.end(),
+                        std::make_move_iterator(errors.begin()),
+                        std::make_move_iterator(errors.end())
+                    );
+                    return false;
+                }
+
+                auto module_data = module_ctx_->get_module_data(scoped_path);
+                module_data_->imported_modules.push_back(module_data);
+
+                break;
+            }
+            
+            default:
+                continue;
+        }
     }
 
     return true;
@@ -220,23 +242,30 @@ auto SemanticAnalyzer::second_pass() -> bool
             }
         }
     }
-    return false;
+    return true;
 }
 
 auto SemanticAnalyzer::third_pass() -> bool
 {
-    return false;
+    return true;
 }
 
 auto SemanticAnalyzer::fourth_pass() -> bool
 {
-    return false;
+    return true;
+}
+
+auto SemanticAnalyzer::fifth_pass() -> bool
+{
+    return true;
 }
 
 auto SemanticAnalyzer::init_root_scope() -> void
 {
     root_scope_ = PtrRef<Scope>::make();
     curr_scope_ = root_scope_;
+
+    module_data_->root_scope = root_scope_;
 }
 
 auto SemanticAnalyzer::enter_new_scope() -> void

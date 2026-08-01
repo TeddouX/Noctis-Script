@@ -37,6 +37,9 @@ auto to_string(ASTNodeType type) -> std::string_view
         case ASTNodeType::OBJ_DECLARATION:          return "OBJ_DECLARATION";
         case ASTNodeType::DECLARATION_BODY:         return "DECLARATION_BODY";
         case ASTNodeType::SCOPED_IDENTIFIER:        return "SCOPED_IDENTIFIER";
+        case ASTNodeType::MODULE_DEF:               return "MODULE_DEF";
+        case ASTNodeType::IMPORT_STMT:              return "IMPORT_STMT";
+        case ASTNodeType::EXPORT_DECL:              return "EXPORT_DECL";
         default:                                    return "UNKNOWN";
     }
 }
@@ -52,6 +55,9 @@ ASTNode::ASTNode(ASTNodeType type)
 
 auto ASTNode::add_child(TypeErased<ASTNode> child) -> void
 {
+    if (child == nullptr)
+        return;
+
     if (not children_.empty()) 
     {
         std::size_t child_col = child->location().column;

@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <print>
+
 #include "noctis_script/lexing/lexer.hpp"
 #include "noctis_script/parsing/parser.hpp"
 #include "noctis_script/parsing/ast_node/all_ast_nodes.hpp"
@@ -12,12 +14,27 @@ using namespace SemanticAnalysis;
 
 TEST(SemanticAnalyzerTest, FirstPassCorrectlyImportModules)
 {
-    auto module_context = ModuleContext::create();
-    module_context->add_module("@module testing", "testing.ncsc");
+    ModuleContext module_context{};
+    module_context.add_module("@module testing;", "testing.ncsc");
 
     auto script_src = ScriptSource::from_contents(
-R"(func main(arg1: int, arg2: float) -> bool {}
+R"(@import testing;
 )");
+
+    Parser parser{tokenize(script_src), script_src};
+    auto root_node = parser.parse();
+    for (const auto &error : parser.get_syntax_errors())
+        std::println("{}", error.get_error_message_with_source());
+    ASSERT_FALSE(parser.has_syntax_errors());
+
+    SemanticAnalyzer analyzer{root_node, script_src, &module_context};
+    analyzer.init_root_scope();
+    analyzer.first_pass();
+
+    for (const auto &error : analyzer.get_analysis_errors())
+        std::println("{}", error.get_error_message_with_source());
+
+    ASSERT_TRUE(false);
 }
 
 TEST(SemanticAnalyzerTest, SecondPassFunctionCorrectData) 
@@ -30,6 +47,7 @@ R"(func main(arg1: int, arg2: float) -> bool {}
     SemanticAnalyzer analyzer{root_node, script_src};
     analyzer.init_root_scope();
     analyzer.first_pass();
+    analyzer.second_pass();
     
     auto decl_data = analyzer.curr_scope_->get_declaration("main");
 
@@ -61,6 +79,7 @@ R"(var bla: uint16 = 10;
     SemanticAnalyzer analyzer{root_node, script_src};
     analyzer.init_root_scope();
     analyzer.first_pass();
+    analyzer.second_pass();
 
     auto decl_data = analyzer.curr_scope_->get_declaration("bla");
 
@@ -82,6 +101,7 @@ R"(obj Vec3 {}
     SemanticAnalyzer analyzer{root_node, script_src};
     analyzer.init_root_scope();
     analyzer.first_pass();
+    analyzer.second_pass();
 
     auto decl_data = analyzer.curr_scope_->get_declaration("Vec3");
 
@@ -111,6 +131,7 @@ var var_2: int;
     SemanticAnalyzer analyzer{root_node, script_src};
     analyzer.init_root_scope();
     analyzer.first_pass();
+    analyzer.second_pass();
 
     auto func_0_data = analyzer.curr_scope_->get_declaration("func_0");
     ASSERT_TRUE(func_0_data != nullptr);

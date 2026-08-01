@@ -305,8 +305,12 @@ numbers_after:
     }
 
     // Make the EOF token not override the column of the previous token 
-    column++;
-    append_token(TokenType::END_OF_FILE);
+    if (source[curr_idx - 1] == '\n')
+        line--;
+    else
+        column++;
+    
+    append_token(TokenType::END_OF_FILE, " ");
 
     return tokens;
 }

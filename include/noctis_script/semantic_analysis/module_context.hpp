@@ -10,11 +10,12 @@
 namespace NCSC
 {
     
-// One per script
+// If using this for more than one script, call clear_imported_modules 
+// before the semantic analysis of a different script
 class ModuleContext
 {
 public:
-    static auto create() -> PtrRef<ModuleContext>;
+    ModuleContext() = default;
 
     auto add_import_folder(const std::filesystem::path &path) -> void;
     auto add_import_file(const std::filesystem::path &path) -> bool;
@@ -41,8 +42,6 @@ private:
     std::unordered_map<
         Parsing::ScopedPath,
         PtrRef<SemanticAnalysis::ModuleData>>   imported_modules_;
-
-    ModuleContext() = default;
 };
 
 } // namespace NCSC

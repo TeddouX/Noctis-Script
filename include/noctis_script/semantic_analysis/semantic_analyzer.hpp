@@ -17,8 +17,8 @@ class SemanticAnalyzer
 public:
     SemanticAnalyzer(
         TypeErased<ASTNode> root, 
-        PtrRef<ScriptSource> script_source = nullptr, 
-        PtrRef<ModuleContext> module_ctxt = nullptr
+        PtrRef<ScriptSource> script_source = nullptr,
+        ModuleContext *module_ctx = nullptr
     );
 
     auto do_analysis() -> PtrRef<SemanticAnalysis::ModuleData>;
@@ -33,7 +33,7 @@ private:
     PtrRef<SemanticAnalysis::ModuleData>    module_data_;
 
     PtrRef<ScriptSource>                    script_source_;
-    PtrRef<ModuleContext>                   module_ctxt_;
+    ModuleContext                          *module_ctx_;
 
     std::vector<Error>                      analysis_errors_;
 

@@ -1007,11 +1007,11 @@ auto Parser::parse_export_declaration() -> TypeErased<ASTNode>
     auto node = TypeErased<ASTNode>::make(ASTNodeType::EXPORT_DECL);
 
     if (is_at_tokens_end())
-        return node;
+        return nullptr;
 
     const auto &t = SAFE_PEEK();
     if (t.type != TokenType::EXPORT_KWD)
-        return node;
+        return nullptr;
 
     consume();
 

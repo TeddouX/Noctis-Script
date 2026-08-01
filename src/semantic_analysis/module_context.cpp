@@ -13,10 +13,6 @@ namespace NCSC
     
 using namespace SemanticAnalysis;
 
-auto ModuleContext::create() -> PtrRef<ModuleContext>
-{
-    return PtrRef{new ModuleContext{}};
-}
 
 auto ModuleContext::add_import_folder(const std::filesystem::path &path) -> void
 {
@@ -83,29 +79,19 @@ auto ModuleContext::add_module(const std::string &file_contents, const std::file
     if (parser.has_syntax_errors())
         return parser.get_syntax_errors();
 
-    auto import_node = root->children()[0];
-    if (import_node->type() != ASTNodeType::MODULE_DEF)
-    {
-        auto err_info = ErrorInfo::create("Module", "M3", "INTERNAL: Can't add '{}' as a module because it doesn't have an @module statement");
-        return { Error{err_info, err_info->get_formatted(file_path.string()), nullptr} };
-    }
-
-    auto scoped_id = import_node->children()[0].dynamic_ptr_cast<Parsing::ScopedIdentifierASTNode>();
-    Parsing::ScopedPath scope_path = scoped_id->path;
-
-    SemanticAnalyzer semantic_analyzer{root, script_source, PtrRef{this}};
+    SemanticAnalyzer semantic_analyzer{root, script_source, this};
     auto module_data = semantic_analyzer.do_analysis();
-    module_data->path = scope_path;
-
     if (semantic_analyzer.has_analysis_errors())
         return semantic_analyzer.get_analysis_errors();
 
-    imported_modules_.emplace(scope_path, module_data);
+    imported_modules_.emplace(module_data->path, module_data);
+
+    return {};
 }
 
 auto ModuleContext::has_module(const Parsing::ScopedPath &path) const -> bool
 {
-    return discovered_modules_.contains(path);
+    return discovered_modules_.contains(path) or imported_modules_.contains(path);
 }
 
 auto ModuleContext::get_module_path(const Parsing::ScopedPath &path) const -> std::filesystem::path
