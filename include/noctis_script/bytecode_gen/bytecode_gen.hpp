@@ -6,7 +6,7 @@
 #include "bytecode_gen_data.hpp"
 #include "value_type.hpp"
 #include "../error.hpp"
-#include "../parser/ast_node.hpp"
+#include "../parsing/ast_node.hpp"
 #include "../vm/vm_instructions.hpp"
 #include "../vm/builtin_types.hpp"
 
@@ -19,10 +19,10 @@ class BytecodeGenerator
 public:
     BytecodeGenerator(bool is_debug = false);
 
-    auto compile_script(std::shared_ptr<ScriptSource> src) -> Bytecode;
-    auto compile_script(const std::string &script) -> Bytecode;
+    auto generate(std::shared_ptr<ScriptSource> src) -> Bytecode;
+    auto generate(const std::string &script) -> Bytecode;
     // Do not try to compile if the code has syntax errors as it may lead to crashes
-    auto compile_script(const ASTNode &root_node, std::shared_ptr<ScriptSource> src = nullptr) -> Bytecode;
+    auto generate(const ASTNode &root_node, std::shared_ptr<ScriptSource> src = nullptr) -> Bytecode;
 
     auto reset() -> void;
 
@@ -67,6 +67,12 @@ private:
         generation_errors_.push_back(err);
     }
 
+    auto finalize_bytecode() -> Bytecode;
+    auto make_bytecode_header(Bytecode &bytecode) -> BytecodeHeader;
+    auto append_globals_bytecode(Internal::GlobalVariable &global_var, std::vector<byte_t> &bytes) -> void;
+    auto append_functions_bytecode(Internal::Function &function, std::vector<byte_t> &bytes) -> void;
+    auto append_objects_data(const Internal::Object &object, std::vector<byte_t> &bytes) -> void;
+    auto resolve_jumps(std::vector<byte_t> &bytes) -> void;
     
     auto enter_new_scope() -> void;
     auto exit_scope() -> void;

@@ -1,4 +1,4 @@
-#include "parser/parser.hpp"
+#include "parsing/parser.hpp"
 
 #include <print>
 #include <iostream>
@@ -23,13 +23,13 @@ Parser::Parser(const std::vector<Token> &tokens, std::shared_ptr<ScriptSource> s
     , script_source_{script_source}
 {}
 
-auto Parser::parse() -> ASTNode
+auto Parser::parse() -> std::shared_ptr<ASTNode>
 {
-    ASTNode root{ASTNodeType::ROOT};
+    auto root = std::make_shared<ASTNode>(ASTNodeType::ROOT);
 
-    root.add_child(parse_declaration_body(false));
+    root->add_child(parse_declaration_body(false));
 
-    std::println(std::cerr, "{}", root.ast_string());
+    std::println(std::cerr, "{}", root->ast_string());
     for (const auto &err: syntax_errors_)
         std::println(std::cerr, "{}", err.get_error_message_with_source());
 
@@ -88,9 +88,9 @@ auto Parser::is_function_call() -> bool
     return t1.type == TokenType::PARENTHESIS_OPEN;
 }
 
-auto Parser::parse_declaration_body(bool is_inside_obj) -> ASTNode
+auto Parser::parse_declaration_body(bool is_inside_obj) -> std::shared_ptr<ASTNode>
 {
-    ASTNode node{ASTNodeType::DECLARATION_BODY};
+    auto node = std::make_shared<ASTNode>(ASTNodeType::DECLARATION_BODY);
 
     if (is_inside_obj)
     {
@@ -116,19 +116,19 @@ auto Parser::parse_declaration_body(bool is_inside_obj) -> ASTNode
                 return node;
             
             case TokenType::VAR_KWD:
-                node.add_child(parse_variable_declaration(is_inside_obj));
+                node->add_child(parse_variable_declaration(is_inside_obj));
                 continue;
 
             case TokenType::FUNC_KWD:
-                node.add_child(parse_function_declaration(is_inside_obj));
+                node->add_child(parse_function_declaration(is_inside_obj));
                 continue;
 
             case TokenType::OBJ_KWD:
-                node.add_child(parse_object_declaration(is_inside_obj));
+                node->add_child(parse_object_declaration(is_inside_obj));
                 continue;
 
             case TokenType::SEMICOLON:
-                node.update_location(curr_tok);
+                node->update_location(curr_tok);
                 SAFE_CONSUME();
 
                 continue;
@@ -144,15 +144,15 @@ auto Parser::parse_declaration_body(bool is_inside_obj) -> ASTNode
             switch (t.type)
             {
                 case TokenType::VAR_KWD:
-                    node.add_child(parse_variable_declaration(is_inside_obj));
+                    node->add_child(parse_variable_declaration(is_inside_obj));
                     continue;
 
                 case TokenType::FUNC_KWD:
-                    node.add_child(parse_function_declaration(is_inside_obj));
+                    node->add_child(parse_function_declaration(is_inside_obj));
                     continue;
 
                 case TokenType::OBJ_KWD:
-                    node.add_child(parse_object_declaration(is_inside_obj));
+                    node->add_child(parse_object_declaration(is_inside_obj));
                     continue;
                 
                 default:
@@ -163,7 +163,7 @@ auto Parser::parse_declaration_body(bool is_inside_obj) -> ASTNode
         }
         else if (is_inside_obj and curr_tok.type == TokenType::BRACE_CLOSE)
         {
-            node.update_location(curr_tok);
+            node->update_location(curr_tok);
             SAFE_CONSUME();
             
             break;
@@ -180,10 +180,10 @@ auto Parser::parse_declaration_body(bool is_inside_obj) -> ASTNode
     return node;
 }
 
-auto Parser::parse_variable_declaration(bool is_inside_obj) -> ASTNode
+auto Parser::parse_variable_declaration(bool is_inside_obj) -> std::shared_ptr<ASTNode>
 {
-    ASTNode node{ASTNodeType::VARIABLE_DECLARATION};
-    node.set_metadata("is_member_var", is_inside_obj);
+    auto node = std::make_shared<ASTNode>(ASTNodeType::VARIABLE_DECLARATION);
+    node->set_metadata("is_member_var", is_inside_obj);
 
     const Token &t4 = SAFE_PEEK();
     if (is_inside_obj)
@@ -192,13 +192,13 @@ auto Parser::parse_variable_declaration(bool is_inside_obj) -> ASTNode
         {
             SAFE_CONSUME();
 
-            node.add_child(parse_token(t4));
+            node->add_child(parse_token(t4));
             CHECK_SYNTAX_ERROR();
         }
         // Assume private
         else 
         {
-            node.add_child(parse_token(Token{TokenType::PRIVATE_KWD}));
+            node->add_child(parse_token(Token{TokenType::PRIVATE_KWD}));
             CHECK_SYNTAX_ERROR();
         }
     }
@@ -211,7 +211,7 @@ auto Parser::parse_variable_declaration(bool is_inside_obj) -> ASTNode
         return node;    
     }
 
-    node.add_child(parse_identifier());
+    node->add_child(parse_identifier());
     CHECK_SYNTAX_ERROR();
 
     const Token &t = SAFE_CONSUME();
@@ -221,7 +221,7 @@ auto Parser::parse_variable_declaration(bool is_inside_obj) -> ASTNode
         return node;
     }
 
-    node.add_child(parse_type());
+    node->add_child(parse_type());
     CHECK_SYNTAX_ERROR();
 
     const Token &t1 = SAFE_PEEK();
@@ -235,13 +235,13 @@ auto Parser::parse_variable_declaration(bool is_inside_obj) -> ASTNode
             return node;
         }
 
-        node.add_child(parse_expression());
+        node->add_child(parse_expression());
         CHECK_SYNTAX_ERROR();
     }
     else
     {
         // Empty expression
-        node.add_child(ASTNode{ASTNodeType::EXPRESSION});
+        node->add_child(std::make_shared<ASTNode>(ASTNodeType::EXPRESSION));
         CHECK_SYNTAX_ERROR();
     }
 
@@ -252,10 +252,10 @@ auto Parser::parse_variable_declaration(bool is_inside_obj) -> ASTNode
     return node;
 }
 
-auto Parser::parse_function_declaration(bool is_inside_obj) -> ASTNode
+auto Parser::parse_function_declaration(bool is_inside_obj) -> std::shared_ptr<ASTNode>
 {
-    ASTNode node(ASTNodeType::FUNCTION_DECLARATION);
-    node.set_metadata("is_method", is_inside_obj);
+    auto node = std::make_shared<ASTNode>(ASTNodeType::FUNCTION_DECLARATION);
+    node->set_metadata("is_method", is_inside_obj);
 
     const Token &t = SAFE_PEEK();
     if (is_inside_obj and t.is_access_modifier()) 
@@ -263,12 +263,12 @@ auto Parser::parse_function_declaration(bool is_inside_obj) -> ASTNode
         if (t.is_access_modifier())
         {
             const Token &t1 = SAFE_CONSUME();
-            node.add_child(parse_token(t1));
+            node->add_child(parse_token(t1));
             CHECK_SYNTAX_ERROR();
         }
         else
         {
-            node.add_child(parse_token(Token{TokenType::VOID_KWD}));
+            node->add_child(parse_token(Token{TokenType::VOID_KWD}));
             CHECK_SYNTAX_ERROR();
         }
     }
@@ -281,7 +281,7 @@ auto Parser::parse_function_declaration(bool is_inside_obj) -> ASTNode
     }
     
     // Function name
-    node.add_child(parse_identifier()); 
+    node->add_child(parse_identifier()); 
     CHECK_SYNTAX_ERROR();
 
     const Token &t2 = SAFE_CONSUME();
@@ -293,7 +293,7 @@ auto Parser::parse_function_declaration(bool is_inside_obj) -> ASTNode
 
     const Token &t3 = SAFE_PEEK();
 
-    ASTNode param_list_node(ASTNodeType::PARAMETER_LIST);
+    auto param_list_node = std::make_shared<ASTNode>(ASTNodeType::PARAMETER_LIST);
     // The function has parameters
     if (t3.type != TokenType::PARENTHESIS_CLOSE)
     {
@@ -305,7 +305,7 @@ auto Parser::parse_function_declaration(bool is_inside_obj) -> ASTNode
 
         for (;;) 
         {
-            param_list_node.add_child(parse_identifier()); 
+            param_list_node->add_child(parse_identifier()); 
             CHECK_SYNTAX_ERROR();
 
             const Token &t4 = SAFE_CONSUME();
@@ -315,7 +315,7 @@ auto Parser::parse_function_declaration(bool is_inside_obj) -> ASTNode
                 return node;
             }
 
-            param_list_node.add_child(parse_type());
+            param_list_node->add_child(parse_type());
             CHECK_SYNTAX_ERROR();
 
             const Token &t5 = SAFE_CONSUME();
@@ -325,7 +325,7 @@ auto Parser::parse_function_declaration(bool is_inside_obj) -> ASTNode
             }
             else if (t5.type == TokenType::PARENTHESIS_CLOSE)
             {
-                node.update_location(t5);
+                node->update_location(t5);
                 break;
             }
             else 
@@ -338,10 +338,10 @@ auto Parser::parse_function_declaration(bool is_inside_obj) -> ASTNode
     else 
     {
         SAFE_CONSUME();
-        node.update_location(t3);
+        node->update_location(t3);
     }
 
-    node.add_child(param_list_node);
+    node->add_child(param_list_node);
     CHECK_SYNTAX_ERROR();
 
     const Token &t4 = SAFE_PEEK();
@@ -349,26 +349,26 @@ auto Parser::parse_function_declaration(bool is_inside_obj) -> ASTNode
     {
         SAFE_CONSUME();
 
-        node.add_child(parse_type());
+        node->add_child(parse_type());
         CHECK_SYNTAX_ERROR();
     }
     else
     {
         // Assume void
-        node.add_child(parse_type(Token{TokenType::VOID_KWD}));
+        node->add_child(parse_type(Token{TokenType::VOID_KWD}));
         CHECK_SYNTAX_ERROR();
     }
 
 
-    node.add_child(parse_statement_block()); 
+    node->add_child(parse_statement_block()); 
     CHECK_SYNTAX_ERROR();
 
     return node;
 }
 
-auto Parser::parse_object_declaration(bool is_inside_obj) -> ASTNode
+auto Parser::parse_object_declaration(bool is_inside_obj) -> std::shared_ptr<ASTNode>
 {
-    ASTNode node{ASTNodeType::OBJ_DECLARATION};
+    auto node = std::make_shared<ASTNode>(ASTNodeType::OBJ_DECLARATION);
 
     const Token &t = SAFE_CONSUME();
     if (t.type != TokenType::OBJ_KWD)
@@ -377,19 +377,19 @@ auto Parser::parse_object_declaration(bool is_inside_obj) -> ASTNode
         return node;
     }
 
-    node.add_child(parse_identifier());
+    node->add_child(parse_identifier());
     CHECK_SYNTAX_ERROR();
 
-    node.add_child(parse_declaration_body(true));
+    node->add_child(parse_declaration_body(true));
     CHECK_SYNTAX_ERROR();
     
     return node;
 }
 
 
-auto Parser::parse_statement_block() -> ASTNode 
+auto Parser::parse_statement_block() -> std::shared_ptr<ASTNode> 
 {
-    ASTNode node(ASTNodeType::STATEMENT_BLOCK);
+    auto node = std::make_shared<ASTNode>(ASTNodeType::STATEMENT_BLOCK);
 
     const Token &t = SAFE_CONSUME();
     if (t.type != TokenType::BRACE_OPEN) 
@@ -398,7 +398,7 @@ auto Parser::parse_statement_block() -> ASTNode
         return node;
     }
 
-    node.update_location(t);
+    node->update_location(t);
 
     for (;;) 
     {
@@ -407,13 +407,13 @@ auto Parser::parse_statement_block() -> ASTNode
         {
             SAFE_CONSUME();
 
-            node.update_location(t1);
+            node->update_location(t1);
 
             break;
         }
         else
         {
-            node.add_child(parse_statement());
+            node->add_child(parse_statement());
             CHECK_SYNTAX_ERROR();
         }
 
@@ -424,7 +424,7 @@ auto Parser::parse_statement_block() -> ASTNode
     return node;
 }
 
-auto Parser::parse_statement() -> ASTNode
+auto Parser::parse_statement() -> std::shared_ptr<ASTNode>
 {
     const Token &t = SAFE_PEEK_RET_VALUE(0, parse_simple_statement());
     if (t.type == TokenType::IF_KWD)
@@ -437,17 +437,17 @@ auto Parser::parse_statement() -> ASTNode
         return parse_simple_statement();
 }
 
-auto Parser::parse_simple_statement() -> ASTNode 
+auto Parser::parse_simple_statement() -> std::shared_ptr<ASTNode> 
 {
-    const Token &t = SAFE_PEEK_RET_VALUE(0, ASTNode{ASTNodeType::ASSIGNMENT});
+    const Token &t = SAFE_PEEK_RET_VALUE(0, std::make_shared<ASTNode>(ASTNodeType::ASSIGNMENT));
     // Just a semicolon is alright
     if (t.type == TokenType::SEMICOLON) 
     {
         consume();
-        return ASTNode{ASTNodeType::ASSIGNMENT};
+        return std::make_shared<ASTNode>(ASTNodeType::ASSIGNMENT);
     }
 
-    ASTNode node = parse_assignment(); 
+    auto node = parse_assignment(); 
     CHECK_SYNTAX_ERROR();
 
     const Token &t1 = SAFE_CONSUME();
@@ -457,12 +457,12 @@ auto Parser::parse_simple_statement() -> ASTNode
     return node;
 }
 
-auto Parser::parse_if_statement(bool is_elif) -> ASTNode 
+auto Parser::parse_if_statement(bool is_elif) -> std::shared_ptr<ASTNode> 
 {
-    ASTNode node(is_elif ? ASTNodeType::ELIF_BRANCH : ASTNodeType::IF_STATEMENT);
+    auto node = std::make_shared<ASTNode>(is_elif ? ASTNodeType::ELIF_BRANCH : ASTNodeType::IF_STATEMENT);
 
     const Token &t = SAFE_CONSUME();
-    node.update_location(t);
+    node->update_location(t);
 
     if (not is_elif and t.type != TokenType::IF_KWD) 
     {
@@ -475,10 +475,10 @@ auto Parser::parse_if_statement(bool is_elif) -> ASTNode
         return node;
     }
 
-    node.add_child(parse_expression());     
+    node->add_child(parse_expression());     
     CHECK_SYNTAX_ERROR();
 
-    node.add_child(parse_statement_block()); 
+    node->add_child(parse_statement_block()); 
     CHECK_SYNTAX_ERROR();
 
     // Let the parent if handle other elif or else branches
@@ -490,20 +490,20 @@ auto Parser::parse_if_statement(bool is_elif) -> ASTNode
         const Token &t2 = SAFE_PEEK();
         if (t2.type == TokenType::ELIF_KWD)
         {
-            node.add_child(parse_if_statement(true));
+            node->add_child(parse_if_statement(true));
             CHECK_SYNTAX_ERROR();
         }
         else if (t2.type == TokenType::ELSE_KWD)
         {
             SAFE_CONSUME();
 
-            ASTNode else_branch_node{ASTNodeType::ELSE_BRANCH};
-            else_branch_node.update_location(t2);
+            auto else_branch_node = std::make_shared<ASTNode>(ASTNodeType::ELSE_BRANCH);
+            else_branch_node->update_location(t2);
 
-            else_branch_node.add_child(parse_statement_block());
+            else_branch_node->add_child(parse_statement_block());
             CHECK_SYNTAX_ERROR();
 
-            node.add_child(else_branch_node);
+            node->add_child(else_branch_node);
 
             break;
         }
@@ -516,12 +516,12 @@ auto Parser::parse_if_statement(bool is_elif) -> ASTNode
     return node;
 }
 
-auto Parser::parse_return_statement() -> ASTNode
+auto Parser::parse_return_statement() -> std::shared_ptr<ASTNode>
 {
-    ASTNode node(ASTNodeType::RETURN_STATEMENT);
+    auto node = std::make_shared<ASTNode>(ASTNodeType::RETURN_STATEMENT);
     
     const Token &t = SAFE_CONSUME();
-    node.update_location(t);
+    node->update_location(t);
     if (t.type != TokenType::RETURN_KWD) 
     {
         create_syntax_error(ERR_EXPECTED_TOKEN, t, "return");
@@ -537,7 +537,7 @@ auto Parser::parse_return_statement() -> ASTNode
     // value return
     else 
     {
-        node.add_child(parse_expression());
+        node->add_child(parse_expression());
 
         const Token &t2 = SAFE_CONSUME();
         if (t2.type != TokenType::SEMICOLON) 
@@ -550,11 +550,11 @@ auto Parser::parse_return_statement() -> ASTNode
     return node;
 }
 
-auto Parser::parse_assignment() -> ASTNode
+auto Parser::parse_assignment() -> std::shared_ptr<ASTNode>
 {
-    ASTNode node{ASTNodeType::ASSIGNMENT};
+    auto node = std::make_shared<ASTNode>(ASTNodeType::ASSIGNMENT);
 
-    node.add_child(parse_expression_term());
+    node->add_child(parse_expression_term());
     CHECK_SYNTAX_ERROR();
 
     const Token &t = SAFE_PEEK();
@@ -568,20 +568,20 @@ auto Parser::parse_assignment() -> ASTNode
         return node;
     }
 
-    node.add_child(parse_assignment_operator(false));
+    node->add_child(parse_assignment_operator(false));
     CHECK_SYNTAX_ERROR();
 
-    node.add_child(parse_expression());
+    node->add_child(parse_expression());
     CHECK_SYNTAX_ERROR();
 
     return node;
 }
 
-auto Parser::parse_expression() -> ASTNode
+auto Parser::parse_expression() -> std::shared_ptr<ASTNode>
 {
-    ASTNode node(ASTNodeType::EXPRESSION);
+    auto node = std::make_shared<ASTNode>(ASTNodeType::EXPRESSION);
 
-    node.add_child(parse_expression_term());
+    node->add_child(parse_expression_term());
     // The first part of an expression should always be a term
     CHECK_SYNTAX_ERROR();
 
@@ -595,15 +595,15 @@ auto Parser::parse_expression() -> ASTNode
             SAFE_CONSUME();
             complex_expr = true;
             
-            ASTNode bin_op(ASTNodeType::BINOP);
-            bin_op.set_token(t1);
-            node.add_child(bin_op);
+            auto bin_op = std::make_shared<ASTNode>(ASTNodeType::BINOP);
+            bin_op->set_token(t1);
+            node->add_child(bin_op);
         }
         else
             // The expression is finished, there should be no more terms left over
             break;
         
-        node.add_child(parse_expression_term());
+        node->add_child(parse_expression_term());
         // There should always be a term after an operator
         CHECK_SYNTAX_ERROR();
     }
@@ -613,35 +613,35 @@ auto Parser::parse_expression() -> ASTNode
         return node;
 
     // Assure operator precedence
-    while (node.children_.size() > 1) 
+    while (node->children_.size() > 1) 
     {
         int highest_precedence = 0;
         int highest_precedence_idx = 0;
 
-        for (int i = 1; i < node.children_.size(); i += 2) 
+        for (int i = 1; i < node->children_.size(); i += 2) 
         {
-            const Token &tok = node.children_[i].token();
+            const Token &tok = node->children_[i]->token();
             int op_precedence = tok.get_operator_precedence(); 
 
             highest_precedence_idx = (op_precedence > highest_precedence) ? i : highest_precedence_idx;
             highest_precedence = std::max(highest_precedence, op_precedence);
         }
 
-        ASTNode op_node = node.children_[highest_precedence_idx];
+        auto op_node = node->children_[highest_precedence_idx];
         // Left operand
-        op_node.add_child(node.children_[highest_precedence_idx - 1]);
+        op_node->add_child(node->children_[highest_precedence_idx - 1]);
         // Right operand
-        op_node.add_child(node.children_[highest_precedence_idx + 1]);
+        op_node->add_child(node->children_[highest_precedence_idx + 1]);
 
         // Remove [left, op, right]
-        node.children_.erase(
-            std::next(node.children_.begin(), highest_precedence_idx - 1), 
-            std::next(node.children_.begin(), highest_precedence_idx + 2)
+        node->children_.erase(
+            std::next(node->children_.begin(), highest_precedence_idx - 1), 
+            std::next(node->children_.begin(), highest_precedence_idx + 2)
         );
 
         // Place it where the left operand originally was to leave no empty space
-        node.children_.insert(
-            std::next(node.children_.begin(), highest_precedence_idx - 1), 
+        node->children_.insert(
+            std::next(node->children_.begin(), highest_precedence_idx - 1), 
             op_node
         );
     }
@@ -649,9 +649,9 @@ auto Parser::parse_expression() -> ASTNode
     return node;
 }
 
-auto Parser::parse_expression_term() -> ASTNode
+auto Parser::parse_expression_term() -> std::shared_ptr<ASTNode>
 {
-    ASTNode node(ASTNodeType::EXPRESSION_TERM);
+    auto node = std::make_shared<ASTNode>(ASTNodeType::EXPRESSION_TERM);
     
     for (;;) 
     {
@@ -659,11 +659,11 @@ auto Parser::parse_expression_term() -> ASTNode
         if (not t.is_expression_pre_operator())
             break;
         
-        node.add_child(parse_expression_pre_operator());
+        node->add_child(parse_expression_pre_operator());
         CHECK_SYNTAX_ERROR();
     }
 
-    node.add_child(parse_expression_value());
+    node->add_child(parse_expression_value());
     CHECK_SYNTAX_ERROR();
 
     for (;;) 
@@ -672,16 +672,16 @@ auto Parser::parse_expression_term() -> ASTNode
         if (not t.is_expression_post_operator()) 
             break;
         
-        node.add_child(parse_expression_post_operator());
+        node->add_child(parse_expression_post_operator());
         CHECK_SYNTAX_ERROR();
     }
 
     return node;
 }
 
-auto Parser::parse_assignment_operator(bool allow_compound_ops) -> ASTNode
+auto Parser::parse_assignment_operator(bool allow_compound_ops) -> std::shared_ptr<ASTNode>
 {
-    ASTNode node{ASTNodeType::BINOP};
+    auto node = std::make_shared<ASTNode>(ASTNodeType::BINOP);
 
     const Token &op = SAFE_CONSUME();
     if (not allow_compound_ops and op.type != TokenType::EQUAL) 
@@ -695,56 +695,56 @@ auto Parser::parse_assignment_operator(bool allow_compound_ops) -> ASTNode
         return node;
     }
 
-    node.set_token(op);
+    node->set_token(op);
     return node;
 }
 
-auto Parser::parse_expression_pre_operator() -> ASTNode
+auto Parser::parse_expression_pre_operator() -> std::shared_ptr<ASTNode>
 {
-    ASTNode node(ASTNodeType::EXPRESSION_PREOP);
+    auto node = std::make_shared<ASTNode>(ASTNodeType::EXPRESSION_PREOP);
 
     const Token &t = SAFE_CONSUME();
     if (not t.is_expression_pre_operator())
         return node;
     
-    node.set_token(t);
+    node->set_token(t);
 
     return node;
 }
 
-auto Parser::parse_expression_value() -> ASTNode
+auto Parser::parse_expression_value() -> std::shared_ptr<ASTNode>
 {
-    ASTNode node(ASTNodeType::EXPRESSION_VALUE);
+    auto node = std::make_shared<ASTNode>(ASTNodeType::EXPRESSION_VALUE);
 
     const Token &t = SAFE_PEEK();
     if (t.is_constant_value()) 
     {
-        node.add_child(parse_constant()); 
+        node->add_child(parse_constant()); 
         CHECK_SYNTAX_ERROR();
     } 
     else if (t.type == TokenType::ID) 
     {
         if (is_function_call()) 
         {
-            node.add_child(parse_function_call()); 
+            node->add_child(parse_function_call()); 
             CHECK_SYNTAX_ERROR();
         } 
         else 
         {
-            node.add_child(parse_identifier()); 
+            node->add_child(parse_identifier()); 
             CHECK_SYNTAX_ERROR();
         }
     }
     else if (t.type == TokenType::NEW_KWD) 
     {
-        node.add_child(parse_construct_call()); 
+        node->add_child(parse_construct_call()); 
         CHECK_SYNTAX_ERROR();
     }
     else if (t.type == TokenType::PARENTHESIS_OPEN) 
     {
         SAFE_CONSUME();
 
-        node.add_child(parse_expression()); 
+        node->add_child(parse_expression()); 
         CHECK_SYNTAX_ERROR();
 
         const Token &t1 = SAFE_CONSUME();
@@ -763,9 +763,9 @@ auto Parser::parse_expression_value() -> ASTNode
     return node;
 }
 
-auto Parser::parse_expression_post_operator() -> ASTNode
+auto Parser::parse_expression_post_operator() -> std::shared_ptr<ASTNode>
 {
-    ASTNode node(ASTNodeType::EXPRESSION_POSTOP);
+    auto node = std::make_shared<ASTNode>(ASTNodeType::EXPRESSION_POSTOP);
 
     const Token &t = SAFE_PEEK();
     if (t.type == TokenType::DOT) 
@@ -784,35 +784,35 @@ auto Parser::parse_expression_post_operator() -> ASTNode
 
             if (is_function_call())
             {
-                node.add_child(parse_function_call()); 
+                node->add_child(parse_function_call()); 
                 CHECK_SYNTAX_ERROR();
             }
             else
             {
-                node.add_child(parse_identifier());
+                node->add_child(parse_identifier());
                 CHECK_SYNTAX_ERROR();
             }
         }
     }
     else
     {
-        node.add_child(parse_token(t));
+        node->add_child(parse_token(t));
         SAFE_CONSUME();
     }
 
     return node;
 }
 
-auto Parser::parse_token(const Token &t) -> ASTNode
+auto Parser::parse_token(const Token &t) -> std::shared_ptr<ASTNode>
 {
-    ASTNode node(ASTNodeType::TOKEN);
-    node.set_token(t);
+    auto node = std::make_shared<ASTNode>(ASTNodeType::TOKEN);
+    node->set_token(t);
     return node;
 }
 
-auto Parser::parse_identifier() -> ASTNode
+auto Parser::parse_identifier() -> std::shared_ptr<ASTNode>
 {
-    ASTNode node(ASTNodeType::IDENTIFIER);
+    auto node = std::make_shared<ASTNode>(ASTNodeType::IDENTIFIER);
 
     const Token &t = SAFE_CONSUME();
     if (t.type != TokenType::ID) 
@@ -821,27 +821,27 @@ auto Parser::parse_identifier() -> ASTNode
         return node;
     }
 
-    node.set_token(t);
+    node->set_token(t);
     
     return node;
 }
 
-auto Parser::parse_function_call() -> ASTNode
+auto Parser::parse_function_call() -> std::shared_ptr<ASTNode>
 {
-    ASTNode node(ASTNodeType::FUNCTION_CALL);
+    auto node = std::make_shared<ASTNode>(ASTNodeType::FUNCTION_CALL);
 
-    node.add_child(parse_identifier()); 
+    node->add_child(parse_identifier()); 
     CHECK_SYNTAX_ERROR();
 
-    node.add_child(parse_argument_list()); 
+    node->add_child(parse_argument_list()); 
     CHECK_SYNTAX_ERROR();
 
     return node;
 }
 
-auto Parser::parse_argument_list() -> ASTNode 
+auto Parser::parse_argument_list() -> std::shared_ptr<ASTNode> 
 {
-    ASTNode node(ASTNodeType::ARGUMENT_LIST);
+    auto node = std::make_shared<ASTNode>(ASTNodeType::ARGUMENT_LIST);
 
     const Token &t = SAFE_CONSUME();
     if (t.type != TokenType::PARENTHESIS_OPEN) 
@@ -850,14 +850,14 @@ auto Parser::parse_argument_list() -> ASTNode
         return node;
     }
 
-    node.update_location(t);
+    node->update_location(t);
 
     const Token &t1 = SAFE_PEEK(); 
     if (t1.type != TokenType::PARENTHESIS_CLOSE) 
     {
         for (;;) 
         {
-            node.add_child(parse_expression()); 
+            node->add_child(parse_expression()); 
             CHECK_SYNTAX_ERROR();
 
             const Token &t3 = SAFE_CONSUME();
@@ -870,21 +870,21 @@ auto Parser::parse_argument_list() -> ASTNode
                 break;
             }
 
-            node.update_location(t3);
+            node->update_location(t3);
         }
     }
     else 
     {
-        node.update_location(t1);
+        node->update_location(t1);
         SAFE_CONSUME();
     }
 
     return node;
 }
 
-auto Parser::parse_constant() -> ASTNode
+auto Parser::parse_constant() -> std::shared_ptr<ASTNode>
 {
-    ASTNode node(ASTNodeType::CONSTANT);
+    auto node = std::make_shared<ASTNode>(ASTNodeType::CONSTANT);
 
     const Token &t = SAFE_CONSUME();
     if (not t.is_constant_value()) 
@@ -893,14 +893,14 @@ auto Parser::parse_constant() -> ASTNode
         return node;
     }
     
-    node.set_token(t);
+    node->set_token(t);
     
     return node;
 }
 
-auto Parser::parse_construct_call() -> ASTNode
+auto Parser::parse_construct_call() -> std::shared_ptr<ASTNode>
 {
-    ASTNode node(ASTNodeType::CONSTRUCT_CALL);
+    auto node = std::make_shared<ASTNode>(ASTNodeType::CONSTRUCT_CALL);
 
     const Token &t = SAFE_CONSUME();
     if (t.type != TokenType::NEW_KWD) 
@@ -909,18 +909,18 @@ auto Parser::parse_construct_call() -> ASTNode
         return node;
     }
 
-    node.add_child(parse_identifier()); 
+    node->add_child(parse_identifier()); 
     CHECK_SYNTAX_ERROR();
 
-    node.add_child(parse_argument_list()); 
+    node->add_child(parse_argument_list()); 
     CHECK_SYNTAX_ERROR();
 
     return node;
 }
 
-auto Parser::parse_type() -> ASTNode
+auto Parser::parse_type() -> std::shared_ptr<ASTNode>
 {
-    ASTNode node(ASTNodeType::DATA_TYPE);
+    auto node = std::make_shared<ASTNode>(ASTNodeType::DATA_TYPE);
 
     const Token &t = SAFE_CONSUME();
     if (not t.is_data_type()) 
@@ -929,15 +929,15 @@ auto Parser::parse_type() -> ASTNode
         return node;
     }
     
-    node.set_token(t);
+    node->set_token(t);
     
     return node;
 }
 
-auto Parser::parse_type(const Token &t) -> ASTNode
+auto Parser::parse_type(const Token &t) -> std::shared_ptr<ASTNode>
 {
-    ASTNode node(ASTNodeType::DATA_TYPE);
-    node.set_token(t);
+    auto node = std::make_shared<ASTNode>(ASTNodeType::DATA_TYPE);
+    node->set_token(t);
     return node;
 }
 

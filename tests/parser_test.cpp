@@ -2,8 +2,8 @@
 
 #include <print>
 
-#include "noctis_script/parser/parser.hpp"
-#include "noctis_script/lexer/lexer.hpp"
+#include "noctis_script/parsing/parser.hpp"
+#include "noctis_script/lexing/lexer.hpp"
 
 
 using namespace NCSC;

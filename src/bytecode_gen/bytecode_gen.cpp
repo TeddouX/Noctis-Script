@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <print>
 
-#include "lexer/lexer.hpp"
-#include "parser/parser.hpp"
+#include "lexing/lexer.hpp"
+#include "parsing/parser.hpp"
 #include "utils/vector_utils.hpp"
 #include "bytecode_gen/value_type.hpp"
 
@@ -35,13 +35,13 @@ BytecodeGenerator::BytecodeGenerator(bool is_debug)
     , curr_object_{nullptr}
 {}
 
-auto BytecodeGenerator::compile_script(const std::string &script) -> Bytecode
+auto BytecodeGenerator::generate(const std::string &script) -> Bytecode
 {
     std::shared_ptr<ScriptSource> src = ScriptSource::from_contents(script);
-    return compile_script(src);
+    return generate(src);
 }
 
-auto BytecodeGenerator::compile_script(std::shared_ptr<ScriptSource> src) -> Bytecode
+auto BytecodeGenerator::generate(std::shared_ptr<ScriptSource> src) -> Bytecode
 {
     std::vector<Token> tokens = tokenize(src);
 
@@ -54,17 +54,17 @@ auto BytecodeGenerator::compile_script(std::shared_ptr<ScriptSource> src) -> Byt
         return Bytecode{};
     }
 
-    return compile_script(root, src);
+    return generate(root, src);
 }
 
-auto BytecodeGenerator::compile_script(const ASTNode &root_node, std::shared_ptr<ScriptSource> src) -> Bytecode
+auto BytecodeGenerator::generate(const ASTNode &root_node, std::shared_ptr<ScriptSource> src) -> Bytecode
 {
     script_source_ = src;
     temp_bytecode_ = Bytecode{script_source_, is_debug_};
 
     handle_declaration_body(root_node.children()[0]);
 
-    return temp_bytecode_;
+    return finalize_bytecode();
 }
 
 auto BytecodeGenerator::reset() -> void
@@ -104,6 +104,50 @@ auto BytecodeGenerator::has_syntax_errors() const -> bool
 auto BytecodeGenerator::syntax_errors() const -> const std::vector<Error> &
 {
     return syntax_errors_;
+}
+
+auto BytecodeGenerator::finalize_bytecode() -> Bytecode
+{
+    Bytecode final_bytecode{};
+
+    for (auto &global_var : global_vars_)
+        append_globals_bytecode(global_var, final_bytecode.bytes_);
+    
+    for (auto &func : functions_)
+        append_functions_bytecode(func, final_bytecode.bytes_);
+
+    for (const auto &obj : objects_)
+        append_objects_data(obj, final_bytecode.bytes_);
+
+    BytecodeHeader header = make_bytecode_header(final_bytecode);
+
+    return final_bytecode;
+}
+
+auto BytecodeGenerator::make_bytecode_header(Bytecode &bytecode) -> BytecodeHeader
+{
+    BytecodeHeader header{};
+    return header;
+}
+
+auto BytecodeGenerator::append_globals_bytecode(Internal::GlobalVariable &global_var, std::vector<byte_t> &bytes) -> void
+{
+    resolve_jumps(global_var.bytecode.bytes_);
+}
+
+auto BytecodeGenerator::append_functions_bytecode(Internal::Function &function, std::vector<byte_t> &bytes) -> void
+{
+    resolve_jumps(function.bytecode.bytes_);
+}
+
+auto BytecodeGenerator::append_objects_data(const Internal::Object &object, std::vector<byte_t> &bytes) -> void
+{
+
+}
+
+auto BytecodeGenerator::resolve_jumps(std::vector<byte_t> &bytes) -> void
+{
+
 }
 
 auto BytecodeGenerator::enter_new_scope() -> void

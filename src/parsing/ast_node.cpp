@@ -1,4 +1,4 @@
-#include "parser/ast_node.hpp"
+#include "parsing/ast_node.hpp"
 
 #include <sstream>
 #include <stack>

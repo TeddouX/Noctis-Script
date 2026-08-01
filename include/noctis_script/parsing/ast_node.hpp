@@ -1,7 +1,8 @@
 #pragma once
 #include <vector>
+#include <memory>
 
-#include "../lexer/token.hpp"
+#include "../lexing/token.hpp"
 #include "../location.hpp"
 #include "../utils/metadata_holder.hpp"
 
@@ -44,15 +45,16 @@ class ASTNode : public Utils::MetadataHolder
 {
 public:
     explicit ASTNode(ASTNodeType type);
+    virtual ~ASTNode() = default;
 
-    auto add_child(const ASTNode &child) -> void;
+    auto add_child(std::shared_ptr<ASTNode> child) -> void;
     auto set_token(const Token &token) -> void;
     auto update_location(const Token &token) -> void;
     auto set_location(const Location &location) -> void;
 
     auto type() const -> ASTNodeType;
     auto token() const -> const Token &;
-    auto children() const -> const std::vector<ASTNode> &;
+    auto children() const -> const std::vector<std::shared_ptr<ASTNode>> &;
     auto location() const -> const Location &;
 
     auto ast_string(bool is_root = true, const std::string &prefix = "", bool is_last = false) const -> std::string;
@@ -61,13 +63,13 @@ public:
 private:
     friend class Parser;
 
-    ASTNodeType             type_;
-    Token                   token_;
-    Location                location_;
+    ASTNodeType                             type_;
+    Token                                   token_;
+    Location                                location_;
 
-    bool                    has_loc_been_set_;
+    bool                                    has_loc_been_set_;
 
-    std::vector<ASTNode>    children_;
+    std::vector<std::shared_ptr<ASTNode>>   children_;
 };
 
 } // namespace NCSC

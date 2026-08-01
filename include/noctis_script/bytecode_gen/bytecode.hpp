@@ -33,10 +33,8 @@ namespace NCSC
 //      bytecode: byte[]
 // - object:
 //      num_members: uint16_t
-//      members: ValueType[]
-//      methods: uint64[]
 // - function:
-//      Also contains methods
+//      // Also contains methods
 //      name: string (null terminated) // To be able to execute it only using its name, cached in the vm
 //      num_locals: uint16
 //      req_stack_size: uint32
@@ -49,6 +47,7 @@ struct BytecodeHeader
     std::vector<std::uint64_t>  globals;
     std::vector<std::uint64_t>  objects;
     std::vector<std::uint64_t>  functions;
+    std::uint64_t               contents_size;
 };
 
 class Bytecode

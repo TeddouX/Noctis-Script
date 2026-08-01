@@ -1,7 +1,8 @@
 #pragma once
 #include <vector>
+#include <memory>
 
-#include "../lexer/token.hpp"
+#include "../lexing/token.hpp"
 #include "../error.hpp"
 #include "ast_node.hpp"
 
@@ -14,7 +15,7 @@ class Parser
 public:
     Parser(const std::vector<Token> &tokens, std::shared_ptr<ScriptSource> script_source = nullptr);
 
-    auto parse() -> ASTNode;
+    auto parse() -> std::shared_ptr<ASTNode>;
 
     auto has_syntax_errors() const -> bool;
     auto get_syntax_errors() const -> const std::vector<Error> &;
@@ -45,7 +46,7 @@ private:
 
     // Parses functions declaration, object declarartion and global variable declarations
     // Can be used to parse the body of an object
-    auto parse_declaration_body(bool is_inside_obj)         -> ASTNode;
+    auto parse_declaration_body(bool is_inside_obj)         -> std::shared_ptr<ASTNode>;
 
     // VARIABLE_DECLARATION CHILD ORDER:
     //      For normal variables:
@@ -57,7 +58,7 @@ private:
     //          1: name                     (IDENTIFIER)
     //          2: type                     (DATA_TYPE)
     //          3: expression (optional)    (EXPRESSION)
-    auto parse_variable_declaration(bool is_inside_obj)     -> ASTNode;
+    auto parse_variable_declaration(bool is_inside_obj)     -> std::shared_ptr<ASTNode>;
 
     // FUNCTION DECLARATION CHILD ORDER:
     //      For normal functions:
@@ -71,34 +72,34 @@ private:
     //          2: param_list       (PARAMETER_LIST)
     //          3: return type      (DATA_TYPE)
     //          4: statement block  (STATEMENT_BLOCK)
-    auto parse_function_declaration(bool is_inside_obj)     -> ASTNode;
-    auto parse_object_declaration(bool is_inside_obj)       -> ASTNode;
+    auto parse_function_declaration(bool is_inside_obj)     -> std::shared_ptr<ASTNode>;
+    auto parse_object_declaration(bool is_inside_obj)       -> std::shared_ptr<ASTNode>;
     
     // STATEMENT BLOCK:
     //      Statement[]
-    auto parse_statement_block()                            -> ASTNode;
+    auto parse_statement_block()                            -> std::shared_ptr<ASTNode>;
 
     // STATEMENT:
     //      - if/else/elif: (IF_STATEMENT)
     //      or return:      (RETURN_STATEMENT)
     //      or var:         (VARIABLE_DECLARATION)
     //      or assigment:   (ASSIGNMENT)
-    auto parse_statement()                                  -> ASTNode;
+    auto parse_statement()                                  -> std::shared_ptr<ASTNode>;
 
     // -> ASSIGNMENT
-    auto parse_simple_statement()                           -> ASTNode;
-    auto parse_if_statement(bool is_elif)                   -> ASTNode;
-    auto parse_return_statement()                           -> ASTNode;
-    auto parse_assignment()                                 -> ASTNode;
-    auto parse_expression()                                 -> ASTNode;
+    auto parse_simple_statement()                           -> std::shared_ptr<ASTNode>;
+    auto parse_if_statement(bool is_elif)                   -> std::shared_ptr<ASTNode>;
+    auto parse_return_statement()                           -> std::shared_ptr<ASTNode>;
+    auto parse_assignment()                                 -> std::shared_ptr<ASTNode>;
+    auto parse_expression()                                 -> std::shared_ptr<ASTNode>;
     
     // EXPRESSION TERM:
     //      Any number of EXPRESSION_PREOPs
     //      An EXPRESSION_VALUE
     //      Any number of EXPRESSION_POSTOPs
-    auto parse_expression_term()                            -> ASTNode;
-    auto parse_assignment_operator(bool allow_compound_ops) -> ASTNode;
-    auto parse_expression_pre_operator()                    -> ASTNode;
+    auto parse_expression_term()                            -> std::shared_ptr<ASTNode>;
+    auto parse_assignment_operator(bool allow_compound_ops) -> std::shared_ptr<ASTNode>;
+    auto parse_expression_pre_operator()                    -> std::shared_ptr<ASTNode>;
 
     // EXPRESSION VALUE:
     //      - CONSTANT
@@ -106,16 +107,16 @@ private:
     //      or IDENTIFIER
     //      or CONSTRUCT_CALL
     //      or EXPRESSION
-    auto parse_expression_value()                           -> ASTNode;
-    auto parse_expression_post_operator()                   -> ASTNode;
-    auto parse_token(const Token &t)                        -> ASTNode;
-    auto parse_identifier()                                 -> ASTNode;
-    auto parse_function_call()                              -> ASTNode;
-    auto parse_argument_list()                              -> ASTNode;
-    auto parse_constant()                                   -> ASTNode;
-    auto parse_construct_call()                             -> ASTNode;
-    auto parse_type()                                       -> ASTNode;
-    auto parse_type(const Token &t)                         -> ASTNode;
+    auto parse_expression_value()                           -> std::shared_ptr<ASTNode>;
+    auto parse_expression_post_operator()                   -> std::shared_ptr<ASTNode>;
+    auto parse_token(const Token &t)                        -> std::shared_ptr<ASTNode>;
+    auto parse_identifier()                                 -> std::shared_ptr<ASTNode>;
+    auto parse_function_call()                              -> std::shared_ptr<ASTNode>;
+    auto parse_argument_list()                              -> std::shared_ptr<ASTNode>;
+    auto parse_constant()                                   -> std::shared_ptr<ASTNode>;
+    auto parse_construct_call()                             -> std::shared_ptr<ASTNode>;
+    auto parse_type()                                       -> std::shared_ptr<ASTNode>;
+    auto parse_type(const Token &t)                         -> std::shared_ptr<ASTNode>;
 
     inline static std::shared_ptr<ErrorInfo> ERR_EXPECTED_TOKEN          {ErrorInfo::create("Syntax", "S1",  "Expected '{}'")};
     inline static std::shared_ptr<ErrorInfo> ERR_EXPECTED_TOKEN_OR_TOKEN {ErrorInfo::create("Syntax", "S2",  "Expected '{}' or '{}'")};

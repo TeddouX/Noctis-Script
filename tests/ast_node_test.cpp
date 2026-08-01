@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "noctis_script/parser/ast_node.hpp"
+#include "noctis_script/parsing/ast_node.hpp"
 
 using namespace NCSC;
 

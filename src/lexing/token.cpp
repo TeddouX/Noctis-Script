@@ -1,4 +1,4 @@
-#include "lexer/token.hpp"
+#include "lexing/token.hpp"
 
 namespace NCSC
 {
