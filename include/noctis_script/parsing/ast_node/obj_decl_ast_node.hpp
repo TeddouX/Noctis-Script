@@ -1,9 +1,6 @@
 #pragma once
-#include "ast_node.hpp"
-#include "../semantic_analysis/sa_value_type.hpp"
-
-
-namespace NCSC { class SemanticAnalyzer; }
+#include "../ast_node.hpp"
+#include "../../semantic_analysis/sa_value_type.hpp"
 
 
 namespace NCSC::Parsing
@@ -16,8 +13,8 @@ public:
         : ASTNode{type}
     {}
 
-    SemanticAnalysis::ValueType type;
-    std::string                 name;
+    SemanticAnalysis::ValueType obj_type;
+    std::string                 obj_name;
 };
 
 } // namespace NCSC::Parsing

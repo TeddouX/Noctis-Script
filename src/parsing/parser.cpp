@@ -3,7 +3,7 @@
 #include <print>
 #include <iostream>
 
-#include "parsing/func_decl_ast_node.hpp"
+#include "parsing/ast_node/all_ast_nodes.hpp"
 
 
 #define CHECK_SYNTAX_ERROR_RET_VALUE(ret) if (has_syntax_error_) return ret
@@ -105,7 +105,7 @@ auto Parser::parse_declaration_body(bool is_inside_obj) -> std::shared_ptr<ASTNo
         }
     }
 
-    while (curr_token_idx_ < tokens_.size())
+    while (curr_token_idx_ < tokens_.size() and not has_syntax_error_)
     {
         const Token &curr_tok = tokens_[curr_token_idx_];
         
@@ -185,7 +185,7 @@ auto Parser::parse_declaration_body(bool is_inside_obj) -> std::shared_ptr<ASTNo
 
 auto Parser::parse_variable_declaration(bool is_inside_obj) -> std::shared_ptr<ASTNode>
 {
-    auto node = std::make_shared<ASTNode>(ASTNodeType::VARIABLE_DECLARATION);
+    auto node = std::make_shared<Parsing::VarDeclASTNode>(ASTNodeType::VARIABLE_DECLARATION);
     node->set_metadata("is_member_var", is_inside_obj);
 
     const Token &t4 = SAFE_PEEK();
@@ -371,7 +371,7 @@ auto Parser::parse_function_declaration(bool is_inside_obj) -> std::shared_ptr<A
 
 auto Parser::parse_object_declaration(bool is_inside_obj) -> std::shared_ptr<ASTNode>
 {
-    auto node = std::make_shared<ASTNode>(ASTNodeType::OBJ_DECLARATION);
+    auto node = std::make_shared<Parsing::ObjDeclASTNode>(ASTNodeType::OBJ_DECLARATION);
 
     const Token &t = SAFE_CONSUME();
     if (t.type != TokenType::OBJ_KWD)

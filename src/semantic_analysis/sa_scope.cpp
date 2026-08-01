@@ -20,7 +20,7 @@ auto Scope::get_parent() const -> const std::shared_ptr<Scope> &
     return parent_;
 }
 
-auto Scope::add_declaration(const std::string &name, DeclData data) -> void
+auto Scope::add_declaration(const std::string &name, DeclData data) -> isize_t
 {
     switch (data.type)
     {
@@ -38,6 +38,8 @@ auto Scope::add_declaration(const std::string &name, DeclData data) -> void
     }
 
     declaration_data_.emplace(name, data);
+
+    return data.idx;
 }
 
 auto Scope::get_declaration(const std::string &name) const -> const DeclData *

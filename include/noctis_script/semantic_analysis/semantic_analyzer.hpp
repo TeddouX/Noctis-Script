@@ -44,13 +44,17 @@ private:
     // Control flow analysis
     auto fourth_pass() -> void;
 
+    auto init_root_scope() -> void;
     auto enter_new_scope() -> void;
     auto exit_scope() -> void;
     
     auto is_symbol_defined_elsewhere(const std::shared_ptr<ASTNode> &identifer) -> bool;
     auto value_type_from_node(const std::shared_ptr<ASTNode> &type_node) -> SemanticAnalysis::ValueType;
 
-    FRIEND_TEST(SemanticAnalyzerTest, UpdatesPositionWithTokenCorrectly);
+    FRIEND_TEST(SemanticAnalyzerTest, FirstPassFunctionCorrectData);
+    FRIEND_TEST(SemanticAnalyzerTest, FirstPassGlobalVarCorrectData);
+    FRIEND_TEST(SemanticAnalyzerTest, FirstPassObjectCorrectData);
+    FRIEND_TEST(SemanticAnalyzerTest, FirstPassCorrectIndices);
 
     inline static auto ERR_NOT_A_TYPE       {ErrorInfo::create("Semantic Analysis", "SA1", "'{}' is not a type.")};
     inline static auto ERR_ALREADY_DEFINED  {ErrorInfo::create("Semantic Analysis", "SA2", "'{}' was already defined somewhere else.")};

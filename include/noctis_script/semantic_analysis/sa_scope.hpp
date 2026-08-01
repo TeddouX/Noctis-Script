@@ -17,7 +17,7 @@ public:
     auto set_parent(std::shared_ptr<Scope> parent) -> void;
     auto get_parent() const -> const std::shared_ptr<Scope> &;
 
-    auto add_declaration(const std::string &name, DeclData data) -> void;
+    auto add_declaration(const std::string &name, DeclData data) -> isize_t;
     auto get_declaration(const std::string &name) const -> const DeclData *;
 
 private:

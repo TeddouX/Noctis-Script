@@ -1,7 +1,6 @@
 #include "semantic_analysis/semantic_analyzer.hpp"
 
-#include "parsing/func_decl_ast_node.hpp"
-#include "parsing/obj_decl_ast_node.hpp"
+#include "parsing/ast_node/all_ast_nodes.hpp"
 
 
 namespace NCSC
@@ -16,8 +15,7 @@ SemanticAnalyzer::SemanticAnalyzer(std::shared_ptr<ASTNode> root, std::shared_pt
 
 auto SemanticAnalyzer::do_analysis() -> std::shared_ptr<ASTNode>
 {
-    root_scope_ = std::make_shared<Scope>();
-    curr_scope_ = root_scope_;
+    init_root_scope();
 
     first_pass();
     second_pass();
@@ -39,7 +37,7 @@ auto SemanticAnalyzer::first_pass() -> void
             case ASTNodeType::FUNCTION_DECLARATION:
             {
                 auto func_decl = std::dynamic_pointer_cast<Parsing::FuncDeclASTNode>(declaration);
-                const auto &name_node = declaration->children()[0];
+                const auto &name_node = func_decl->children()[0];
                 const std::string &function_name = name_node->token().value;
 
                 if (is_symbol_defined_elsewhere(name_node))
@@ -47,14 +45,15 @@ auto SemanticAnalyzer::first_pass() -> void
 
                 DeclData decl_data{};
                 decl_data.decl_node = func_decl;
+                decl_data.type = DeclData::Type::FUNCTION;
 
-                func_decl->name = function_name;
+                func_decl->func_name = function_name;
 
-                const auto &param_node = declaration->children()[1];
+                const auto &param_node = func_decl->children()[1];
                 const auto &params = param_node->children();
 
                 if (params.size() > 0)
-                    func_decl->params.reserve(params.size() / 2);
+                    func_decl->func_params.reserve(params.size() / 2);
 
                 for (std::size_t i = 0; i < params.size(); i += 2)
                 {
@@ -64,12 +63,12 @@ auto SemanticAnalyzer::first_pass() -> void
                     const std::string &param_name = name_node->token().value;
                     ValueType param_type = value_type_from_node(type_node); 
                     
-                    func_decl->params.push_back({ param_name, param_type });
+                    func_decl->func_params.push_back({ param_name, param_type });
                 }
 
-                const auto &return_node = declaration->children()[2];
+                const auto &return_node = func_decl->children()[2];
                 ValueType return_type = value_type_from_node(return_node);
-                func_decl->return_type = return_type;
+                func_decl->func_return_type = return_type;
 
                 curr_scope_->add_declaration(function_name, decl_data);
 
@@ -77,9 +76,50 @@ auto SemanticAnalyzer::first_pass() -> void
             }
             // Global variable
             case ASTNodeType::VARIABLE_DECLARATION:
-               break;
-            case ASTNodeType::OBJ_DECLARATION:
+            {
+                auto var_decl = std::dynamic_pointer_cast<Parsing::VarDeclASTNode>(declaration);
+                const auto &name_node = declaration->children()[0];
+                const std::string &var_name = name_node->token().value;
+
+                if (is_symbol_defined_elsewhere(name_node))
+                    return;
+
+                DeclData decl_data{};
+                decl_data.decl_node = var_decl;
+                decl_data.type = DeclData::Type::VARIABLE;
+
+                var_decl->var_name = var_name;
+
+                const auto &type_node = declaration->children()[1];
+                ValueType var_type = value_type_from_node(type_node);
+
+                var_decl->var_type = var_type;
+
+                curr_scope_->add_declaration(var_name, decl_data);
+
                 break;
+            }
+            case ASTNodeType::OBJ_DECLARATION:
+            {
+                auto obj_decl = std::dynamic_pointer_cast<Parsing::ObjDeclASTNode>(declaration);
+                const auto &name_node = declaration->children()[0];
+                const std::string &var_name = name_node->token().value;
+
+                if (is_symbol_defined_elsewhere(name_node))
+                    return;
+
+                DeclData decl_data{};
+                decl_data.decl_node = obj_decl;
+                decl_data.type = DeclData::Type::OBJECT;
+
+                obj_decl->obj_name = var_name;
+
+                isize_t idx = curr_scope_->add_declaration(var_name, decl_data);
+                
+                obj_decl->obj_type = make_object_vtype(idx);
+
+                break;
+            }
         }
     }
 }
@@ -97,6 +137,12 @@ auto SemanticAnalyzer::third_pass() -> void
 auto SemanticAnalyzer::fourth_pass() -> void
 {
 
+}
+
+auto SemanticAnalyzer::init_root_scope() -> void
+{
+    root_scope_ = std::make_shared<Scope>();
+    curr_scope_ = root_scope_;
 }
 
 auto SemanticAnalyzer::enter_new_scope() -> void
@@ -159,7 +205,7 @@ auto SemanticAnalyzer::value_type_from_node(const std::shared_ptr<ASTNode> &type
     if (decl_data and decl_data->type == DeclData::Type::OBJECT)
     {
         auto obj_node = std::dynamic_pointer_cast<Parsing::ObjDeclASTNode>(decl_data->decl_node);
-        return obj_node->type;
+        return obj_node->obj_type;
     }
 
     error(ERR_NOT_A_TYPE, type_node->location(), tok.to_string());

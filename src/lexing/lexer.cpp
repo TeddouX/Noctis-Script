@@ -110,7 +110,7 @@ auto tokenize(const std::string &source) -> std::vector<Token>
             while (curr_idx + len < source.length())
             {
                 char id_char = source[curr_idx + len];
-                if (std::isalnum(id_char) or curr_char == '_')
+                if (std::isalnum(id_char) or id_char == '_')
                     len++;
                 else
                     break;
