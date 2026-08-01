@@ -64,6 +64,10 @@ enum class TokenType
 
     ARROW,              // ->
 
+    TWO_COLONS,         // ::
+
+    AT,                 // @
+
     VAR_KWD,            // var
     FUNC_KWD,           // func
     PUBLIC_KWD,         // public
@@ -80,6 +84,8 @@ enum class TokenType
     OR_KWD,             // or
     NOT_KWD,            // not
     OBJ_KWD,            // obj
+    MODULE_KWD,         // module
+    IMPORT_KWD,         // import
 
     INT8_KWD,           // int8
     INT16_KWD,          // int16
@@ -140,7 +146,6 @@ inline static Token INVALID_TOKEN = Token{};
 
 const std::unordered_map<char, TokenType> SINGLE_CHAR_TOKENS = {
     { ',', TokenType::COMMA },
-    { ':', TokenType::COLON },
     { ';', TokenType::SEMICOLON },
 
     { '(', TokenType::PARENTHESIS_OPEN },
@@ -149,7 +154,9 @@ const std::unordered_map<char, TokenType> SINGLE_CHAR_TOKENS = {
     
     { ')', TokenType::PARENTHESIS_CLOSE },
     { '}', TokenType::BRACE_CLOSE },
-    { ']', TokenType::BRACKET_CLOSE }
+    { ']', TokenType::BRACKET_CLOSE },
+    
+    { '@', TokenType::AT },
 };
 
 const std::unordered_map<TokenType, std::string> TOKENS_TO_STRING = {
@@ -201,6 +208,10 @@ const std::unordered_map<TokenType, std::string> TOKENS_TO_STRING = {
 
     { TokenType::ARROW,                 "->"        },
 
+    { TokenType::TWO_COLONS,            "::"        },
+
+    { TokenType::AT,                    "@"         },
+
     { TokenType::VAR_KWD,               "var"       },
     { TokenType::FUNC_KWD,              "func"      },
     { TokenType::PUBLIC_KWD,            "public"    },
@@ -217,6 +228,8 @@ const std::unordered_map<TokenType, std::string> TOKENS_TO_STRING = {
     { TokenType::OR_KWD,                "or"        },
     { TokenType::NOT_KWD,               "not"       },
     { TokenType::OBJ_KWD,               "obj"       },
+    { TokenType::MODULE_KWD,                "module"    },
+    { TokenType::IMPORT_KWD,                "import"    },
 
     { TokenType::INT8_KWD,              "int8"      },
     { TokenType::INT16_KWD,             "int16"     },
@@ -250,6 +263,8 @@ const std::unordered_map<std::string, TokenType> RESERVED_TOKENS = {
     { "or",         TokenType::OR_KWD       },  
     { "not",        TokenType::NOT_KWD      }, 
     { "obj",        TokenType::OBJ_KWD      },
+    { "module",     TokenType::MODULE_KWD,      },
+    { "import",     TokenType::IMPORT_KWD,      },
 
     { "int8",       TokenType::INT8_KWD     },
     { "int16",      TokenType::INT16_KWD    },

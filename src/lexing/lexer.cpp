@@ -293,6 +293,11 @@ numbers_after:
             case '/':
                 match_next('=', TokenType::SLASH, TokenType::SLASH_EQUAL);
                 continue;
+
+            // : ::
+            case ':':
+                match_next(':', TokenType::COLON, TokenType::TWO_COLONS);
+                continue;
         }
 
         append_token(TokenType::INVALID);
@@ -306,7 +311,7 @@ numbers_after:
     return tokens;
 }
 
-auto tokenize(const std::shared_ptr<ScriptSource> &script_source) -> std::vector<Token>
+auto tokenize(const PtrRef<ScriptSource> &script_source) -> std::vector<Token>
 {
     return tokenize(script_source->get_lines_string());
 }

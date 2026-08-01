@@ -84,7 +84,7 @@ auto Error::get_error_message_with_source() const -> std::string
     return lines;
 }
 
-auto Error::get_error_info() const -> const std::shared_ptr<ErrorInfo> &
+auto Error::get_error_info() const -> const PtrRef<ErrorInfo> &
 {
     return err_info_;
 }

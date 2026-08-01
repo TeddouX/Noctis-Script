@@ -6,6 +6,7 @@
 #include "sa_value_type.hpp"
 #include "../parsing/ast_node.hpp"
 #include "../error.hpp"
+#include "module_context.hpp"
 
 namespace NCSC
 {
@@ -13,21 +14,25 @@ namespace NCSC
 class SemanticAnalyzer
 {
 public:
-    SemanticAnalyzer(std::shared_ptr<ASTNode> root, std::shared_ptr<ScriptSource> script_source = nullptr);
+    SemanticAnalyzer(TypeErased<ASTNode> root, PtrRef<ScriptSource> script_source = nullptr);
 
-    auto do_analysis() -> std::shared_ptr<ASTNode>;
+    auto do_analysis() -> TypeErased<ASTNode>;
 
 private:
-    std::shared_ptr<ASTNode>                    root_node_;
-    std::shared_ptr<SemanticAnalysis::Scope>    root_scope_;
-    std::shared_ptr<SemanticAnalysis::Scope>    curr_scope_;
+    TypeErased<ASTNode>                 root_node_;
+    PtrRef<SemanticAnalysis::Scope>     root_scope_;
+    PtrRef<SemanticAnalysis::Scope>     curr_scope_;
 
-    std::shared_ptr<ScriptSource>               script_source_;
+    std::unordered_map<
+        std::string, 
+        SemanticAnalysis::ValueType>    type_table_;
 
-    std::vector<Error>                          analysis_errors_;
+    PtrRef<ScriptSource>                script_source_;
+
+    std::vector<Error>                  analysis_errors_;
 
     template <typename... _Args>
-    auto error(const std::shared_ptr<ErrorInfo> &err_info, const Location &location, _Args&&... args) -> void
+    auto error(const PtrRef<ErrorInfo> &err_info, const Location &location, _Args&&... args) -> void
     {
         std::string err_message = err_info->get_formatted(std::forward<_Args>(args)...);
         Error err{err_info, err_message, script_source_, location};
@@ -48,8 +53,8 @@ private:
     auto enter_new_scope() -> void;
     auto exit_scope() -> void;
     
-    auto is_symbol_defined_elsewhere(const std::shared_ptr<ASTNode> &identifer) -> bool;
-    auto value_type_from_node(const std::shared_ptr<ASTNode> &type_node) -> SemanticAnalysis::ValueType;
+    auto is_symbol_defined_elsewhere(const TypeErased<ASTNode> &identifer) -> bool;
+    auto value_type_from_node(const TypeErased<ASTNode> &type_node) -> SemanticAnalysis::ValueType;
 
     FRIEND_TEST(SemanticAnalyzerTest, FirstPassFunctionCorrectData);
     FRIEND_TEST(SemanticAnalyzerTest, FirstPassGlobalVarCorrectData);

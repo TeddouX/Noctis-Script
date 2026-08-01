@@ -8,12 +8,14 @@ namespace NCSC
     
 using namespace SemanticAnalysis;
 
-SemanticAnalyzer::SemanticAnalyzer(std::shared_ptr<ASTNode> root, std::shared_ptr<ScriptSource> script_source)
+SemanticAnalyzer::SemanticAnalyzer(TypeErased<ASTNode> root, PtrRef<ScriptSource> script_source)
     : root_node_{root}
     , script_source_{script_source}
-{}
+{
+    type_table_.insert(BULTIN_VTYPE_NAMES.begin(), BULTIN_VTYPE_NAMES.end());;
+}
 
-auto SemanticAnalyzer::do_analysis() -> std::shared_ptr<ASTNode>
+auto SemanticAnalyzer::do_analysis() -> TypeErased<ASTNode>
 {
     init_root_scope();
 
@@ -28,6 +30,53 @@ auto SemanticAnalyzer::do_analysis() -> std::shared_ptr<ASTNode>
 auto SemanticAnalyzer::first_pass() -> void
 {
     const auto &declaration_body = root_node_->children()[0];
+
+    // First collect data about the objects so later functions or 
+    // members that reference them as types are valid
+    for (const auto &declaration : declaration_body->children())
+    {
+        switch (declaration->type())
+        {
+            case ASTNodeType::OBJ_DECLARATION:
+            {
+                auto obj_decl = declaration.dynamic_ptr_cast<Parsing::ObjDeclASTNode>();
+                const auto &name_node = declaration->children()[0];
+                const std::string &obj_name = name_node->token().value;
+
+                if (is_symbol_defined_elsewhere(name_node))
+                    return;
+                
+                DeclData decl_data{};
+                decl_data.decl_node = obj_decl;
+                decl_data.type = DeclData::Type::OBJECT;
+
+                obj_decl->obj_name = obj_name;
+
+                isize_t idx = curr_scope_->add_declaration(obj_name, decl_data);
+                
+                obj_decl->obj_type = make_object_vtype(idx);
+
+                type_table_.emplace(obj_decl->obj_name, obj_decl->obj_type);
+                
+                continue;
+            }
+
+            default:
+                continue;
+        }
+    }
+
+    // Then, with the object data that was resolved previously, 
+    // collect member classes, functions, and variables in each object, do so recursively for member objects
+    for (const auto &declaration : declaration_body->children())
+    {
+        if (declaration->type() != ASTNodeType::OBJ_DECLARATION)
+            continue;
+
+        auto obj_decl = declaration.dynamic_ptr_cast<Parsing::ObjDeclASTNode>();
+        
+    }
+
     for (const auto &declaration : declaration_body->children())
     {
         ASTNodeType decl_type = declaration->type();
@@ -36,7 +85,7 @@ auto SemanticAnalyzer::first_pass() -> void
         {
             case ASTNodeType::FUNCTION_DECLARATION:
             {
-                auto func_decl = std::dynamic_pointer_cast<Parsing::FuncDeclASTNode>(declaration);
+                auto func_decl = declaration.dynamic_ptr_cast<Parsing::FuncDeclASTNode>();
                 const auto &name_node = func_decl->children()[0];
                 const std::string &function_name = name_node->token().value;
 
@@ -77,7 +126,7 @@ auto SemanticAnalyzer::first_pass() -> void
             // Global variable
             case ASTNodeType::VARIABLE_DECLARATION:
             {
-                auto var_decl = std::dynamic_pointer_cast<Parsing::VarDeclASTNode>(declaration);
+                auto var_decl = declaration.dynamic_ptr_cast<Parsing::VarDeclASTNode>();
                 const auto &name_node = declaration->children()[0];
                 const std::string &var_name = name_node->token().value;
 
@@ -97,28 +146,7 @@ auto SemanticAnalyzer::first_pass() -> void
 
                 curr_scope_->add_declaration(var_name, decl_data);
 
-                break;
-            }
-            case ASTNodeType::OBJ_DECLARATION:
-            {
-                auto obj_decl = std::dynamic_pointer_cast<Parsing::ObjDeclASTNode>(declaration);
-                const auto &name_node = declaration->children()[0];
-                const std::string &var_name = name_node->token().value;
-
-                if (is_symbol_defined_elsewhere(name_node))
-                    return;
-
-                DeclData decl_data{};
-                decl_data.decl_node = obj_decl;
-                decl_data.type = DeclData::Type::OBJECT;
-
-                obj_decl->obj_name = var_name;
-
-                isize_t idx = curr_scope_->add_declaration(var_name, decl_data);
-                
-                obj_decl->obj_type = make_object_vtype(idx);
-
-                break;
+                continue;
             }
         }
     }
@@ -141,13 +169,13 @@ auto SemanticAnalyzer::fourth_pass() -> void
 
 auto SemanticAnalyzer::init_root_scope() -> void
 {
-    root_scope_ = std::make_shared<Scope>();
+    root_scope_ = PtrRef<Scope>::make();
     curr_scope_ = root_scope_;
 }
 
 auto SemanticAnalyzer::enter_new_scope() -> void
 {
-    auto new_scope = std::make_shared<Scope>();
+    auto new_scope = PtrRef<Scope>::make();
     new_scope->set_parent(curr_scope_);
     
     curr_scope_ = new_scope;
@@ -158,7 +186,7 @@ auto SemanticAnalyzer::exit_scope() -> void
     curr_scope_ = curr_scope_->get_parent();
 }
 
-auto SemanticAnalyzer::is_symbol_defined_elsewhere(const std::shared_ptr<ASTNode> &identifer) -> bool
+auto SemanticAnalyzer::is_symbol_defined_elsewhere(const TypeErased<ASTNode> &identifer) -> bool
 {
     const std::string &name = identifer->token().value;
     auto decl_data = curr_scope_->get_declaration(name);
@@ -173,7 +201,7 @@ auto SemanticAnalyzer::is_symbol_defined_elsewhere(const std::shared_ptr<ASTNode
     return false;
 }
 
-auto SemanticAnalyzer::value_type_from_node(const std::shared_ptr<ASTNode> &type_node) -> ValueType
+auto SemanticAnalyzer::value_type_from_node(const TypeErased<ASTNode> &type_node) -> ValueType
 {
     if (type_node->type() != ASTNodeType::TOKEN and type_node->type() != ASTNodeType::DATA_TYPE)
         return ValueType::ERROR_TYPE;
@@ -204,7 +232,7 @@ auto SemanticAnalyzer::value_type_from_node(const std::shared_ptr<ASTNode> &type
     auto decl_data = curr_scope_->get_declaration(tok.value);
     if (decl_data and decl_data->type == DeclData::Type::OBJECT)
     {
-        auto obj_node = std::dynamic_pointer_cast<Parsing::ObjDeclASTNode>(decl_data->decl_node);
+        auto obj_node = decl_data->decl_node.dynamic_ptr_cast<Parsing::ObjDeclASTNode>();
         return obj_node->obj_type;
     }
 

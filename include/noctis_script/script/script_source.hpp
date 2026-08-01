@@ -4,6 +4,8 @@
 #include <vector>
 #include <filesystem>
 
+#include "../ncsc.hpp"
+
 
 namespace NCSC
 {
@@ -11,7 +13,7 @@ namespace NCSC
 class ScriptSource
 {
 public:
-    static auto from_contents(const std::string &contents) -> std::shared_ptr<ScriptSource>;
+    static auto from_contents(const std::string &contents) -> PtrRef<ScriptSource>;
 
     // Optional: can be set to just the file name
     std::filesystem::path file_path;

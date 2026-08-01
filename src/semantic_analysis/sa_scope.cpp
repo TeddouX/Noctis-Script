@@ -3,7 +3,7 @@
 namespace NCSC::SemanticAnalysis
 {
     
-auto Scope::set_parent(std::shared_ptr<Scope> parent) -> void
+auto Scope::set_parent(PtrRef<Scope> parent) -> void
 {
     parent_ = parent;
 
@@ -15,7 +15,7 @@ auto Scope::set_parent(std::shared_ptr<Scope> parent) -> void
     obj_idx_ = parent_->obj_idx_;
 }
 
-auto Scope::get_parent() const -> const std::shared_ptr<Scope> &
+auto Scope::get_parent() const -> const PtrRef<Scope> &
 {
     return parent_;
 }
@@ -42,7 +42,7 @@ auto Scope::add_declaration(const std::string &name, DeclData data) -> isize_t
     return data.idx;
 }
 
-auto Scope::get_declaration(const std::string &name) const -> const DeclData *
+auto Scope::get_declaration(const std::string &name) -> DeclData *
 {
     auto it = declaration_data_.find(name);
     if (it == declaration_data_.end())

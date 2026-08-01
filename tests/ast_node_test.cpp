@@ -7,7 +7,7 @@ using namespace NCSC;
 
 TEST(ASTNodeTest, UpdatesPositionWithTokenCorrectly) 
 {
-    auto node = std::make_shared<ASTNode>(ASTNodeType::ROOT);
+    auto node = PtrRef<ASTNode>::make(ASTNodeType::ROOT);
     Token tok{TokenType::ID, "abc"};
     tok.location = Location{12, 12, 15, 17};
 
@@ -22,9 +22,9 @@ TEST(ASTNodeTest, UpdatesPositionWithTokenCorrectly)
 
 TEST(ASTNodeTest, UpdatesPositionColumnBackwardsWithOtherNode) 
 {
-    auto root = std::make_shared<ASTNode>(ASTNodeType::ROOT);
-    auto first = std::make_shared<ASTNode>(ASTNodeType::ROOT);
-    auto second = std::make_shared<ASTNode>(ASTNodeType::ROOT);
+    auto root = PtrRef<ASTNode>::make(ASTNodeType::ROOT);
+    auto first = PtrRef<ASTNode>::make(ASTNodeType::ROOT);
+    auto second = PtrRef<ASTNode>::make(ASTNodeType::ROOT);
 
     first->set_location(Location{2, 2, 15, 18});
     second->set_location(Location{2, 2, 12, 16});
@@ -41,9 +41,9 @@ TEST(ASTNodeTest, UpdatesPositionColumnBackwardsWithOtherNode)
 
 TEST(ASTNodeTest, UpdatesPositionLineBackwardsWithOtherNode) 
 {
-    auto root = std::make_shared<ASTNode>(ASTNodeType::ROOT);
-    auto first = std::make_shared<ASTNode>(ASTNodeType::ROOT);
-    auto second = std::make_shared<ASTNode>(ASTNodeType::ROOT);
+    auto root = PtrRef<ASTNode>::make(ASTNodeType::ROOT);
+    auto first = PtrRef<ASTNode>::make(ASTNodeType::ROOT);
+    auto second = PtrRef<ASTNode>::make(ASTNodeType::ROOT);
     
     first->set_location(Location{2, 2, 15, 22});
     second->set_location(Location{1, 1, 10, 16});
@@ -60,9 +60,9 @@ TEST(ASTNodeTest, UpdatesPositionLineBackwardsWithOtherNode)
 
 TEST(ASTNodeTest, UpdatesPositionColumnForwardsWithOtherNode) 
 {
-    auto root = std::make_shared<ASTNode>(ASTNodeType::ROOT);
-    auto first = std::make_shared<ASTNode>(ASTNodeType::ROOT);
-    auto second = std::make_shared<ASTNode>(ASTNodeType::ROOT);
+    auto root = PtrRef<ASTNode>::make(ASTNodeType::ROOT);
+    auto first = PtrRef<ASTNode>::make(ASTNodeType::ROOT);
+    auto second = PtrRef<ASTNode>::make(ASTNodeType::ROOT);
 
     first->set_location(Location{2, 2, 12, 16});
     second->set_location(Location{2, 2, 15, 18});
@@ -79,9 +79,9 @@ TEST(ASTNodeTest, UpdatesPositionColumnForwardsWithOtherNode)
 
 TEST(ASTNodeTest, UpdatesPositionLineForwardsWithOtherNode) 
 {
-    auto root = std::make_shared<ASTNode>(ASTNodeType::ROOT);
-    auto first = std::make_shared<ASTNode>(ASTNodeType::ROOT);
-    auto second = std::make_shared<ASTNode>(ASTNodeType::ROOT);
+    auto root = PtrRef<ASTNode>::make(ASTNodeType::ROOT);
+    auto first = PtrRef<ASTNode>::make(ASTNodeType::ROOT);
+    auto second = PtrRef<ASTNode>::make(ASTNodeType::ROOT);
     
     first->set_location(Location{1, 1, 10, 16});
     second->set_location(Location{2, 2, 15, 22});

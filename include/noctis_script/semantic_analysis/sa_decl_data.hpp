@@ -15,9 +15,9 @@ struct DeclData
         OBJECT,
     } type;
 
-    std::shared_ptr<ASTNode> decl_node;
-    bool is_error = false;
-    isize_t idx = -1;
+    PtrRef<ASTNode> decl_node;
+    bool            is_error = false;
+    isize_t         idx = -1;
 };
     
 } // namespace NCSC::SemanticAnalysis

@@ -37,11 +37,11 @@ BytecodeGenerator::BytecodeGenerator(bool is_debug)
 
 auto BytecodeGenerator::generate(const std::string &script) -> Bytecode
 {
-    std::shared_ptr<ScriptSource> src = ScriptSource::from_contents(script);
+    PtrRef<ScriptSource> src = ScriptSource::from_contents(script);
     return generate(src);
 }
 
-auto BytecodeGenerator::generate(std::shared_ptr<ScriptSource> src) -> Bytecode
+auto BytecodeGenerator::generate(PtrRef<ScriptSource> src) -> Bytecode
 {
     std::vector<Token> tokens = tokenize(src);
 
@@ -57,7 +57,7 @@ auto BytecodeGenerator::generate(std::shared_ptr<ScriptSource> src) -> Bytecode
     return generate(root, src);
 }
 
-auto BytecodeGenerator::generate(const ASTNode &root_node, std::shared_ptr<ScriptSource> src) -> Bytecode
+auto BytecodeGenerator::generate(const ASTNode &root_node, PtrRef<ScriptSource> src) -> Bytecode
 {
     script_source_ = src;
     temp_bytecode_ = Bytecode{script_source_, is_debug_};

@@ -19,10 +19,10 @@ class BytecodeGenerator
 public:
     BytecodeGenerator(bool is_debug = false);
 
-    auto generate(std::shared_ptr<ScriptSource> src) -> Bytecode;
+    auto generate(PtrRef<ScriptSource> src) -> Bytecode;
     auto generate(const std::string &script) -> Bytecode;
     // Do not try to compile if the code has syntax errors as it may lead to crashes
-    auto generate(const ASTNode &root_node, std::shared_ptr<ScriptSource> src = nullptr) -> Bytecode;
+    auto generate(const ASTNode &root_node, PtrRef<ScriptSource> src = nullptr) -> Bytecode;
 
     auto reset() -> void;
 

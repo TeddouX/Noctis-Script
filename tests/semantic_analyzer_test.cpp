@@ -26,7 +26,7 @@ R"(func main(arg1: int, arg2: float) -> bool {}
     ASSERT_TRUE(decl_data != nullptr);
     ASSERT_EQ(decl_data->type, DeclData::Type::FUNCTION);
     
-    auto func_decl = std::dynamic_pointer_cast<Parsing::FuncDeclASTNode>(decl_data->decl_node);
+    auto func_decl = decl_data->decl_node.dynamic_ptr_cast<Parsing::FuncDeclASTNode>();
     ASSERT_EQ(func_decl->func_name, "main");
     ASSERT_EQ(func_decl->func_params.size(), 2);
     
@@ -57,7 +57,7 @@ R"(var bla: uint16 = 10;
     ASSERT_TRUE(decl_data != nullptr);
     ASSERT_EQ(decl_data->type, DeclData::Type::VARIABLE);
     
-    auto var_decl = std::dynamic_pointer_cast<Parsing::VarDeclASTNode>(decl_data->decl_node);
+    auto var_decl = decl_data->decl_node.dynamic_ptr_cast<Parsing::VarDeclASTNode>();
     ASSERT_EQ(var_decl->var_name, "bla");
     ASSERT_EQ(var_decl->var_type, ValueType::UINT16);
 }
@@ -78,7 +78,7 @@ R"(obj Vec3 {}
     ASSERT_TRUE(decl_data != nullptr);
     ASSERT_EQ(decl_data->type, DeclData::Type::OBJECT);
     
-    auto obj_decl = std::dynamic_pointer_cast<Parsing::ObjDeclASTNode>(decl_data->decl_node);
+    auto obj_decl = decl_data->decl_node.dynamic_ptr_cast<Parsing::ObjDeclASTNode>();
     ASSERT_EQ(obj_decl->obj_name, "Vec3");
     ASSERT_EQ(obj_decl->obj_type, vtype_set_mask((ValueType)0, ValueType::OBJ_MASK));
 }

@@ -27,9 +27,9 @@ ScriptSource::ScriptSource(const std::string &contents)
         lines_.push_back("");
 }
 
-auto ScriptSource::from_contents(const std::string &contents) -> std::shared_ptr<ScriptSource>
+auto ScriptSource::from_contents(const std::string &contents) -> PtrRef<ScriptSource>
 {
-    return std::shared_ptr<ScriptSource>(new ScriptSource{contents});
+    return PtrRef<ScriptSource>(new ScriptSource{contents});
 }
 
 auto ScriptSource::get_line(std::size_t line_num) -> const std::string &

@@ -14,14 +14,14 @@ class Scope
 public:
     Scope() = default;
 
-    auto set_parent(std::shared_ptr<Scope> parent) -> void;
-    auto get_parent() const -> const std::shared_ptr<Scope> &;
+    auto set_parent(PtrRef<Scope> parent) -> void;
+    auto get_parent() const -> const PtrRef<Scope> &;
 
     auto add_declaration(const std::string &name, DeclData data) -> isize_t;
-    auto get_declaration(const std::string &name) const -> const DeclData *;
+    auto get_declaration(const std::string &name) -> DeclData *;
 
 private:
-    std::shared_ptr<Scope>                      parent_;
+    PtrRef<Scope>                               parent_;
     std::unordered_map<std::string, DeclData>   declaration_data_;
 
     std::size_t                                 var_idx_{};

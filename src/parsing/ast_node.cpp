@@ -36,6 +36,7 @@ auto to_string(ASTNodeType type) -> std::string_view
         case ASTNodeType::ELSE_BRANCH:              return "ELSE_BRANCH";
         case ASTNodeType::OBJ_DECLARATION:          return "OBJ_DECLARATION";
         case ASTNodeType::DECLARATION_BODY:         return "DECLARATION_BODY";
+        case ASTNodeType::SCOPED_IDENTIFIER:        return "SCOPED_IDENTIFIER";
         default:                                    return "UNKNOWN";
     }
 }
@@ -49,7 +50,7 @@ ASTNode::ASTNode(ASTNodeType type)
     , has_loc_been_set_{false}
 {}
 
-auto ASTNode::add_child(std::shared_ptr<ASTNode> child) -> void
+auto ASTNode::add_child(TypeErased<ASTNode> child) -> void
 {
     if (not children_.empty()) 
     {
@@ -118,7 +119,7 @@ auto ASTNode::token() const -> const Token &
     return token_;
 }
 
-auto ASTNode::children() const -> const std::vector<std::shared_ptr<ASTNode>> &
+auto ASTNode::children() const -> const std::vector<TypeErased<ASTNode>> &
 {
     return children_;
 }

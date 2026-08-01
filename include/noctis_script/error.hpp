@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "location.hpp"
+#include "ncsc.hpp"
 #include "script/script_source.hpp"
 
 
@@ -33,9 +34,9 @@ public:
         std::string_view err_code, 
         const std::string &err_fmt,
         ErrorLevel level = ErrorLevel::ERROR
-    ) -> std::shared_ptr<ErrorInfo>
+    ) -> PtrRef<ErrorInfo>
     {
-        return std::shared_ptr<ErrorInfo>(new ErrorInfo(err_name, err_code, err_fmt, level));
+        return PtrRef(new ErrorInfo(err_name, err_code, err_fmt, level));
     }
 
     template <typename... _Args>
@@ -59,9 +60,9 @@ class Error
 public:
     Error() = delete;
     Error(
-        std::shared_ptr<ErrorInfo> err_info,
+        PtrRef<ErrorInfo> err_info,
         const std::string &err_message, 
-        std::shared_ptr<ScriptSource> script_source, 
+        PtrRef<ScriptSource> script_source, 
         const Location &location = Location{}
     )
         : err_info_(err_info)
@@ -73,13 +74,13 @@ public:
     auto get_error_message() const -> const std::string &;
     auto get_error_message_with_source() const -> std::string;
 
-    auto get_error_info() const -> const std::shared_ptr<ErrorInfo> &;
+    auto get_error_info() const -> const PtrRef<ErrorInfo> &;
 
 private:
-    std::shared_ptr<ErrorInfo>      err_info_;
-    std::string                     err_message_;
-    std::shared_ptr<ScriptSource>   script_source_;
-    Location                        location_;
+    PtrRef<ErrorInfo>       err_info_;
+    std::string             err_message_;
+    PtrRef<ScriptSource>    script_source_;
+    Location                location_;
 };
 
 } // namespace NCSC

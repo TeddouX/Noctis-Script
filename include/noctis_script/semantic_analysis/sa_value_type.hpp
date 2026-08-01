@@ -58,21 +58,21 @@ auto vtype_is_object(ValueType type) -> bool;
 
 auto make_object_vtype(dword_t objIdx) -> ValueType;
 
-const std::unordered_map<ValueType, std::string> BUILTIN_VALUE_TYPES_NAMES = 
+const std::unordered_map<std::string, ValueType> BULTIN_VTYPE_NAMES = 
 {
-    { ValueType::ERROR_TYPE, "error_type"},
-    { ValueType::VOID,       "void"      },
-    { ValueType::INT8,       "int8"      },
-    { ValueType::INT16,      "int16"     },
-    { ValueType::INT32,      "int32"     },
-    { ValueType::INT64,      "int64"     },
-    { ValueType::UINT8,      "uint8"     },
-    { ValueType::UINT16,     "uint16"    },
-    { ValueType::UINT32,     "uint32"    },
-    { ValueType::UINT64,     "uint64"    },
-    { ValueType::FLOAT32,    "float32"   },
-    { ValueType::FLOAT64,    "float64"   },
-    { ValueType::BOOL,       "bool"      },
+    { "error_type", ValueType::ERROR_TYPE   },
+    { "void",       ValueType::VOID         },
+    { "int8",       ValueType::INT8         },
+    { "int16",      ValueType::INT16        },
+    { "int32",      ValueType::INT32        },
+    { "int64",      ValueType::INT64        },
+    { "uint8",      ValueType::UINT8        },
+    { "uint16",     ValueType::UINT16       },
+    { "uint32",     ValueType::UINT32       },
+    { "uint64",     ValueType::UINT64       },
+    { "float32",    ValueType::FLOAT32      },
+    { "float64",    ValueType::FLOAT64      },
+    { "bool",       ValueType::BOOL         },
 };
     
 } // namespace NCSC::SemanticAnalysis

@@ -19,24 +19,53 @@
 namespace NCSC
 {
     
-Parser::Parser(const std::vector<Token> &tokens, std::shared_ptr<ScriptSource> script_source)
+using namespace Parsing;
+
+Parser::Parser(const std::vector<Token> &tokens, TypeErased<ScriptSource> script_source)
     : tokens_{tokens}
     , has_syntax_error_{false}
     , curr_token_idx_{0zu}
     , script_source_{script_source}
 {}
 
-auto Parser::parse() -> std::shared_ptr<ASTNode>
+auto Parser::parse() -> TypeErased<ASTNode>
 {
-    auto root = std::make_shared<ASTNode>(ASTNodeType::ROOT);
+    auto node = TypeErased<ASTNode>::make(ASTNodeType::ROOT);
 
-    root->add_child(parse_declaration_body(false));
+    for (;;)
+    {
+        const Token &t = SAFE_PEEK();
+        if (t.type != TokenType::AT)
+            break;
 
-    std::println(std::cerr, "{}", root->ast_string());
+        consume();
+        
+        const Token &t1 = SAFE_CONSUME();
+        if (t1.type == TokenType::MODULE_KWD)
+        {
+            auto module_node = TypeErased<ASTNode>::make(ASTNodeType::MODULE_DEF);
+            module_node->add_child(parse_scoped_identifier());
+            CHECK_SYNTAX_ERROR();
+
+            node->add_child(module_node);
+        }
+        else if (t1.type == TokenType::IMPORT_KWD)
+        {
+            auto import_node = TypeErased<ASTNode>::make(ASTNodeType::IMPORT_STMT);
+            import_node->add_child(parse_scoped_identifier());
+            CHECK_SYNTAX_ERROR();
+
+            node->add_child(import_node);
+        }
+    }
+
+    node->add_child(parse_declaration_body(false));
+
+    std::println(std::cerr, "{}", node->ast_string());
     for (const auto &err: syntax_errors_)
         std::println(std::cerr, "{}", err.get_error_message_with_source());
 
-    return root;
+    return node;
 }
 
 auto Parser::has_syntax_errors() const -> bool
@@ -91,9 +120,9 @@ auto Parser::is_function_call() -> bool
     return t1.type == TokenType::PARENTHESIS_OPEN;
 }
 
-auto Parser::parse_declaration_body(bool is_inside_obj) -> std::shared_ptr<ASTNode>
+auto Parser::parse_declaration_body(bool is_inside_obj) -> TypeErased<ASTNode>
 {
-    auto node = std::make_shared<ASTNode>(ASTNodeType::DECLARATION_BODY);
+    auto node = TypeErased<ASTNode>::make(ASTNodeType::DECLARATION_BODY);
 
     if (is_inside_obj)
     {
@@ -183,9 +212,9 @@ auto Parser::parse_declaration_body(bool is_inside_obj) -> std::shared_ptr<ASTNo
     return node;
 }
 
-auto Parser::parse_variable_declaration(bool is_inside_obj) -> std::shared_ptr<ASTNode>
+auto Parser::parse_variable_declaration(bool is_inside_obj) -> TypeErased<VarDeclASTNode>
 {
-    auto node = std::make_shared<Parsing::VarDeclASTNode>(ASTNodeType::VARIABLE_DECLARATION);
+    auto node = TypeErased<VarDeclASTNode>::make(ASTNodeType::VARIABLE_DECLARATION);
     node->set_metadata("is_member_var", is_inside_obj);
 
     const Token &t4 = SAFE_PEEK();
@@ -244,7 +273,7 @@ auto Parser::parse_variable_declaration(bool is_inside_obj) -> std::shared_ptr<A
     else
     {
         // Empty expression
-        node->add_child(std::make_shared<ASTNode>(ASTNodeType::EXPRESSION));
+        node->add_child(TypeErased<ASTNode>::make(ASTNodeType::EXPRESSION));
         CHECK_SYNTAX_ERROR();
     }
 
@@ -255,9 +284,9 @@ auto Parser::parse_variable_declaration(bool is_inside_obj) -> std::shared_ptr<A
     return node;
 }
 
-auto Parser::parse_function_declaration(bool is_inside_obj) -> std::shared_ptr<ASTNode>
+auto Parser::parse_function_declaration(bool is_inside_obj) -> TypeErased<FuncDeclASTNode>
 {
-    auto node = std::make_shared<Parsing::FuncDeclASTNode>(ASTNodeType::FUNCTION_DECLARATION);
+    auto node = TypeErased<FuncDeclASTNode>::make(ASTNodeType::FUNCTION_DECLARATION);
     node->set_metadata("is_method", is_inside_obj);
 
     const Token &t = SAFE_PEEK();
@@ -296,7 +325,7 @@ auto Parser::parse_function_declaration(bool is_inside_obj) -> std::shared_ptr<A
 
     const Token &t3 = SAFE_PEEK();
 
-    auto param_list_node = std::make_shared<ASTNode>(ASTNodeType::PARAMETER_LIST);
+    auto param_list_node = TypeErased<ASTNode>::make(ASTNodeType::PARAMETER_LIST);
     // The function has parameters
     if (t3.type != TokenType::PARENTHESIS_CLOSE)
     {
@@ -369,9 +398,9 @@ auto Parser::parse_function_declaration(bool is_inside_obj) -> std::shared_ptr<A
     return node;
 }
 
-auto Parser::parse_object_declaration(bool is_inside_obj) -> std::shared_ptr<ASTNode>
+auto Parser::parse_object_declaration(bool is_inside_obj) -> TypeErased<ObjDeclASTNode>
 {
-    auto node = std::make_shared<Parsing::ObjDeclASTNode>(ASTNodeType::OBJ_DECLARATION);
+    auto node = TypeErased<ObjDeclASTNode>::make(ASTNodeType::OBJ_DECLARATION);
 
     const Token &t = SAFE_CONSUME();
     if (t.type != TokenType::OBJ_KWD)
@@ -390,9 +419,9 @@ auto Parser::parse_object_declaration(bool is_inside_obj) -> std::shared_ptr<AST
 }
 
 
-auto Parser::parse_statement_block() -> std::shared_ptr<ASTNode> 
+auto Parser::parse_statement_block() -> TypeErased<ASTNode> 
 {
-    auto node = std::make_shared<ASTNode>(ASTNodeType::STATEMENT_BLOCK);
+    auto node = TypeErased<ASTNode>::make(ASTNodeType::STATEMENT_BLOCK);
 
     const Token &t = SAFE_CONSUME();
     if (t.type != TokenType::BRACE_OPEN) 
@@ -427,7 +456,7 @@ auto Parser::parse_statement_block() -> std::shared_ptr<ASTNode>
     return node;
 }
 
-auto Parser::parse_statement() -> std::shared_ptr<ASTNode>
+auto Parser::parse_statement() -> TypeErased<ASTNode>
 {
     const Token &t = SAFE_PEEK_RET_VALUE(0, parse_simple_statement());
     if (t.type == TokenType::IF_KWD)
@@ -440,14 +469,14 @@ auto Parser::parse_statement() -> std::shared_ptr<ASTNode>
         return parse_simple_statement();
 }
 
-auto Parser::parse_simple_statement() -> std::shared_ptr<ASTNode> 
+auto Parser::parse_simple_statement() -> TypeErased<ASTNode> 
 {
-    const Token &t = SAFE_PEEK_RET_VALUE(0, std::make_shared<ASTNode>(ASTNodeType::ASSIGNMENT));
+    const Token &t = SAFE_PEEK_RET_VALUE(0, TypeErased<ASTNode>::make(ASTNodeType::ASSIGNMENT));
     // Just a semicolon is alright
     if (t.type == TokenType::SEMICOLON) 
     {
         consume();
-        return std::make_shared<ASTNode>(ASTNodeType::ASSIGNMENT);
+        return TypeErased<ASTNode>::make(ASTNodeType::ASSIGNMENT);
     }
 
     auto node = parse_assignment(); 
@@ -460,9 +489,9 @@ auto Parser::parse_simple_statement() -> std::shared_ptr<ASTNode>
     return node;
 }
 
-auto Parser::parse_if_statement(bool is_elif) -> std::shared_ptr<ASTNode> 
+auto Parser::parse_if_statement(bool is_elif) -> TypeErased<ASTNode> 
 {
-    auto node = std::make_shared<ASTNode>(is_elif ? ASTNodeType::ELIF_BRANCH : ASTNodeType::IF_STATEMENT);
+    auto node = TypeErased<ASTNode>::make(is_elif ? ASTNodeType::ELIF_BRANCH : ASTNodeType::IF_STATEMENT);
 
     const Token &t = SAFE_CONSUME();
     node->update_location(t);
@@ -500,7 +529,7 @@ auto Parser::parse_if_statement(bool is_elif) -> std::shared_ptr<ASTNode>
         {
             SAFE_CONSUME();
 
-            auto else_branch_node = std::make_shared<ASTNode>(ASTNodeType::ELSE_BRANCH);
+            auto else_branch_node = TypeErased<ASTNode>::make(ASTNodeType::ELSE_BRANCH);
             else_branch_node->update_location(t2);
 
             else_branch_node->add_child(parse_statement_block());
@@ -519,9 +548,9 @@ auto Parser::parse_if_statement(bool is_elif) -> std::shared_ptr<ASTNode>
     return node;
 }
 
-auto Parser::parse_return_statement() -> std::shared_ptr<ASTNode>
+auto Parser::parse_return_statement() -> TypeErased<ASTNode>
 {
-    auto node = std::make_shared<ASTNode>(ASTNodeType::RETURN_STATEMENT);
+    auto node = TypeErased<ASTNode>::make(ASTNodeType::RETURN_STATEMENT);
     
     const Token &t = SAFE_CONSUME();
     node->update_location(t);
@@ -553,9 +582,9 @@ auto Parser::parse_return_statement() -> std::shared_ptr<ASTNode>
     return node;
 }
 
-auto Parser::parse_assignment() -> std::shared_ptr<ASTNode>
+auto Parser::parse_assignment() -> TypeErased<ASTNode>
 {
-    auto node = std::make_shared<ASTNode>(ASTNodeType::ASSIGNMENT);
+    auto node = TypeErased<ASTNode>::make(ASTNodeType::ASSIGNMENT);
 
     node->add_child(parse_expression_term());
     CHECK_SYNTAX_ERROR();
@@ -580,9 +609,9 @@ auto Parser::parse_assignment() -> std::shared_ptr<ASTNode>
     return node;
 }
 
-auto Parser::parse_expression() -> std::shared_ptr<ASTNode>
+auto Parser::parse_expression() -> TypeErased<ASTNode>
 {
-    auto node = std::make_shared<ASTNode>(ASTNodeType::EXPRESSION);
+    auto node = TypeErased<ASTNode>::make(ASTNodeType::EXPRESSION);
 
     node->add_child(parse_expression_term());
     // The first part of an expression should always be a term
@@ -598,7 +627,7 @@ auto Parser::parse_expression() -> std::shared_ptr<ASTNode>
             SAFE_CONSUME();
             complex_expr = true;
             
-            auto bin_op = std::make_shared<ASTNode>(ASTNodeType::BINOP);
+            auto bin_op = TypeErased<ASTNode>::make(ASTNodeType::BINOP);
             bin_op->set_token(t1);
             node->add_child(bin_op);
         }
@@ -652,9 +681,9 @@ auto Parser::parse_expression() -> std::shared_ptr<ASTNode>
     return node;
 }
 
-auto Parser::parse_expression_term() -> std::shared_ptr<ASTNode>
+auto Parser::parse_expression_term() -> TypeErased<ASTNode>
 {
-    auto node = std::make_shared<ASTNode>(ASTNodeType::EXPRESSION_TERM);
+    auto node = TypeErased<ASTNode>::make(ASTNodeType::EXPRESSION_TERM);
     
     for (;;) 
     {
@@ -682,9 +711,9 @@ auto Parser::parse_expression_term() -> std::shared_ptr<ASTNode>
     return node;
 }
 
-auto Parser::parse_assignment_operator(bool allow_compound_ops) -> std::shared_ptr<ASTNode>
+auto Parser::parse_assignment_operator(bool allow_compound_ops) -> TypeErased<ASTNode>
 {
-    auto node = std::make_shared<ASTNode>(ASTNodeType::BINOP);
+    auto node = TypeErased<ASTNode>::make(ASTNodeType::BINOP);
 
     const Token &op = SAFE_CONSUME();
     if (not allow_compound_ops and op.type != TokenType::EQUAL) 
@@ -702,9 +731,9 @@ auto Parser::parse_assignment_operator(bool allow_compound_ops) -> std::shared_p
     return node;
 }
 
-auto Parser::parse_expression_pre_operator() -> std::shared_ptr<ASTNode>
+auto Parser::parse_expression_pre_operator() -> TypeErased<ASTNode>
 {
-    auto node = std::make_shared<ASTNode>(ASTNodeType::EXPRESSION_PREOP);
+    auto node = TypeErased<ASTNode>::make(ASTNodeType::EXPRESSION_PREOP);
 
     const Token &t = SAFE_CONSUME();
     if (not t.is_expression_pre_operator())
@@ -715,9 +744,9 @@ auto Parser::parse_expression_pre_operator() -> std::shared_ptr<ASTNode>
     return node;
 }
 
-auto Parser::parse_expression_value() -> std::shared_ptr<ASTNode>
+auto Parser::parse_expression_value() -> TypeErased<ASTNode>
 {
-    auto node = std::make_shared<ASTNode>(ASTNodeType::EXPRESSION_VALUE);
+    auto node = TypeErased<ASTNode>::make(ASTNodeType::EXPRESSION_VALUE);
 
     const Token &t = SAFE_PEEK();
     if (t.is_constant_value()) 
@@ -766,9 +795,9 @@ auto Parser::parse_expression_value() -> std::shared_ptr<ASTNode>
     return node;
 }
 
-auto Parser::parse_expression_post_operator() -> std::shared_ptr<ASTNode>
+auto Parser::parse_expression_post_operator() -> TypeErased<ASTNode>
 {
-    auto node = std::make_shared<ASTNode>(ASTNodeType::EXPRESSION_POSTOP);
+    auto node = TypeErased<ASTNode>::make(ASTNodeType::EXPRESSION_POSTOP);
 
     const Token &t = SAFE_PEEK();
     if (t.type == TokenType::DOT) 
@@ -806,16 +835,16 @@ auto Parser::parse_expression_post_operator() -> std::shared_ptr<ASTNode>
     return node;
 }
 
-auto Parser::parse_token(const Token &t) -> std::shared_ptr<ASTNode>
+auto Parser::parse_token(const Token &t) -> TypeErased<ASTNode>
 {
-    auto node = std::make_shared<ASTNode>(ASTNodeType::TOKEN);
+    auto node = TypeErased<ASTNode>::make(ASTNodeType::TOKEN);
     node->set_token(t);
     return node;
 }
 
-auto Parser::parse_identifier() -> std::shared_ptr<ASTNode>
+auto Parser::parse_identifier() -> TypeErased<ASTNode>
 {
-    auto node = std::make_shared<ASTNode>(ASTNodeType::IDENTIFIER);
+    auto node = TypeErased<ASTNode>::make(ASTNodeType::IDENTIFIER);
 
     const Token &t = SAFE_CONSUME();
     if (t.type != TokenType::ID) 
@@ -829,9 +858,9 @@ auto Parser::parse_identifier() -> std::shared_ptr<ASTNode>
     return node;
 }
 
-auto Parser::parse_function_call() -> std::shared_ptr<ASTNode>
+auto Parser::parse_function_call() -> TypeErased<ASTNode>
 {
-    auto node = std::make_shared<ASTNode>(ASTNodeType::FUNCTION_CALL);
+    auto node = TypeErased<ASTNode>::make(ASTNodeType::FUNCTION_CALL);
 
     node->add_child(parse_identifier()); 
     CHECK_SYNTAX_ERROR();
@@ -842,9 +871,9 @@ auto Parser::parse_function_call() -> std::shared_ptr<ASTNode>
     return node;
 }
 
-auto Parser::parse_argument_list() -> std::shared_ptr<ASTNode> 
+auto Parser::parse_argument_list() -> TypeErased<ASTNode> 
 {
-    auto node = std::make_shared<ASTNode>(ASTNodeType::ARGUMENT_LIST);
+    auto node = TypeErased<ASTNode>::make(ASTNodeType::ARGUMENT_LIST);
 
     const Token &t = SAFE_CONSUME();
     if (t.type != TokenType::PARENTHESIS_OPEN) 
@@ -885,9 +914,9 @@ auto Parser::parse_argument_list() -> std::shared_ptr<ASTNode>
     return node;
 }
 
-auto Parser::parse_constant() -> std::shared_ptr<ASTNode>
+auto Parser::parse_constant() -> TypeErased<ASTNode>
 {
-    auto node = std::make_shared<ASTNode>(ASTNodeType::CONSTANT);
+    auto node = TypeErased<ASTNode>::make(ASTNodeType::CONSTANT);
 
     const Token &t = SAFE_CONSUME();
     if (not t.is_constant_value()) 
@@ -901,9 +930,9 @@ auto Parser::parse_constant() -> std::shared_ptr<ASTNode>
     return node;
 }
 
-auto Parser::parse_construct_call() -> std::shared_ptr<ASTNode>
+auto Parser::parse_construct_call() -> TypeErased<ASTNode>
 {
-    auto node = std::make_shared<ASTNode>(ASTNodeType::CONSTRUCT_CALL);
+    auto node = TypeErased<ASTNode>::make(ASTNodeType::CONSTRUCT_CALL);
 
     const Token &t = SAFE_CONSUME();
     if (t.type != TokenType::NEW_KWD) 
@@ -921,9 +950,9 @@ auto Parser::parse_construct_call() -> std::shared_ptr<ASTNode>
     return node;
 }
 
-auto Parser::parse_type() -> std::shared_ptr<ASTNode>
+auto Parser::parse_type() -> TypeErased<ASTNode>
 {
-    auto node = std::make_shared<ASTNode>(ASTNodeType::DATA_TYPE);
+    auto node = TypeErased<ASTNode>::make(ASTNodeType::DATA_TYPE);
 
     const Token &t = SAFE_CONSUME();
     if (not t.is_data_type()) 
@@ -937,10 +966,32 @@ auto Parser::parse_type() -> std::shared_ptr<ASTNode>
     return node;
 }
 
-auto Parser::parse_type(const Token &t) -> std::shared_ptr<ASTNode>
+auto Parser::parse_type(const Token &t) -> TypeErased<ASTNode>
 {
-    auto node = std::make_shared<ASTNode>(ASTNodeType::DATA_TYPE);
+    auto node = TypeErased<ASTNode>::make(ASTNodeType::DATA_TYPE);
     node->set_token(t);
+    return node;
+}
+
+auto Parser::parse_scoped_identifier() -> TypeErased<ScopedIdentifierASTNode>
+{
+    auto node = TypeErased<ScopedIdentifierASTNode>::make(ASTNodeType::SCOPED_IDENTIFIER);
+
+    for (;;)
+    {
+        auto identifier = parse_identifier();
+        CHECK_SYNTAX_ERROR();
+
+        node->path.scope_path.push_back(identifier->token().value);
+
+        const Token &t = SAFE_PEEK();
+        if (t.type != TokenType::TWO_COLONS)
+            break;
+    }
+
+    node->path.base_name = node->path.scope_path.back();
+    node->path.scope_path.pop_back();
+
     return node;
 }
 
