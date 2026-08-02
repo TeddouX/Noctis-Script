@@ -10,6 +10,7 @@ set(NCSC_SOURCES
     "parsing/scoped_path.cpp"
     "script/script_source.cpp"
     "semantic_analysis/module_context.cpp"
+    "semantic_analysis/module_data.cpp"
     "semantic_analysis/sa_scope.cpp"
     "semantic_analysis/sa_value_type.cpp"
     "semantic_analysis/semantic_analyzer.cpp"

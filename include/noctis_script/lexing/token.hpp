@@ -87,6 +87,8 @@ enum class TokenType
     MODULE_KWD,         // module
     IMPORT_KWD,         // import
     EXPORT_KWD,         // export
+    OPERATOR_KWD,       // operator
+    USING_KWD,          // using
 
     INT8_KWD,           // int8
     INT16_KWD,          // int16
@@ -138,6 +140,8 @@ struct Token
     auto is_data_type()                 const -> bool;
     auto is_access_modifier()           const -> bool;
     auto is_comparison_operator()       const -> bool;
+    auto is_operator()                  const -> bool;
+    auto is_builtin_type()              const -> bool;
     
     // Returns -1 if the token isn't an operator
     auto get_operator_precedence() const -> int;
@@ -232,6 +236,8 @@ const std::unordered_map<TokenType, std::string> TOKENS_TO_STRING = {
     { TokenType::MODULE_KWD,            "module"    },
     { TokenType::IMPORT_KWD,            "import"    },
     { TokenType::EXPORT_KWD,            "export"    },
+    { TokenType::OPERATOR_KWD,          "operator"  },
+    { TokenType::USING_KWD,             "using"     },
 
     { TokenType::INT8_KWD,              "int8"      },
     { TokenType::INT16_KWD,             "int16"     },
@@ -249,43 +255,45 @@ const std::unordered_map<TokenType, std::string> TOKENS_TO_STRING = {
 };
 
 const std::unordered_map<std::string, TokenType> RESERVED_TOKENS = {
-    { "var",        TokenType::VAR_KWD      },
-    { "func",       TokenType::FUNC_KWD     }, 
-    { "public",     TokenType::PUBLIC_KWD   },
-    { "private",    TokenType::PRIVATE_KWD  },
-    { "true",       TokenType::TRUE_KWD     },
-    { "false",      TokenType::FALSE_KWD    },
-    { "null",       TokenType::NULL_KWD     },
-    { "new",        TokenType::NEW_KWD      },
-    { "if",         TokenType::IF_KWD       },
-    { "return",     TokenType::RETURN_KWD   },
-    { "elif",       TokenType::ELIF_KWD     },
-    { "else",       TokenType::ELSE_KWD     },
-    { "and",        TokenType::AND_KWD      }, 
-    { "or",         TokenType::OR_KWD       },  
-    { "not",        TokenType::NOT_KWD      }, 
-    { "obj",        TokenType::OBJ_KWD      },
-    { "module",     TokenType::MODULE_KWD,  },
-    { "import",     TokenType::IMPORT_KWD,  },
-    { "export",     TokenType::EXPORT_KWD,  },
+    { "var",        TokenType::VAR_KWD          },
+    { "func",       TokenType::FUNC_KWD         }, 
+    { "public",     TokenType::PUBLIC_KWD       },
+    { "private",    TokenType::PRIVATE_KWD      },
+    { "true",       TokenType::TRUE_KWD         },
+    { "false",      TokenType::FALSE_KWD        },
+    { "null",       TokenType::NULL_KWD         },
+    { "new",        TokenType::NEW_KWD          },
+    { "if",         TokenType::IF_KWD           },
+    { "return",     TokenType::RETURN_KWD       },
+    { "elif",       TokenType::ELIF_KWD         },
+    { "else",       TokenType::ELSE_KWD         },
+    { "and",        TokenType::AND_KWD          }, 
+    { "or",         TokenType::OR_KWD           },  
+    { "not",        TokenType::NOT_KWD          }, 
+    { "obj",        TokenType::OBJ_KWD          },
+    { "module",     TokenType::MODULE_KWD,      },
+    { "import",     TokenType::IMPORT_KWD,      },
+    { "export",     TokenType::EXPORT_KWD,      },
+    { "operator",   TokenType::OPERATOR_KWD,    },
+    { "using",      TokenType::USING_KWD,       },
 
-    { "int8",       TokenType::INT8_KWD     },
-    { "int16",      TokenType::INT16_KWD    },
-    { "int32",      TokenType::INT32_KWD    },
-    { "int",        TokenType::INT32_KWD    },
-    { "int64",      TokenType::INT64_KWD    },
-    { "uint8",      TokenType::UINT8_KWD    },
-    { "uint16",     TokenType::UINT16_KWD   },
-    { "uint32",     TokenType::UINT32_KWD   },
-    { "uint",       TokenType::UINT32_KWD   },
-    { "uint64",     TokenType::UINT64_KWD   },
-    { "float32",    TokenType::FLOAT32_KWD  },
-    { "float",      TokenType::FLOAT32_KWD  },
-    { "float64",    TokenType::FLOAT64_KWD  },
-    { "double",     TokenType::FLOAT64_KWD  },
-    { "bool",       TokenType::BOOL_KWD     },
-    { "char",       TokenType::CHAR_KWD     },
-    { "void",       TokenType::VOID_KWD     }
+    { "int8",       TokenType::INT8_KWD         },
+    { "int16",      TokenType::INT16_KWD        },
+    { "int32",      TokenType::INT32_KWD        },
+    { "int",        TokenType::INT32_KWD        },
+    { "int64",      TokenType::INT64_KWD        },
+    { "uint8",      TokenType::UINT8_KWD        },
+    { "uint16",     TokenType::UINT16_KWD       },
+    { "uint32",     TokenType::UINT32_KWD       },
+    { "uint",       TokenType::UINT32_KWD       },
+    { "uint64",     TokenType::UINT64_KWD       },
+    { "float32",    TokenType::FLOAT32_KWD      },
+    { "float",      TokenType::FLOAT32_KWD      },
+    { "float64",    TokenType::FLOAT64_KWD      },
+    { "double",     TokenType::FLOAT64_KWD      },
+    { "bool",       TokenType::BOOL_KWD         },
+    { "char",       TokenType::CHAR_KWD         },
+    { "void",       TokenType::VOID_KWD         }
 };
 
 const std::unordered_map<TokenType, TokenType> REPLACED_TOKENS = {

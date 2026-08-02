@@ -57,10 +57,22 @@ auto Parser::parse() -> TypeErased<ASTNode>
 
             node->add_child(import_node);
         }
+        else if (t1.type == TokenType::USING_KWD)
+        {
+            auto using_node = TypeErased<UsingStmtASTNode>::make();
+
+            const auto &t2 = SAFE_PEEK();
+            if (t2.type == TokenType::MODULE_KWD)
+                using_node->is_using_module = true;
+
+            using_node->add_child(parse_scoped_identifier());
+            CHECK_SYNTAX_ERROR();
+
+            node->add_child(using_node);
+        }
     }
 
     node->add_child(parse_declaration_body(false));
-    node->add_child(parse_export_declaration());
 
     std::println(std::cerr, "{}", node->ast_string());
     for (const auto &err: syntax_errors_)
@@ -172,6 +184,10 @@ auto Parser::parse_declaration_body(bool is_inside_obj) -> TypeErased<ASTNode>
 
                 continue;
 
+            case TokenType::EXPORT_KWD:
+                node->add_child(parse_export_declaration());
+                continue;
+
             default:
                 break;
         }
@@ -221,8 +237,8 @@ auto Parser::parse_declaration_body(bool is_inside_obj) -> TypeErased<ASTNode>
 
 auto Parser::parse_variable_declaration(bool is_inside_obj) -> TypeErased<VarDeclASTNode>
 {
-    auto node = TypeErased<VarDeclASTNode>::make(ASTNodeType::VARIABLE_DECLARATION);
-    node->set_metadata("is_member_var", is_inside_obj);
+    auto node = TypeErased<VarDeclASTNode>::make();
+    node->parser_is_member = true;
 
     const Token &t4 = SAFE_PEEK();
     if (is_inside_obj)
@@ -260,7 +276,7 @@ auto Parser::parse_variable_declaration(bool is_inside_obj) -> TypeErased<VarDec
         return node;
     }
 
-    node->add_child(parse_type());
+    node->add_child(parse_scoped_identifier());
     CHECK_SYNTAX_ERROR();
 
     const Token &t1 = SAFE_PEEK();
@@ -293,8 +309,8 @@ auto Parser::parse_variable_declaration(bool is_inside_obj) -> TypeErased<VarDec
 
 auto Parser::parse_function_declaration(bool is_inside_obj) -> TypeErased<FuncDeclASTNode>
 {
-    auto node = TypeErased<FuncDeclASTNode>::make(ASTNodeType::FUNCTION_DECLARATION);
-    node->set_metadata("is_method", is_inside_obj);
+    auto node = TypeErased<FuncDeclASTNode>::make();
+    node->parser_is_method = is_inside_obj;
 
     const Token &t = SAFE_PEEK();
     if (is_inside_obj and t.is_access_modifier()) 
@@ -319,6 +335,27 @@ auto Parser::parse_function_declaration(bool is_inside_obj) -> TypeErased<FuncDe
         return node;
     }
     
+    const Token &t5 = SAFE_PEEK();
+    if (t5.type == TokenType::OPERATOR_KWD)
+    {
+        if (not is_inside_obj)
+        {
+            create_syntax_error(ERR_CANT_DEFINE_OP_OVERLOAD, t5);
+            return node;
+        }
+
+        node->parser_is_op_override = true;
+    
+        const Token &t6 = SAFE_CONSUME();
+        if (not t6.is_operator())
+        {
+            create_syntax_error(ERR_EXPECTED_OPERATOR, t6);
+            return node;
+        }
+
+        node->parser_operator_overriden = t6.type;
+    }
+
     // Function name
     node->add_child(parse_identifier()); 
     CHECK_SYNTAX_ERROR();
@@ -354,7 +391,7 @@ auto Parser::parse_function_declaration(bool is_inside_obj) -> TypeErased<FuncDe
                 return node;
             }
 
-            param_list_node->add_child(parse_type());
+            param_list_node->add_child(parse_scoped_identifier());
             CHECK_SYNTAX_ERROR();
 
             const Token &t5 = SAFE_CONSUME();
@@ -388,14 +425,15 @@ auto Parser::parse_function_declaration(bool is_inside_obj) -> TypeErased<FuncDe
     {
         SAFE_CONSUME();
 
-        node->add_child(parse_type());
+        node->add_child(parse_scoped_identifier());
         CHECK_SYNTAX_ERROR();
     }
     else
     {
         // Assume void
-        node->add_child(parse_type(Token{TokenType::VOID_KWD}));
-        CHECK_SYNTAX_ERROR();
+        auto scoped_id = TypeErased<ScopedIdentifierASTNode>::make();
+        scoped_id->path.base_name = "void";
+        node->add_child(scoped_id);
     }
 
 
@@ -407,7 +445,7 @@ auto Parser::parse_function_declaration(bool is_inside_obj) -> TypeErased<FuncDe
 
 auto Parser::parse_object_declaration(bool is_inside_obj) -> TypeErased<ObjDeclASTNode>
 {
-    auto node = TypeErased<ObjDeclASTNode>::make(ASTNodeType::OBJ_DECLARATION);
+    auto node = TypeErased<ObjDeclASTNode>::make();
 
     const Token &t = SAFE_CONSUME();
     if (t.type != TokenType::OBJ_KWD)
@@ -973,16 +1011,18 @@ auto Parser::parse_type() -> TypeErased<ASTNode>
     return node;
 }
 
-auto Parser::parse_type(const Token &t) -> TypeErased<ASTNode>
-{
-    auto node = TypeErased<ASTNode>::make(ASTNodeType::DATA_TYPE);
-    node->set_token(t);
-    return node;
-}
-
 auto Parser::parse_scoped_identifier() -> TypeErased<ScopedIdentifierASTNode>
 {
-    auto node = TypeErased<ScopedIdentifierASTNode>::make(ASTNodeType::SCOPED_IDENTIFIER);
+    auto node = TypeErased<ScopedIdentifierASTNode>::make();
+
+    const Token &t = SAFE_PEEK();
+    if (t.is_builtin_type())
+    {
+        consume();
+
+        node->path.base_name = t.value;
+        return node;
+    }
 
     for (;;)
     {
@@ -994,6 +1034,8 @@ auto Parser::parse_scoped_identifier() -> TypeErased<ScopedIdentifierASTNode>
         const Token &t = SAFE_PEEK();
         if (t.type != TokenType::TWO_COLONS)
             break;
+        
+        consume();
     }
 
     node->path.base_name = node->path.scope_path.back();
@@ -1027,14 +1069,32 @@ auto Parser::parse_export_declaration() -> TypeErased<ASTNode>
         const auto &t2 = SAFE_PEEK();
         if (t2.type == TokenType::BRACE_CLOSE)
         {
+            consume();
             node->update_location(t2);
+            
             break;
         }
 
-        if (t2.type == TokenType::COLON)
-            consume();
+        node->add_child(parse_identifier());
 
-        node->add_child(parse_type());
+        const auto &t3 = SAFE_CONSUME();
+        if (t3.type == TokenType::COMMA)
+        {
+            continue;
+        }
+        else if (t3.type == TokenType::BRACE_CLOSE)
+        {
+            node->update_location(t3);
+            
+            break;
+        }
+        else
+        {
+            create_syntax_error(ERR_EXPECTED_TOKEN_OR_TOKEN, t3, ',', '}');
+            return node;
+        }
+
+        node->update_location(t3);
     }
 
     return node;

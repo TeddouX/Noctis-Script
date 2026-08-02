@@ -9,9 +9,11 @@ namespace NCSC::Parsing
 class VarDeclASTNode : public ASTNode
 {
 public:
-    explicit VarDeclASTNode(ASTNodeType type)
-        : ASTNode{type}
+    VarDeclASTNode()
+        : ASTNode{ASTNodeType::VARIABLE_DECLARATION}
     {}
+
+    bool                        parser_is_member = false;
 
     SemanticAnalysis::ValueType var_type;
     std::string                 var_name;

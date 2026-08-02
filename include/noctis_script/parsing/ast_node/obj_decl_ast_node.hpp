@@ -11,8 +11,8 @@ namespace NCSC::Parsing
 class ObjDeclASTNode : public ASTNode
 {
 public:
-    explicit ObjDeclASTNode(ASTNodeType type)
-        : ASTNode{type}
+    explicit ObjDeclASTNode()
+        : ASTNode{ASTNodeType::OBJ_DECLARATION}
     {}
 
     SemanticAnalysis::ValueType                 obj_type;

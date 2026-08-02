@@ -37,10 +37,10 @@ template <Named _NamedT>
 [[nodiscard]]
 inline auto find_named(const std::string &name, const std::vector<_NamedT> &vec) -> const _NamedT *
 {
-    isize_t idx = find_named_idx(vec, name);
+    isize_t idx = find_named_idx(name, vec);
     if (idx < 0)
         return nullptr;
-    return vec[idx];
+    return &vec[idx];
 }
 
 } // namespace NCSC::Utils

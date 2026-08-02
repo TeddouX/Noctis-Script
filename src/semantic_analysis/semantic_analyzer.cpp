@@ -23,11 +23,9 @@ SemanticAnalyzer::SemanticAnalyzer(
 
 auto SemanticAnalyzer::do_analysis() -> PtrRef<ModuleData>
 {
-    init_root_scope();
-
     if (!first_pass())
         return nullptr;
-    
+
     if (!second_pass())
         return nullptr;
     
@@ -54,65 +52,57 @@ auto SemanticAnalyzer::first_pass() -> bool
 {
     for (const auto &child : root_node_->children())
     {
-        switch (child->type())
+        if (child->type() == ASTNodeType::MODULE_DEF)
         {
-            case ASTNodeType::MODULE_DEF:
+            auto scoped_id = child->children()[0].dynamic_ptr_cast<Parsing::ScopedIdentifierASTNode>();
+
+            module_data_->is_module = true;
+            module_data_->path = scoped_id->path;
+
+            break;
+        }
+        else if (child->type() == ASTNodeType::IMPORT_STMT)
+        {
+            if (not module_ctx_)
             {
-                if (not module_ctx_)
-                {
-                    error(ERR_NO_MODULE_CTXT, child->location());
-                    return false;
-                }
-
-                auto scoped_id = child->children()[0].dynamic_ptr_cast<Parsing::ScopedIdentifierASTNode>();
-
-                module_data_->path = scoped_id->path;
-
-                break;
+                error(ERR_NO_MODULE_CTXT, child->location());
+                return false;
             }
 
-            case ASTNodeType::IMPORT_STMT:
-            {
-                if (not module_ctx_)
-                {
-                    error(ERR_NO_MODULE_CTXT, child->location());
-                    return false;
-                }
-
-                auto scoped_id = child->children()[0].dynamic_ptr_cast<Parsing::ScopedIdentifierASTNode>();
-                const Parsing::ScopedPath &scoped_path = scoped_id->path;
-                
-                if (not module_ctx_->has_module(scoped_path))
-                {
-                    error(ERR_NO_MODULE_NAMED, child->location(), scoped_path.to_string());
-                    return false;
-                }
-
-                // The module was already imported
-                if (auto module_data = module_ctx_->get_module_data(scoped_path))
-                {
-                    module_data_->imported_modules.push_back(module_data);
-                    continue;
-                }
-
-                auto errors = module_ctx_->set_module_imported(scoped_path);
-                if (not errors.empty())
-                {
-                    analysis_errors_.insert(analysis_errors_.end(),
-                        std::make_move_iterator(errors.begin()),
-                        std::make_move_iterator(errors.end())
-                    );
-                    return false;
-                }
-
-                auto module_data = module_ctx_->get_module_data(scoped_path);
-                module_data_->imported_modules.push_back(module_data);
-
-                break;
-            }
+            auto scoped_id = child->children()[0].dynamic_ptr_cast<Parsing::ScopedIdentifierASTNode>();
+            const Parsing::ScopedPath &scoped_path = scoped_id->path;
             
-            default:
+            if (not module_ctx_->has_module(scoped_path))
+            {
+                error(ERR_NO_MODULE_NAMED, child->location(), scoped_path.to_string());
+                return false;
+            }
+
+            // The module was already imported
+            if (auto module_data = module_ctx_->get_module_data(scoped_path))
+            {
+                module_data_->imported_modules.push_back(module_data);
                 continue;
+            }
+
+            auto errors = module_ctx_->set_module_imported(scoped_path);
+            if (not errors.empty())
+            {
+                analysis_errors_.insert(analysis_errors_.end(),
+                    std::make_move_iterator(errors.begin()),
+                    std::make_move_iterator(errors.end())
+                );
+                return false;
+            }
+
+            auto module_data = module_ctx_->get_module_data(scoped_path);
+            module_data_->imported_modules.push_back(module_data);
+
+            break;
+        }
+        else if (child->type() == ASTNodeType::USING_STMT)
+        {
+            
         }
     }
 
@@ -121,7 +111,7 @@ auto SemanticAnalyzer::first_pass() -> bool
 
 auto SemanticAnalyzer::second_pass() -> bool
 {
-    const auto &declaration_body = root_node_->children()[0];
+    const auto &declaration_body = root_node_->children().back();
 
     // First collect data about the objects so later functions or 
     // members that reference them as types are valid
@@ -140,13 +130,15 @@ auto SemanticAnalyzer::second_pass() -> bool
                 
                 DeclData decl_data{};
                 decl_data.decl_node = obj_decl;
-                decl_data.type = DeclData::Type::OBJECT;
+                decl_data.decl_type = DeclData::Type::OBJECT;
 
                 obj_decl->obj_name = obj_name;
+                decl_data.name = obj_name;
 
-                isize_t idx = curr_scope_->add_declaration(obj_name, decl_data);
+                isize_t idx = add_global_declaration(obj_name, decl_data);
                 
                 obj_decl->obj_type = make_object_vtype(idx);
+                decl_data.type = obj_decl->obj_type;
 
                 module_data_->type_table.emplace(obj_decl->obj_name, obj_decl->obj_type);
                 
@@ -159,7 +151,7 @@ auto SemanticAnalyzer::second_pass() -> bool
     }
 
     // Then, with the object data that was resolved previously, 
-    // collect member classes, functions, and variables in each object, do so recursively for member objects
+    // collect member classes, functions, and variables in each object
     for (const auto &declaration : declaration_body->children())
     {
         if (declaration->type() != ASTNodeType::OBJ_DECLARATION)
@@ -186,9 +178,10 @@ auto SemanticAnalyzer::second_pass() -> bool
 
                 DeclData decl_data{};
                 decl_data.decl_node = func_decl;
-                decl_data.type = DeclData::Type::FUNCTION;
+                decl_data.decl_type = DeclData::Type::FUNCTION;
 
                 func_decl->func_name = function_name;
+                decl_data.name = function_name;
 
                 const auto &param_node = func_decl->children()[1];
                 const auto &params = param_node->children();
@@ -210,8 +203,9 @@ auto SemanticAnalyzer::second_pass() -> bool
                 const auto &return_node = func_decl->children()[2];
                 ValueType return_type = value_type_from_node(return_node);
                 func_decl->func_return_type = return_type;
+                decl_data.type = return_type;
 
-                curr_scope_->add_declaration(function_name, decl_data);
+                add_global_declaration(function_name, decl_data);
 
                 continue;
             }
@@ -227,21 +221,54 @@ auto SemanticAnalyzer::second_pass() -> bool
 
                 DeclData decl_data{};
                 decl_data.decl_node = var_decl;
-                decl_data.type = DeclData::Type::VARIABLE;
+                decl_data.decl_type = DeclData::Type::VARIABLE;
 
                 var_decl->var_name = var_name;
+                decl_data.name = var_name;
 
                 const auto &type_node = declaration->children()[1];
                 ValueType var_type = value_type_from_node(type_node);
 
                 var_decl->var_type = var_type;
+                decl_data.type = var_type;
 
-                curr_scope_->add_declaration(var_name, decl_data);
+                add_global_declaration(var_name, decl_data);
 
                 continue;
             }
         }
     }
+    
+    // Collect the module's export data
+    for (const auto &declaration : declaration_body->children())
+    {
+        if (declaration->type() != ASTNodeType::EXPORT_DECL)
+            continue;
+
+        for (const auto &exported_symbol : declaration->children())
+        {
+            if (not module_data_->is_module)
+            {
+                error(ERR_CANT_EXPORT, declaration->location());
+                return false;
+            }
+
+            const std::string &symbol_name = exported_symbol->token().value;
+
+            Parsing::ScopedPath scoped{};
+            scoped.base_name = symbol_name;
+
+            auto declaration = curr_scope_->get_declaration(symbol_name);
+            if (not declaration)
+            {
+                error(ERR_SYMBOL_NOT_DEFINED, exported_symbol->location(), symbol_name);
+                return false;
+            }
+
+            module_data_->exported_symbols.push_back(*declaration);
+        }
+    }
+    
     return true;
 }
 
@@ -255,22 +282,28 @@ auto SemanticAnalyzer::fourth_pass() -> bool
     return true;
 }
 
-auto SemanticAnalyzer::fifth_pass() -> bool
+auto SemanticAnalyzer::init_root_scope(const DeclIndices &decl_indices) -> void
 {
-    return true;
-}
-
-auto SemanticAnalyzer::init_root_scope() -> void
-{
-    root_scope_ = PtrRef<Scope>::make();
+    root_scope_ = PtrRef<Scope>::make(decl_indices);
     curr_scope_ = root_scope_;
 
     module_data_->root_scope = root_scope_;
 }
 
+auto SemanticAnalyzer::init_root_scope() -> void
+{
+    if (not root_scope_)
+    {
+        if (module_ctx_)
+            init_root_scope(module_ctx_->decl_indices_);
+        else
+            init_root_scope(DeclIndices{ 0, 0, 0 });
+    }
+}
+
 auto SemanticAnalyzer::enter_new_scope() -> void
 {
-    auto new_scope = PtrRef<Scope>::make();
+    auto new_scope = PtrRef<Scope>::make(DeclIndices{});
     new_scope->set_parent(curr_scope_);
     
     curr_scope_ = new_scope;
@@ -283,6 +316,9 @@ auto SemanticAnalyzer::exit_scope() -> void
 
 auto SemanticAnalyzer::is_symbol_defined_elsewhere(const TypeErased<ASTNode> &identifer) -> bool
 {
+    if (not curr_scope_)
+        return false;
+
     const std::string &name = identifer->token().value;
     auto decl_data = curr_scope_->get_declaration(name);
     if (decl_data)
@@ -300,8 +336,8 @@ auto SemanticAnalyzer::value_type_from_node(const TypeErased<ASTNode> &type_node
 {
     // The type's name is contained in a token
     bool is_token = 
-        type_node->type() == ASTNodeType::TOKEN or 
-        type_node->type() == ASTNodeType::DATA_TYPE and
+        (type_node->type() == ASTNodeType::TOKEN or 
+        type_node->type() == ASTNodeType::DATA_TYPE) and
         type_node->type() != ASTNodeType::SCOPED_IDENTIFIER;
 
     if (not is_token and type_node->type() != ASTNodeType::SCOPED_IDENTIFIER)
@@ -341,13 +377,21 @@ auto SemanticAnalyzer::value_type_from_node(const TypeErased<ASTNode> &type_node
         scoped_path = scoped_id->path;
     }
 
-    auto it = module_data_->type_table.find(scoped_path);
-    if (it != module_data_->type_table.end())
-        return it->second;
+    ValueType vtype = module_data_->search_type(scoped_path);
+    if (vtype != ValueType::ERROR_TYPE)
+        return vtype;
 
     error(ERR_NOT_A_TYPE, type_node->location(), scoped_path.to_string());
 
     return ValueType::ERROR_TYPE;
+}
+
+auto SemanticAnalyzer::add_global_declaration(const std::string &name, DeclData &data) -> isize_t
+{
+    if (module_ctx_)
+        module_ctx_->global_symbol_declared(data.decl_type);
+    
+    return root_scope_->add_declaration(name, data);
 }
 
 } // namespace NCSC

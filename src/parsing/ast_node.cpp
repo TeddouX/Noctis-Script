@@ -40,6 +40,7 @@ auto to_string(ASTNodeType type) -> std::string_view
         case ASTNodeType::MODULE_DEF:               return "MODULE_DEF";
         case ASTNodeType::IMPORT_STMT:              return "IMPORT_STMT";
         case ASTNodeType::EXPORT_DECL:              return "EXPORT_DECL";
+        case ASTNodeType::USING_STMT:               return "USING_STMT";
         default:                                    return "UNKNOWN";
     }
 }
@@ -151,8 +152,10 @@ auto ASTNode::ast_string(bool is_root, const std::string &prefix, bool is_last) 
     if (not is_root)
         oss << (is_last ? "└── " : "├── ");
     oss << to_string();
+    
     if (token_.is_valid())
         oss << "(" << token_.to_string() << ")";
+    
     oss << "\n";
 
     for (size_t i = 0; i < children_.size(); i++) 

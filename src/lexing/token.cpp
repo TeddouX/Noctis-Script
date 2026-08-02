@@ -105,27 +105,9 @@ auto Token::is_constant_value() const -> bool
 
 auto Token::is_data_type() const -> bool
 {
-    switch (type) 
-    {
-        case TokenType::INT8_KWD:
-        case TokenType::INT16_KWD:
-        case TokenType::INT32_KWD:
-        case TokenType::INT64_KWD:
-        case TokenType::UINT8_KWD:
-        case TokenType::UINT16_KWD:
-        case TokenType::UINT32_KWD:
-        case TokenType::UINT64_KWD:
-        case TokenType::FLOAT32_KWD:
-        case TokenType::FLOAT64_KWD:
-        case TokenType::BOOL_KWD:
-        case TokenType::CHAR_KWD:
-        case TokenType::VOID_KWD:
-        // Custom types (will get checked by the compiler)
-        case TokenType::ID:
-            return true;
-        default:
-            return false;
-    }
+    return is_builtin_type() or 
+        // Custom types (will get checked by the semantic analyzer)
+        type == TokenType::ID;
 }
 
 auto Token::is_access_modifier() const -> bool
@@ -150,6 +132,37 @@ auto Token::is_comparison_operator() const -> bool
         case TokenType::EQUAL_EQUAL:
         case TokenType::GREATER_THAN_EQUAL:
         case TokenType::LESS_THAN_EQUAL:
+            return true;
+        default:
+            return false;
+    }
+}
+
+auto Token::is_operator() const -> bool
+{
+    return is_binary_operator()         or 
+        is_assignment_operator()        or 
+        type == TokenType::PLUS_PLUS    or 
+        type == TokenType::MINUS_MINUS;
+}
+
+auto Token::is_builtin_type() const -> bool
+{
+    switch (type) 
+    {
+        case TokenType::INT8_KWD:
+        case TokenType::INT16_KWD:
+        case TokenType::INT32_KWD:
+        case TokenType::INT64_KWD:
+        case TokenType::UINT8_KWD:
+        case TokenType::UINT16_KWD:
+        case TokenType::UINT32_KWD:
+        case TokenType::UINT64_KWD:
+        case TokenType::FLOAT32_KWD:
+        case TokenType::FLOAT64_KWD:
+        case TokenType::BOOL_KWD:
+        case TokenType::CHAR_KWD:
+        case TokenType::VOID_KWD:
             return true;
         default:
             return false;

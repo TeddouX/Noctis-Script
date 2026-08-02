@@ -9,10 +9,14 @@ namespace NCSC::Parsing
 class FuncDeclASTNode : public ASTNode
 {
 public:
-    explicit FuncDeclASTNode(ASTNodeType type)
-        : ASTNode{type}
+    FuncDeclASTNode()
+        : ASTNode{ASTNodeType::FUNCTION_DECLARATION}
     {}
     
+    bool                                                                parser_is_method = false;
+    bool                                                                parser_is_op_override = false;
+    TokenType                                                           parser_operator_overriden = TokenType::INVALID;
+
     std::vector<std::pair<std::string, SemanticAnalysis::ValueType>>    func_params;
     SemanticAnalysis::ValueType                                         func_return_type;
     std::string                                                         func_name;

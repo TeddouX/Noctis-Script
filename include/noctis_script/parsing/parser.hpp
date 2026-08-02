@@ -118,9 +118,8 @@ private:
     auto parse_constant()                                   -> TypeErased<ASTNode>;
     auto parse_construct_call()                             -> TypeErased<ASTNode>;
     auto parse_type()                                       -> TypeErased<ASTNode>;
-    auto parse_type(const Token &t)                         -> TypeErased<ASTNode>;
     auto parse_scoped_identifier()                          -> TypeErased<Parsing::ScopedIdentifierASTNode>;
-    auto parse_export_declaration()                           -> TypeErased<ASTNode>;
+    auto parse_export_declaration()                         -> TypeErased<ASTNode>;
 
     inline static PtrRef<ErrorInfo> ERR_EXPECTED_TOKEN          {ErrorInfo::create("Syntax", "S1",  "Expected '{}'")};
     inline static PtrRef<ErrorInfo> ERR_EXPECTED_TOKEN_OR_TOKEN {ErrorInfo::create("Syntax", "S2",  "Expected '{}' or '{}'")};
@@ -135,6 +134,8 @@ private:
     inline static PtrRef<ErrorInfo> ERR_EXPECTED_CONSTANT_VAL   {ErrorInfo::create("Syntax", "S9",  "Expected a constant value")};
     inline static PtrRef<ErrorInfo> ERR_EXPECTED_DATA_TYPE      {ErrorInfo::create("Syntax", "S10", "Expected a data type")};
     inline static PtrRef<ErrorInfo> ERR_UNEXPECTED_TOKEN        {ErrorInfo::create("Syntax", "S11", "Unexpected token")};
+    inline static PtrRef<ErrorInfo> ERR_EXPECTED_OPERATOR       {ErrorInfo::create("Syntax", "S12", "Expected an operator")};
+    inline static PtrRef<ErrorInfo> ERR_CANT_DEFINE_OP_OVERLOAD {ErrorInfo::create("Syntax", "S13", "Can't define an operator overload outside an object")};
 };
 
 } // namespace NCSC

@@ -65,13 +65,19 @@ const std::unordered_map<std::string, ValueType> BULTIN_VTYPE_NAMES =
     { "int8",       ValueType::INT8         },
     { "int16",      ValueType::INT16        },
     { "int32",      ValueType::INT32        },
+    { "int",        ValueType::INT32        },
     { "int64",      ValueType::INT64        },
+
     { "uint8",      ValueType::UINT8        },
     { "uint16",     ValueType::UINT16       },
     { "uint32",     ValueType::UINT32       },
     { "uint64",     ValueType::UINT64       },
+
     { "float32",    ValueType::FLOAT32      },
+    { "float",      ValueType::FLOAT32      },
     { "float64",    ValueType::FLOAT64      },
+    { "double",     ValueType::FLOAT32      },
+
     { "bool",       ValueType::BOOL         },
 };
     

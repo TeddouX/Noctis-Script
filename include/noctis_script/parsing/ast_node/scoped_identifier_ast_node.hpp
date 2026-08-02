@@ -10,8 +10,8 @@ namespace NCSC::Parsing
 class ScopedIdentifierASTNode : public ASTNode
 {
 public:
-    explicit ScopedIdentifierASTNode(ASTNodeType type)
-        : ASTNode{type}
+    ScopedIdentifierASTNode()
+        : ASTNode{ASTNodeType::SCOPED_IDENTIFIER}
     {}
 
     ScopedPath path;

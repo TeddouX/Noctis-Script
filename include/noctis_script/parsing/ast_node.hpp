@@ -5,7 +5,6 @@
 #include "../lexing/token.hpp"
 #include "../location.hpp"
 #include "../ncsc.hpp"
-#include "../utils/metadata_holder.hpp"
 
 
 namespace NCSC
@@ -42,11 +41,12 @@ enum class ASTNodeType
     MODULE_DEF,
     IMPORT_STMT,
     EXPORT_DECL,
+    USING_STMT,
 };
 
 auto to_string(ASTNodeType type) -> std::string_view;
 
-class ASTNode : public Utils::MetadataHolder
+class ASTNode
 {
 public:
     explicit ASTNode(ASTNodeType type);

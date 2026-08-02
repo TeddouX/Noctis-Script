@@ -10,9 +10,7 @@ auto Scope::set_parent(PtrRef<Scope> parent) -> void
     if (not parent_)
         return;
     
-    var_idx_ = parent_->var_idx_;
-    func_idx_ = parent_->func_idx_;
-    obj_idx_ = parent_->obj_idx_;
+    decl_indices_ = parent_->decl_indices_;
 }
 
 auto Scope::get_parent() const -> const PtrRef<Scope> &
@@ -20,23 +18,9 @@ auto Scope::get_parent() const -> const PtrRef<Scope> &
     return parent_;
 }
 
-auto Scope::add_declaration(const std::string &name, DeclData data) -> isize_t
+auto Scope::add_declaration(const std::string &name, DeclData &data) -> isize_t
 {
-    switch (data.type)
-    {
-        case DeclData::Type::FUNCTION:
-            data.idx = func_idx_++;
-            break;
-        
-        case DeclData::Type::OBJECT:
-            data.idx = obj_idx_++;
-            break;
-        
-        case DeclData::Type::VARIABLE:
-            data.idx = var_idx_++;
-            break;
-    }
-
+    data.idx = decl_indices_.increase(data.decl_type);
     declaration_data_.emplace(name, data);
 
     return data.idx;

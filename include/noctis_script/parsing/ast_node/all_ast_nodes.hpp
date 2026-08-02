@@ -4,3 +4,4 @@
 #include "obj_decl_ast_node.hpp"
 #include "scoped_identifier_ast_node.hpp"
 #include "var_decl_ast_node.hpp"
+#include "using_stmt_ast_node.hpp"

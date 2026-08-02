@@ -80,9 +80,12 @@ auto ModuleContext::add_module(const std::string &file_contents, const std::file
         return parser.get_syntax_errors();
 
     SemanticAnalyzer semantic_analyzer{root, script_source, this};
+    semantic_analyzer.init_root_scope(decl_indices_);
     auto module_data = semantic_analyzer.do_analysis();
     if (semantic_analyzer.has_analysis_errors())
         return semantic_analyzer.get_analysis_errors();
+    else if (module_data == nullptr)
+        return {};
 
     imported_modules_.emplace(module_data->path, module_data);
 
@@ -145,6 +148,13 @@ auto ModuleContext::set_module_imported(const Parsing::ScopedPath &path) -> std:
 auto ModuleContext::clear_imported_modules() -> void
 {
     imported_modules_.clear();
+
+    decl_indices_ = DeclIndices{};
+}
+
+auto ModuleContext::global_symbol_declared(const DeclData::Type &decl_type) -> void
+{
+    decl_indices_.increase(decl_type);
 }
 
 } // namespace NCSC

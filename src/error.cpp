@@ -70,6 +70,9 @@ auto Error::get_error_message_with_source() const -> std::string
     std::size_t col = location_.column;
     std::size_t col_end = location_.column_end;
 
+    if (err_line != location_.line_end)
+        col_end = col + source_line.size();
+
     for (int i = 0; i < col - 1; i++)
         caret_line.push_back(' ');
 

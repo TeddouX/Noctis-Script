@@ -22,6 +22,10 @@ public:
     );
 
     auto do_analysis() -> PtrRef<SemanticAnalysis::ModuleData>;
+    // INTERNAL: do not use unless you know what you're doing
+    auto init_root_scope() -> void;
+    // INTERNAL: do not use unless you know what you're doing
+    auto init_root_scope(const SemanticAnalysis::DeclIndices &decl_indices) -> void;
 
     auto has_analysis_errors() const -> bool;
     auto get_analysis_errors() const -> const std::vector<Error> &;
@@ -46,34 +50,36 @@ private:
         analysis_errors_.push_back(err);
     }
 
-    // Handle module imports and exports
+    // Handle module imports
     auto first_pass() -> bool;
-    // Collect declarations
+    // Collect declarations, resolve names, collect export data 
     auto second_pass() -> bool;
-    // Resolve names, collect export data
-    auto third_pass() -> bool;
     // Type checking
-    auto fourth_pass() -> bool;
+    auto third_pass() -> bool;
     // Control flow analysis
-    auto fifth_pass() -> bool;
+    auto fourth_pass() -> bool;
 
-    auto init_root_scope() -> void;
     auto enter_new_scope() -> void;
     auto exit_scope() -> void;
     
     auto is_symbol_defined_elsewhere(const TypeErased<ASTNode> &identifer) -> bool;
     auto value_type_from_node(const TypeErased<ASTNode> &type_node) -> SemanticAnalysis::ValueType;
 
+    auto add_global_declaration(const std::string &name, SemanticAnalysis::DeclData &data) -> isize_t;
+
     FRIEND_TEST(SemanticAnalyzerTest, FirstPassCorrectlyImportModules);
+    FRIEND_TEST(SemanticAnalyzerTest, SecondPassCorrectlyUsesModulesExportedSymbols);
     FRIEND_TEST(SemanticAnalyzerTest, SecondPassFunctionCorrectData);
     FRIEND_TEST(SemanticAnalyzerTest, SecondPassGlobalVarCorrectData);
     FRIEND_TEST(SemanticAnalyzerTest, SecondPassObjectCorrectData);
     FRIEND_TEST(SemanticAnalyzerTest, SecondPassCorrectIndices);
 
-    inline static auto ERR_NOT_A_TYPE       {ErrorInfo::create("Semantic Analysis", "SA1", "'{}' is not a type.")};
-    inline static auto ERR_ALREADY_DEFINED  {ErrorInfo::create("Semantic Analysis", "SA2", "'{}' was already defined somewhere else.")};
-    inline static auto ERR_NO_MODULE_CTXT   {ErrorInfo::create("Semantic Analysis", "SA3", "INTERNAL: Can't resolve imports because no module context was given")};
-    inline static auto ERR_NO_MODULE_NAMED  {ErrorInfo::create("Semantic Analysis", "SA4", "Can't find module '{}' (check spelling ?)")};
+    inline static auto ERR_NOT_A_TYPE           {ErrorInfo::create("Semantic Analysis", "SA1", "'{}' is not a type.")};
+    inline static auto ERR_ALREADY_DEFINED      {ErrorInfo::create("Semantic Analysis", "SA2", "'{}' was already defined somewhere else.")};
+    inline static auto ERR_NO_MODULE_CTXT       {ErrorInfo::create("Semantic Analysis", "SA3", "INTERNAL: Can't resolve imports because no module context was given")};
+    inline static auto ERR_NO_MODULE_NAMED      {ErrorInfo::create("Semantic Analysis", "SA4", "Can't find module '{}' (check spelling ?)")};
+    inline static auto ERR_SYMBOL_NOT_DEFINED   {ErrorInfo::create("Semantic Analysis", "SA5", "'{}' was not defined in this module (check spelling ?)")};
+    inline static auto ERR_CANT_EXPORT          {ErrorInfo::create("Semantic Analysis", "SA6", "Can't export symbols because the script was defined as a module")};
   
     inline static auto INFO_DEFINED_HERE    {ErrorInfo::create("Semantic Analysis", "SAI1",  "'{}' defined here:", ErrorLevel::INFO)};
 };

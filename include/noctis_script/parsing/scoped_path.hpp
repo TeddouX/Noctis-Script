@@ -24,6 +24,8 @@ struct ScopedPath
     }
 
     auto merge(const ScopedPath &other) -> void;
+    auto remove(const ScopedPath &other) const -> ScopedPath;
+
     auto to_string() const -> std::string;
 };
 

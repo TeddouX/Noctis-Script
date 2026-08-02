@@ -30,6 +30,26 @@ auto ScopedPath::merge(const ScopedPath &other) -> void
             break;
     }
 }
+
+auto ScopedPath::remove(const ScopedPath &other) const -> ScopedPath
+{
+    std::size_t common = 0;
+    while (common < scope_path.size() &&
+           common < other.scope_path.size() &&
+           scope_path[common] == other.scope_path[common])
+    {
+        common++;
+    }
+
+    if (scope_path[common] == other.base_name)
+        common++;
+
+    ScopedPath removed{};
+    removed.scope_path.assign(scope_path.begin() + common, scope_path.end());
+    removed.base_name = this->base_name;
+    
+    return removed;
+}
     
 auto ScopedPath::to_string() const -> std::string
 {

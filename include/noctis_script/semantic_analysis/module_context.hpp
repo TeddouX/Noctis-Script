@@ -42,6 +42,10 @@ private:
     std::unordered_map<
         Parsing::ScopedPath,
         PtrRef<SemanticAnalysis::ModuleData>>   imported_modules_;
+
+    auto global_symbol_declared(const SemanticAnalysis::DeclData::Type &decl_type) -> void;
+
+    SemanticAnalysis::DeclIndices               decl_indices_;
 };
 
 } // namespace NCSC

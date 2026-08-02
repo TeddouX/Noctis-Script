@@ -12,21 +12,20 @@ namespace NCSC::SemanticAnalysis
 class Scope
 {
 public:
-    Scope() = default;
+    Scope(const DeclIndices &decl_indices)
+        : decl_indices_{decl_indices}
+    {}
 
     auto set_parent(PtrRef<Scope> parent) -> void;
     auto get_parent() const -> const PtrRef<Scope> &;
 
-    auto add_declaration(const std::string &name, DeclData data) -> isize_t;
+    auto add_declaration(const std::string &name, DeclData &data) -> isize_t;
     auto get_declaration(const std::string &name) -> DeclData *;
 
 private:
     PtrRef<Scope>                               parent_;
     std::unordered_map<std::string, DeclData>   declaration_data_;
 
-    std::size_t                                 var_idx_{};
-    std::size_t                                 func_idx_{};
-    std::size_t                                 obj_idx_{};
+    DeclIndices                                 decl_indices_;             
 };
-    
 } // namespace NCSC::SemanticAnalysis
