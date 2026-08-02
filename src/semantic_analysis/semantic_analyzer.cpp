@@ -1,5 +1,7 @@
 #include "semantic_analysis/semantic_analyzer.hpp"
 
+#include <ranges>
+
 #include "parsing/ast_node/all_ast_nodes.hpp"
 
 
@@ -102,7 +104,46 @@ auto SemanticAnalyzer::first_pass() -> bool
         }
         else if (child->type() == ASTNodeType::USING_STMT)
         {
-            
+            if (not module_ctx_)
+            {
+                error(ERR_NO_MODULE_CTXT, child->location());
+                return false;
+            }
+
+            auto using_stmt = child.dynamic_ptr_cast<Parsing::UsingStmtASTNode>();
+            auto scoped_id = child->children()[0].dynamic_ptr_cast<Parsing::ScopedIdentifierASTNode>();
+            auto scoped_path = scoped_id->path;
+
+            if (using_stmt->is_type_alias)
+            {
+                const DeclData *resolved = module_data_->find_imported_symbol(scoped_path);
+
+                if (not resolved)
+                {
+                    error(ERR_SYMBOL_NOT_IMPORTED, scoped_id->location(), scoped_path.to_string());
+                    return false;
+                }
+
+                const std::string &local_name = scoped_path.base_name;
+                if (root_scope_->using_aliases.contains(local_name))
+                {
+                    error(ERR_USING_CONFLICT, scoped_id->location(), scoped_path.to_string());
+                    return false;
+                }
+
+                root_scope_->using_aliases[local_name] = *resolved;
+            }
+            else
+            {
+                const auto &module_data = module_data_->find_imported_module(scoped_path);
+                if (not module_data)
+                {
+                    error(ERR_MODULE_NOT_IMPORTED, scoped_id->location(), scoped_path.to_string());
+                    return false;
+                }
+
+                root_scope_->used_modules.push_back(module_data);
+            }
         }
     }
 
@@ -113,10 +154,13 @@ auto SemanticAnalyzer::second_pass() -> bool
 {
     const auto &declaration_body = root_node_->children().back();
 
+    std::unordered_set<isize_t> obj_indices{};
+
     // First collect data about the objects so later functions or 
     // members that reference them as types are valid
-    for (const auto &declaration : declaration_body->children())
+    for (isize_t i = 0; i < declaration_body->children().size(); i++)
     {
+        const auto &declaration = declaration_body->children()[i];
         switch (declaration->type())
         {
             case ASTNodeType::OBJ_DECLARATION:
@@ -142,6 +186,8 @@ auto SemanticAnalyzer::second_pass() -> bool
 
                 module_data_->type_table.emplace(obj_decl->obj_name, obj_decl->obj_type);
                 
+                obj_indices.insert(i);
+
                 continue;
             }
 
@@ -152,13 +198,13 @@ auto SemanticAnalyzer::second_pass() -> bool
 
     // Then, with the object data that was resolved previously, 
     // collect member classes, functions, and variables in each object
-    for (const auto &declaration : declaration_body->children())
+    for (auto obj_idx : obj_indices)
     {
+        const auto &declaration = declaration_body->children()[obj_idx];
         if (declaration->type() != ASTNodeType::OBJ_DECLARATION)
             continue;
 
         auto obj_decl = declaration.dynamic_ptr_cast<Parsing::ObjDeclASTNode>();
-        
     }
 
     for (const auto &declaration : declaration_body->children())
@@ -258,7 +304,7 @@ auto SemanticAnalyzer::second_pass() -> bool
             Parsing::ScopedPath scoped{};
             scoped.base_name = symbol_name;
 
-            auto declaration = curr_scope_->get_declaration(symbol_name);
+            auto declaration = get_declaration(symbol_name, exported_symbol->location());
             if (not declaration)
             {
                 error(ERR_SYMBOL_NOT_DEFINED, exported_symbol->location(), symbol_name);
@@ -316,15 +362,19 @@ auto SemanticAnalyzer::exit_scope() -> void
 
 auto SemanticAnalyzer::is_symbol_defined_elsewhere(const TypeErased<ASTNode> &identifer) -> bool
 {
-    if (not curr_scope_)
-        return false;
-
     const std::string &name = identifer->token().value;
-    auto decl_data = curr_scope_->get_declaration(name);
-    if (decl_data)
+    auto decl_candidates = curr_scope_->get_declaration(name);
+    if (not decl_candidates.empty())
     {
         error(ERR_ALREADY_DEFINED, identifer->location(), name);
-        error(INFO_DEFINED_HERE, decl_data->decl_node->location(), name);
+
+        if (decl_candidates.size() <= 1)
+        {
+            if (not decl_candidates[0].first)
+                error(INFO_DEFINED_HERE, decl_candidates[0].second->decl_node->location(), name);
+            else
+                error(INFO_DEFINED_IN_MODULE, Location{}, decl_candidates[0].first->path.to_string());
+        }
 
         return true;
     }
@@ -381,9 +431,37 @@ auto SemanticAnalyzer::value_type_from_node(const TypeErased<ASTNode> &type_node
     if (vtype != ValueType::ERROR_TYPE)
         return vtype;
 
+    auto decl_data = get_declaration(scoped_path.base_name, type_node->location());
+    if (decl_data and decl_data->decl_type == DeclData::Type::OBJECT)
+        return decl_data->type;
+
     error(ERR_NOT_A_TYPE, type_node->location(), scoped_path.to_string());
 
     return ValueType::ERROR_TYPE;
+}
+
+auto SemanticAnalyzer::get_declaration(const std::string &name, const Location &err_location) -> const DeclData *
+{
+    auto declaration_candidates = curr_scope_->get_declaration(name);
+    if (declaration_candidates.empty())
+    {
+        error(ERR_SYMBOL_NOT_DEFINED, err_location, name);
+        return nullptr;
+    }
+    else if (declaration_candidates.size() > 1)
+    {
+        std::vector<std::string> ambiguous_modules;
+        for (const auto &[module_data, _] : declaration_candidates)
+            ambiguous_modules.push_back(module_data->path.to_string());
+
+        auto ambiguous_modules_str = ambiguous_modules | std::views::join_with(std::string(", "));
+
+        error(ERR_AMBIGUOUS_SYMBOL, err_location, name, ambiguous_modules_str);
+
+        return nullptr;
+    }
+
+    return declaration_candidates[0].second;
 }
 
 auto SemanticAnalyzer::add_global_declaration(const std::string &name, DeclData &data) -> isize_t

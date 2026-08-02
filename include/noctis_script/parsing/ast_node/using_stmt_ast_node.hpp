@@ -13,7 +13,7 @@ public:
         : ASTNode{ASTNodeType::USING_STMT}
     {}
 
-    bool is_using_module = false;
+    bool is_type_alias = true;
 };
 
 } // namespace NCSC::Parsing

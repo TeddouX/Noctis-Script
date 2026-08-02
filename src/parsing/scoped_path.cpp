@@ -33,6 +33,9 @@ auto ScopedPath::merge(const ScopedPath &other) -> void
 
 auto ScopedPath::remove(const ScopedPath &other) const -> ScopedPath
 {
+    if (scope_path.empty())
+        return *this;
+
     std::size_t common = 0;
     while (common < scope_path.size() &&
            common < other.scope_path.size() &&

@@ -63,20 +63,23 @@ auto Parser::parse() -> TypeErased<ASTNode>
 
             const auto &t2 = SAFE_PEEK();
             if (t2.type == TokenType::MODULE_KWD)
-                using_node->is_using_module = true;
+            {
+                consume();
+                using_node->is_type_alias = false;
+            }
 
             using_node->add_child(parse_scoped_identifier());
             CHECK_SYNTAX_ERROR();
 
             node->add_child(using_node);
         }
+
+        const Token &t3 = SAFE_PEEK();
+        if (t3.type == TokenType::SEMICOLON)
+            consume();
     }
 
     node->add_child(parse_declaration_body(false));
-
-    std::println(std::cerr, "{}", node->ast_string());
-    for (const auto &err: syntax_errors_)
-        std::println(std::cerr, "{}", err.get_error_message_with_source());
 
     return node;
 }

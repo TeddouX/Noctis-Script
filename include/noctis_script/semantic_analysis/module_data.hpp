@@ -26,8 +26,12 @@ struct ModuleData
     std::vector<DeclData>               exported_symbols;
 
     auto find_exported_symbol(const std::string &symbol_name) const -> const DeclData *;
-    auto search_local_type(const Parsing::ScopedPath &path) const -> ValueType;
-    auto search_type(const Parsing::ScopedPath &path) const -> ValueType;
+    auto find_imported_symbol(const Parsing::ScopedPath &symbol_path) const -> const DeclData *;
+
+    auto find_imported_module(const Parsing::ScopedPath &module_path) const -> PtrRef<ModuleData>;
+
+    auto search_local_type(const Parsing::ScopedPath &type_path) const -> ValueType;
+    auto search_type(const Parsing::ScopedPath &type_path) const -> ValueType;
 };
 
 } // namespace NCSC::SemanticAnalysis

@@ -1,5 +1,8 @@
 #include "semantic_analysis/sa_scope.hpp"
 
+#include "semantic_analysis/module_data.hpp"
+
+
 namespace NCSC::SemanticAnalysis
 {
     
@@ -26,18 +29,36 @@ auto Scope::add_declaration(const std::string &name, DeclData &data) -> isize_t
     return data.idx;
 }
 
-auto Scope::get_declaration(const std::string &name) -> DeclData *
+// Local declarations
+// Parent declarations
+// Using alias
+// Using module
+auto Scope::get_declaration(const std::string &name) const -> std::vector<std::pair<PtrRef<ModuleData>, const DeclData *>>
 {
-    auto it = declaration_data_.find(name);
-    if (it == declaration_data_.end())
+    auto local_decl = declaration_data_.find(name);
+    if (local_decl != declaration_data_.end())
+        return { { nullptr, &local_decl->second } };
+
+    if (parent_)
     {
-        if (parent_)
-            return parent_->get_declaration(name);
-        else
-            return nullptr;
+        auto parent_decl = parent_->get_declaration(name);
+        if (not parent_decl.empty())
+            return parent_decl;
     }
-    
-    return &it->second;
+
+    auto using_alias = using_aliases.find(name);
+    if (using_alias != using_aliases.end())
+        return { { nullptr, &using_alias->second } };
+
+    std::vector<std::pair<PtrRef<ModuleData>, const DeclData *>> candidates;
+    for (auto module : used_modules)
+    {
+        if (auto exported_decl = module->find_exported_symbol(name))
+            candidates.push_back({ module, exported_decl });
+    }
+
+    return candidates;
+
 }
 
 } // namespace NCSC::SemanticAnalysis

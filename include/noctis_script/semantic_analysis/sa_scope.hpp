@@ -8,7 +8,9 @@
 
 namespace NCSC::SemanticAnalysis
 {
-    
+
+class ModuleData;
+
 class Scope
 {
 public:
@@ -20,12 +22,15 @@ public:
     auto get_parent() const -> const PtrRef<Scope> &;
 
     auto add_declaration(const std::string &name, DeclData &data) -> isize_t;
-    auto get_declaration(const std::string &name) -> DeclData *;
+    auto get_declaration(const std::string &name) const -> std::vector<std::pair<PtrRef<ModuleData>, const DeclData *>>;
+
+    std::vector<PtrRef<ModuleData>>             used_modules;
+    std::unordered_map<std::string, DeclData>   using_aliases;
 
 private:
     PtrRef<Scope>                               parent_;
     std::unordered_map<std::string, DeclData>   declaration_data_;
 
-    DeclIndices                                 decl_indices_;             
+    DeclIndices                                 decl_indices_;
 };
 } // namespace NCSC::SemanticAnalysis

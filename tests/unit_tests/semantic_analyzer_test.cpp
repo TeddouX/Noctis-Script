@@ -52,18 +52,22 @@ export
     ASSERT_TRUE(errs.empty());
 
     auto script_src = ScriptSource::from_contents(
-R"(@import std::math;
-func main() -> std::math::Vec3 {};
+R"(@import std::math
+@using std::math::Vec3
+func main() -> Vec45 {}
 obj Vec45 {}
 )");
 
     Parser parser{tokenize(script_src), script_src};
     auto root_node = parser.parse();
+    std::println(std::cerr, "{}", root_node->ast_string());
+    for (const auto &err: parser.get_syntax_errors())
+        std::println(std::cerr, "{}", err.get_error_message_with_source());
     ASSERT_FALSE(parser.has_syntax_errors());
 
     SemanticAnalyzer analyzer{root_node, script_src, &module_context};
-    analyzer.first_pass();
     analyzer.init_root_scope();
+    analyzer.first_pass();
     analyzer.second_pass();
     ASSERT_FALSE(analyzer.has_analysis_errors());
     
@@ -78,11 +82,11 @@ R"(func main(arg1: int, arg2: float) -> bool {}
     Parser parser{tokenize(script_src), script_src};
     auto root_node = parser.parse();
     SemanticAnalyzer analyzer{root_node, script_src};
-    analyzer.first_pass();
     analyzer.init_root_scope();
+    analyzer.first_pass();
     analyzer.second_pass();
     
-    auto decl_data = analyzer.curr_scope_->get_declaration("main");
+    auto decl_data = analyzer.get_declaration("main", Location{});
 
     ASSERT_TRUE(decl_data != nullptr);
     ASSERT_EQ(decl_data->decl_type, DeclData::Type::FUNCTION);
@@ -114,7 +118,7 @@ R"(var bla: uint16 = 10;
     analyzer.init_root_scope();
     analyzer.second_pass();
 
-    auto decl_data = analyzer.curr_scope_->get_declaration("bla");
+    auto decl_data = analyzer.get_declaration("bla", Location{});
 
     ASSERT_TRUE(decl_data != nullptr);
     ASSERT_EQ(decl_data->decl_type, DeclData::Type::VARIABLE);
@@ -132,11 +136,11 @@ R"(obj Vec3 {}
     Parser parser{tokenize(script_src), script_src};
     auto root_node = parser.parse();
     SemanticAnalyzer analyzer{root_node, script_src};
-    analyzer.first_pass();
     analyzer.init_root_scope();
+    analyzer.first_pass();
     analyzer.second_pass();
 
-    auto decl_data = analyzer.curr_scope_->get_declaration("Vec3");
+    auto decl_data = analyzer.get_declaration("Vec3", Location{});
 
     ASSERT_TRUE(decl_data != nullptr);
     ASSERT_EQ(decl_data->decl_type, DeclData::Type::OBJECT);
@@ -162,46 +166,46 @@ var var_2: int;
     Parser parser{tokenize(script_src), script_src};
     auto root_node = parser.parse();
     SemanticAnalyzer analyzer{root_node, script_src};
-    analyzer.first_pass();
     analyzer.init_root_scope();
+    analyzer.first_pass();
     analyzer.second_pass();
 
-    auto func_0_data = analyzer.curr_scope_->get_declaration("func_0");
+    auto func_0_data = analyzer.get_declaration("func_0", Location{});
     ASSERT_TRUE(func_0_data != nullptr);
     ASSERT_EQ(func_0_data->decl_type, DeclData::Type::FUNCTION);
     ASSERT_EQ(func_0_data->idx, 0);
 
-    auto func_1_data = analyzer.curr_scope_->get_declaration("func_1");
+    auto func_1_data = analyzer.get_declaration("func_1", Location{});
     ASSERT_TRUE(func_1_data != nullptr);
     ASSERT_EQ(func_1_data->decl_type, DeclData::Type::FUNCTION);
     ASSERT_EQ(func_1_data->idx, 1);
 
-    auto func_2_data = analyzer.curr_scope_->get_declaration("func_2");
+    auto func_2_data = analyzer.get_declaration("func_2", Location{});
     ASSERT_TRUE(func_2_data != nullptr);
     ASSERT_EQ(func_2_data->decl_type, DeclData::Type::FUNCTION);
     ASSERT_EQ(func_2_data->idx, 2);
 
-    auto obj_0_data = analyzer.curr_scope_->get_declaration("obj_0");
+    auto obj_0_data = analyzer.get_declaration("obj_0", Location{});
     ASSERT_TRUE(obj_0_data != nullptr);
     ASSERT_EQ(obj_0_data->decl_type, DeclData::Type::OBJECT);
     ASSERT_EQ(obj_0_data->idx, 0);
 
-    auto obj_1_data = analyzer.curr_scope_->get_declaration("obj_1");
+    auto obj_1_data = analyzer.get_declaration("obj_1", Location{});
     ASSERT_TRUE(obj_1_data != nullptr);
     ASSERT_EQ(obj_1_data->decl_type, DeclData::Type::OBJECT);
     ASSERT_EQ(obj_1_data->idx, 1);
 
-    auto var_0_data = analyzer.curr_scope_->get_declaration("var_0");
+    auto var_0_data = analyzer.get_declaration("var_0", Location{});
     ASSERT_TRUE(var_0_data != nullptr);
     ASSERT_EQ(var_0_data->decl_type, DeclData::Type::VARIABLE);
     ASSERT_EQ(var_0_data->idx, 0);
 
-    auto var_1_data = analyzer.curr_scope_->get_declaration("var_1");
+    auto var_1_data = analyzer.get_declaration("var_1", Location{});
     ASSERT_TRUE(var_1_data != nullptr);
     ASSERT_EQ(var_1_data->decl_type, DeclData::Type::VARIABLE);
     ASSERT_EQ(var_1_data->idx, 1);
 
-    auto var_2_data = analyzer.curr_scope_->get_declaration("var_2");
+    auto var_2_data = analyzer.get_declaration("var_2", Location{});
     ASSERT_TRUE(var_2_data != nullptr);
     ASSERT_EQ(var_2_data->decl_type, DeclData::Type::VARIABLE);
     ASSERT_EQ(var_2_data->idx, 2);
