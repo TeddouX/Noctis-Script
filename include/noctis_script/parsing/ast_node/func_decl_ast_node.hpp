@@ -19,7 +19,7 @@ public:
 
     std::vector<std::pair<std::string, SemanticAnalysis::ValueType>>    func_params;
     SemanticAnalysis::ValueType                                         func_return_type;
-    std::string                                                         func_name;
+    std::string                                                         name;
 };
 
 } // namespace NCSC::Parsing

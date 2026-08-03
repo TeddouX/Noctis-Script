@@ -316,7 +316,7 @@ auto Parser::parse_function_declaration(bool is_inside_obj) -> TypeErased<FuncDe
     node->parser_is_method = is_inside_obj;
 
     const Token &t = SAFE_PEEK();
-    if (is_inside_obj and t.is_access_modifier()) 
+    if (is_inside_obj) 
     {
         if (t.is_access_modifier())
         {
@@ -449,6 +449,22 @@ auto Parser::parse_function_declaration(bool is_inside_obj) -> TypeErased<FuncDe
 auto Parser::parse_object_declaration(bool is_inside_obj) -> TypeErased<ObjDeclASTNode>
 {
     auto node = TypeErased<ObjDeclASTNode>::make();
+
+    const Token &t2 = SAFE_PEEK();
+    if (is_inside_obj) 
+    {
+        if (t2.is_access_modifier())
+        {
+            const Token &t3 = SAFE_CONSUME();
+            node->add_child(parse_token(t3));
+            CHECK_SYNTAX_ERROR();
+        }
+        else
+        {
+            node->add_child(parse_token(Token{TokenType::VOID_KWD}));
+            CHECK_SYNTAX_ERROR();
+        }
+    }
 
     const Token &t = SAFE_CONSUME();
     if (t.type != TokenType::OBJ_KWD)

@@ -152,7 +152,7 @@ auto ModuleContext::clear_imported_modules() -> void
     decl_indices_ = DeclIndices{};
 }
 
-auto ModuleContext::global_symbol_declared(const DeclData::Type &decl_type) -> void
+auto ModuleContext::global_symbol_declared(const DeclarationType &decl_type) -> void
 {
     decl_indices_.increase(decl_type);
 }

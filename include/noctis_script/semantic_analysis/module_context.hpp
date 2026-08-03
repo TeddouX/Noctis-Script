@@ -43,7 +43,7 @@ private:
         Parsing::ScopedPath,
         PtrRef<SemanticAnalysis::ModuleData>>   imported_modules_;
 
-    auto global_symbol_declared(const SemanticAnalysis::DeclData::Type &decl_type) -> void;
+    auto global_symbol_declared(const SemanticAnalysis::DeclarationType &decl_type) -> void;
 
     SemanticAnalysis::DeclIndices               decl_indices_;
 };

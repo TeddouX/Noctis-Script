@@ -15,11 +15,12 @@ using namespace SemanticAnalysis;
 TEST(SemanticAnalyzerTest, FirstPassCorrectlyImportModules)
 {
     ModuleContext module_context{};
-    auto errs = module_context.add_module("@module testing;", "testing.ncsc");
+    auto errs = module_context.add_module("@module testing;\nobj TestObj {}", "testing.ncsc");
     ASSERT_TRUE(errs.empty());
 
     auto script_src = ScriptSource::from_contents(
 R"(@import testing;
+func main() {}
 )");
 
     Parser parser{tokenize(script_src), script_src};
@@ -53,8 +54,8 @@ export
 
     auto script_src = ScriptSource::from_contents(
 R"(@import std::math
-@using std::math::Vec3
-func main() -> Vec45 {}
+@using module std::math
+func main() -> Vec3 {}
 obj Vec45 {}
 )");
 
@@ -71,7 +72,12 @@ obj Vec45 {}
     analyzer.second_pass();
     ASSERT_FALSE(analyzer.has_analysis_errors());
     
-    auto module_data = analyzer.module_data_;
+    auto decl_data = analyzer.get_declaration("main", Location{});
+    ASSERT_TRUE(decl_data != nullptr);
+    ASSERT_EQ(decl_data->name, "main");
+    
+    auto func_decl = decl_data->decl_node.dynamic_ptr_cast<Parsing::FuncDeclASTNode>();
+    ASSERT_EQ(func_decl->func_return_type, make_object_vtype(0));
 }
 
 TEST(SemanticAnalyzerTest, SecondPassFunctionCorrectData) 
@@ -89,10 +95,10 @@ R"(func main(arg1: int, arg2: float) -> bool {}
     auto decl_data = analyzer.get_declaration("main", Location{});
 
     ASSERT_TRUE(decl_data != nullptr);
-    ASSERT_EQ(decl_data->decl_type, DeclData::Type::FUNCTION);
+    ASSERT_EQ(decl_data->decl_type, DeclarationType::FUNCTION);
     
     auto func_decl = decl_data->decl_node.dynamic_ptr_cast<Parsing::FuncDeclASTNode>();
-    ASSERT_EQ(func_decl->func_name, "main");
+    ASSERT_EQ(func_decl->name, "main");
     ASSERT_EQ(func_decl->func_params.size(), 2);
     
     const auto &[param1_name, param1_type] = func_decl->func_params[0];
@@ -121,10 +127,10 @@ R"(var bla: uint16 = 10;
     auto decl_data = analyzer.get_declaration("bla", Location{});
 
     ASSERT_TRUE(decl_data != nullptr);
-    ASSERT_EQ(decl_data->decl_type, DeclData::Type::VARIABLE);
+    ASSERT_EQ(decl_data->decl_type, DeclarationType::VARIABLE);
     
     auto var_decl = decl_data->decl_node.dynamic_ptr_cast<Parsing::VarDeclASTNode>();
-    ASSERT_EQ(var_decl->var_name, "bla");
+    ASSERT_EQ(var_decl->name, "bla");
     ASSERT_EQ(var_decl->var_type, ValueType::UINT16);
 }
 
@@ -143,10 +149,10 @@ R"(obj Vec3 {}
     auto decl_data = analyzer.get_declaration("Vec3", Location{});
 
     ASSERT_TRUE(decl_data != nullptr);
-    ASSERT_EQ(decl_data->decl_type, DeclData::Type::OBJECT);
+    ASSERT_EQ(decl_data->decl_type, DeclarationType::OBJECT);
     
     auto obj_decl = decl_data->decl_node.dynamic_ptr_cast<Parsing::ObjDeclASTNode>();
-    ASSERT_EQ(obj_decl->obj_name, "Vec3");
+    ASSERT_EQ(obj_decl->name, "Vec3");
     ASSERT_EQ(obj_decl->obj_type, vtype_set_mask((ValueType)0, ValueType::OBJ_MASK));
 }
 
@@ -172,43 +178,92 @@ var var_2: int;
 
     auto func_0_data = analyzer.get_declaration("func_0", Location{});
     ASSERT_TRUE(func_0_data != nullptr);
-    ASSERT_EQ(func_0_data->decl_type, DeclData::Type::FUNCTION);
+    ASSERT_EQ(func_0_data->decl_type, DeclarationType::FUNCTION);
     ASSERT_EQ(func_0_data->idx, 0);
 
     auto func_1_data = analyzer.get_declaration("func_1", Location{});
     ASSERT_TRUE(func_1_data != nullptr);
-    ASSERT_EQ(func_1_data->decl_type, DeclData::Type::FUNCTION);
+    ASSERT_EQ(func_1_data->decl_type, DeclarationType::FUNCTION);
     ASSERT_EQ(func_1_data->idx, 1);
 
     auto func_2_data = analyzer.get_declaration("func_2", Location{});
     ASSERT_TRUE(func_2_data != nullptr);
-    ASSERT_EQ(func_2_data->decl_type, DeclData::Type::FUNCTION);
+    ASSERT_EQ(func_2_data->decl_type, DeclarationType::FUNCTION);
     ASSERT_EQ(func_2_data->idx, 2);
 
     auto obj_0_data = analyzer.get_declaration("obj_0", Location{});
     ASSERT_TRUE(obj_0_data != nullptr);
-    ASSERT_EQ(obj_0_data->decl_type, DeclData::Type::OBJECT);
+    ASSERT_EQ(obj_0_data->decl_type, DeclarationType::OBJECT);
     ASSERT_EQ(obj_0_data->idx, 0);
 
     auto obj_1_data = analyzer.get_declaration("obj_1", Location{});
     ASSERT_TRUE(obj_1_data != nullptr);
-    ASSERT_EQ(obj_1_data->decl_type, DeclData::Type::OBJECT);
+    ASSERT_EQ(obj_1_data->decl_type, DeclarationType::OBJECT);
     ASSERT_EQ(obj_1_data->idx, 1);
 
     auto var_0_data = analyzer.get_declaration("var_0", Location{});
     ASSERT_TRUE(var_0_data != nullptr);
-    ASSERT_EQ(var_0_data->decl_type, DeclData::Type::VARIABLE);
+    ASSERT_EQ(var_0_data->decl_type, DeclarationType::VARIABLE);
     ASSERT_EQ(var_0_data->idx, 0);
 
     auto var_1_data = analyzer.get_declaration("var_1", Location{});
     ASSERT_TRUE(var_1_data != nullptr);
-    ASSERT_EQ(var_1_data->decl_type, DeclData::Type::VARIABLE);
+    ASSERT_EQ(var_1_data->decl_type, DeclarationType::VARIABLE);
     ASSERT_EQ(var_1_data->idx, 1);
 
     auto var_2_data = analyzer.get_declaration("var_2", Location{});
     ASSERT_TRUE(var_2_data != nullptr);
-    ASSERT_EQ(var_2_data->decl_type, DeclData::Type::VARIABLE);
+    ASSERT_EQ(var_2_data->decl_type, DeclarationType::VARIABLE);
     ASSERT_EQ(var_2_data->idx, 2);
+}
+
+TEST(SemanticAnalyzerTest, SecondPassObjectContentsCorrectData)
+{
+    auto script_src = ScriptSource::from_contents(
+R"(obj Vec3 
+{
+    public var bla: int = 0;
+    public var blou: float = 0.0;
+
+    public func caca() {}
+    private func caca2() {}
+}
+)");
+    Parser parser{tokenize(script_src), script_src};
+    auto root_node = parser.parse();
+    SemanticAnalyzer analyzer{root_node, script_src};
+    analyzer.init_root_scope();
+    analyzer.first_pass();
+    analyzer.second_pass();
+
+    ASSERT_FALSE(analyzer.has_analysis_errors());
+
+    auto decl_data = analyzer.get_declaration("Vec3", Location{});
+
+    ASSERT_TRUE(decl_data != nullptr);
+    ASSERT_EQ(decl_data->decl_type, DeclarationType::OBJECT);
+    
+    auto obj_decl = decl_data->decl_node.dynamic_ptr_cast<Parsing::ObjDeclASTNode>();
+
+    auto bla_decl = obj_decl->obj_members["bla"];
+    ASSERT_EQ(bla_decl.name, "bla");
+    ASSERT_EQ(bla_decl.idx, 0);
+    ASSERT_EQ(bla_decl.access_mod, AccessModifier::PUBLIC);
+
+    auto blou_decl = obj_decl->obj_members["blou"];
+    ASSERT_EQ(blou_decl.name, "blou");
+    ASSERT_EQ(blou_decl.idx, 1);
+    ASSERT_EQ(blou_decl.access_mod, AccessModifier::PUBLIC);
+
+    auto caca_decl = obj_decl->obj_methods["caca"];
+    ASSERT_EQ(caca_decl.name, "caca");
+    ASSERT_EQ(caca_decl.idx, 0);
+    ASSERT_EQ(caca_decl.access_mod, AccessModifier::PUBLIC);
+
+    auto caca2_decl = obj_decl->obj_methods["caca2"];
+    ASSERT_EQ(caca2_decl.name, "caca2");
+    ASSERT_EQ(caca2_decl.idx, 1);
+    ASSERT_EQ(caca2_decl.access_mod, AccessModifier::PRIVATE);
 }
 
 } // namespace NCSC

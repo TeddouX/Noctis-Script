@@ -4,6 +4,7 @@
 #include <string>
 
 #include "sa_decl_data.hpp"
+#include "sa_decl_indices.hpp"
 
 
 namespace NCSC::SemanticAnalysis

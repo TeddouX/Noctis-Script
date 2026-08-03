@@ -5,6 +5,7 @@
 #include "sa_scope.hpp"
 #include "sa_value_type.hpp"
 #include "../parsing/ast_node.hpp"
+#include "../parsing/ast_node/obj_decl_ast_node.hpp"
 #include "../parsing/scoped_path.hpp"
 #include "../error.hpp"
 #include "module_context.hpp"
@@ -62,6 +63,10 @@ private:
     auto enter_new_scope() -> void;
     auto exit_scope() -> void;
     
+    auto first_pass_decl_body(
+        const TypeErased<ASTNode> &decl_body, 
+        const TypeErased<Parsing::ObjDeclASTNode> &obj_decl = nullptr) -> bool;
+
     auto is_symbol_defined_elsewhere(const TypeErased<ASTNode> &identifer) -> bool;
     auto value_type_from_node(const TypeErased<ASTNode> &type_node) -> SemanticAnalysis::ValueType;
 
@@ -74,6 +79,7 @@ private:
     FRIEND_TEST(SemanticAnalyzerTest, SecondPassGlobalVarCorrectData);
     FRIEND_TEST(SemanticAnalyzerTest, SecondPassObjectCorrectData);
     FRIEND_TEST(SemanticAnalyzerTest, SecondPassCorrectIndices);
+    FRIEND_TEST(SemanticAnalyzerTest, SecondPassObjectContentsCorrectData);
 
     inline static auto ERR_NOT_A_TYPE           {ErrorInfo::create("Semantic Analysis", "SA1",  "'{}' is not a type.")};
     inline static auto ERR_ALREADY_DEFINED      {ErrorInfo::create("Semantic Analysis", "SA2",  "'{}' was already defined somewhere else.")};

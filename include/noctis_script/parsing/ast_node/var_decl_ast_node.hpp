@@ -16,7 +16,7 @@ public:
     bool                        parser_is_member = false;
 
     SemanticAnalysis::ValueType var_type;
-    std::string                 var_name;
+    std::string                 name;
 };
 
 } // namespace NCSC::Parsing
